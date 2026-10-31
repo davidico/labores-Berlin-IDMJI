@@ -80,7 +80,7 @@ on conflict (email) do update set person_id = 'david', is_admin = true, can_uplo
 insert into public.app_state (id, json) values ('main', $datos${data}$datos$)
 on conflict (id) do update set json = excluded.json, updated_at = now();
 """
-out = pathlib.Path(__file__).resolve().parent.parent / 'supabase' / 'setup.sql'
+out = pathlib.Path(sys.argv[3]) if len(sys.argv)>3 else pathlib.Path(__file__).resolve().parent.parent / 'supabase' / 'setup.sql'
 out.parent.mkdir(exist_ok=True)
 out.write_text(sql)
 print(out, len(sql))

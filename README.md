@@ -4,11 +4,10 @@ App instalable (PWA) para organizar las labores de la iglesia en Berlín: horari
 disponibilidad, reemplazos, mensajes de púlpito, reuniones y fichas de interpretación.
 
 ## Cómo está armada
-- `index.html`, `app.js`: la app (sin compilación, archivos estáticos).
-- `config.js`: Project URL y anon key de Supabase.
-- `sw.js`, `manifest.webmanifest`, íconos: lo que permite instalarla en el celular.
-- `supabase/setup.sql`: tablas, reglas de acceso y datos iniciales. Se ejecuta una sola vez.
-- Netlify publica la carpeta tal cual cada vez que cambia el repositorio.
+- `public/`: la app que publica Netlify (`index.html`, `app.js`, `config.js`, `sw.js`, manifest e íconos).
+- `supabase/schema.sql`: tablas y reglas de acceso.
+- `tools/make_sql.py`: genera el SQL con los datos iniciales (no se guarda en el repositorio).
+- Netlify publica la carpeta `public/` cada vez que cambia el repositorio.
 
 ## Quién puede entrar
 Solo los correos que el administrador escribe en **Personas → Correo para entrar a la app**.
