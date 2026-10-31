@@ -473,6 +473,21 @@ function avAdmin(m){const av=avOf(ui.month);const mes=MES[m-1];
     <div class="info" style="margin-top:4px"><b>${done.length} de ${all.length}</b> ya respondieron.</div>
     ${ui.avList?`<div class="note"><b>Faltan:</b> ${pend.map(i=>esc((person(i)||{}).name||'')).join(', ')||'nadie'}</div>`:''}
     <div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="av-list">${ui.avList?'Ocultar':'Ver quién falta'}</button>${pend.length?'<button class="btn sm" data-a="av-remind">Recordar a los que faltan</button>':''}</div></div>`}
+function avAll(m){const mes=MES[m-1],av=avOf(ui.month);
+  if(!ui.avAll)return `<div style="margin-top:8px"><button class="btn ghost sm" data-a="av-all">Ver quién no puede en ${mes}</button></div>`;
+  const ppl=state.people.filter(x=>x.roles&&x.roles.length&&(ui.area==='all'||myAreas(x).includes(ui.area))).sort((a,b)=>a.name.localeCompare(b.name));
+  const dates=monthDates(ui.month),blk=x=>x.blocked.filter(d=>d.slice(0,7)===ui.month).sort();
+  const tabs=`<div class="filters" style="margin:8px 0"><button class="f" data-a="av-mode" data-v="p" aria-pressed="${ui.avMode!=='d'}">Por persona</button><button class="f" data-a="av-mode" data-v="d" aria-pressed="${ui.avMode==='d'}">Por fecha</button></div>`;
+  let body;
+  if(ui.avMode==='d'){const rows=dates.map(d=>[d,ppl.filter(x=>x.blocked.includes(d))]).filter(r=>r[1].length);
+    body=rows.length?rows.map(([d,xs])=>`<div class="li"><div class="main"><b>${DOWS[pd(d).getDay()]} ${pd(d).getDate()}</b><small>${xs.map(x=>esc(x.name)).join(', ')}</small></div><span class="tag">${xs.length}</span></div>`).join(''):`<div class="info">Nadie marcó fechas en ${mes}.</div>`;
+    body+=`<div class="info" style="margin-top:8px">Aquí salen solo las fechas marcadas. Los días de la semana que cada uno no sirve están en «Por persona».</div>`}
+  else body=ppl.map(x=>{const off=[1,2,3,4,5,6,0].filter(w=>!x.days.includes(w)),b=blk(x),ok=av&&av.done&&av.done[x.id];
+    return `<div class="li"><div class="main"><b>${esc(x.name)}</b>${av?`<span class="info" style="margin:0 0 0 6px;display:inline">${ok?'· respondió':'· <b>falta</b>'}</span>`:''}
+      <small>${b.length?`No puede: ${b.map(d=>DOWS[pd(d).getDay()]+' '+pd(d).getDate()).join(', ')}`:'Sin fechas marcadas'}</small>
+      ${off.length?`<small>Nunca: ${off.map(w=>DOWS[w]).join(', ')}</small>`:''}</div></div>`}).join('')||'<div class="info">No hay nadie en esta área.</div>';
+  return `<div class="card" style="margin-top:10px"><div class="dayhead"><b>Quién no puede en ${mes}</b><button class="x" data-a="av-all" aria-label="Cerrar">✕</button></div>
+    <div class="info" style="margin-top:2px">${ui.area==='all'?'Todas las áreas':'Área: '+AREAN[ui.area]} · cambia el área con los filtros de abajo.</div>${tabs}${body}</div>`}
 function misAv(p){if(!p.roles||!p.roles.length)return'';let h='';
   for(const ym of Object.keys(state.avReqs||{}).sort()){const av=avOf(ym);if(ym<today.slice(0,7)||today>av.deadline)continue;const mes=MES[+ym.slice(5,7)-1];const done=av.done&&av.done[p.id];
     if(ui.avOpen===ym){const dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,n=dates.filter(d=>p.blocked.includes(d)).length;
@@ -564,7 +579,7 @@ function vHor(p){const RO=!p.admin;
   let h=`<div class="bar"><div class="mnav"><button class="ib" data-a="month" data-v="-1" aria-label="Mes anterior">‹</button><b>${MES[m-1]} ${y}</b><button class="ib" data-a="month" data-v="1" aria-label="Mes siguiente">›</button></div>
     <div class="inline">${sched&&DL?`<button class="btn sm" data-a="pdf">Descargar PDF</button>`:''}${RO?'':sched?`<button class="btn ghost sm" data-a="regen">Volver a generar</button>`:`<button class="btn sm" data-a="gen">Generar horario</button>`}</div></div>${ui.pdfMsg?`<div class="info" style="margin-top:8px">${esc(ui.pdfMsg)}</div>`:''}`;
   if(ui.regen)h+=`<div class="confirm">Se reemplazan todos los cambios de ${MES[m-1]}. <button class="btn warnb sm" data-a="gen">Sí, generar de nuevo</button><button class="btn ghost sm" data-a="regen-no">Cancelar</button></div>`;
-  if(!RO)h+=pubBar(m)+avAdmin(m);
+  if(!RO)h+=pubBar(m)+avAdmin(m)+avAll(m);
   h+=msgBlock(p);
   h+=`<h3>Reuniones</h3>`+meetBlock(p);
   h+=`<div class="filters"><button class="f" data-a="view" data-v="grid" aria-pressed="${ui.view==='grid'}">Tabla</button><button class="f" data-a="view" data-v="cards" aria-pressed="${ui.view==='cards'}">Por día</button><span style="width:1px;background:var(--line);flex:none"></span>${[['all','Todo'],...Object.entries(AREAN)].map(([k,l])=>`<button class="f" data-a="area" data-v="${k}" aria-pressed="${ui.area===k}">${l}</button>`).join('')}</div>`;
@@ -815,6 +830,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'av-send':{const dl=($('av-deadline').value||'').trim();if(!dl)return;state.avReqs=state.avReqs||{};state.avReqs[ui.month]={deadline:dl,ts:Date.now(),done:{}};ui.avAsk=false;const mes=MES[+ui.month.slice(5,7)-1];
     notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
   case'av-list':ui.avList=!ui.avList;break;
+  case'av-all':ui.avAll=!ui.avAll;break;
+  case'av-mode':ui.avMode=v;break;
   case'av-remind':{const av=avOf(ui.month);if(!av)break;const mes=MES[+ui.month.slice(5,7)-1];const pend=servers().filter(i=>!(av.done&&av.done[i]));
     notify(pend,`Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmt(av.deadline)}.`,{push:{title:`Falta tu disponibilidad de ${mes}`,body:`Márcala antes del ${fmt(av.deadline)}.`}});ui.toast=`Recordatorio enviado a ${pend.length} ${pend.length===1?'persona':'personas'}.`;break}
   case'av-open':ui.avOpen=v;break;
