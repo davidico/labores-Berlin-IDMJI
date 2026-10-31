@@ -96,8 +96,8 @@ if(!state.adminFix){const g=state.people.find(p=>p.id==='gabriela'),d=state.peop
 const SB=window.supabase.createClient(window.CFG.url,window.CFG.key);
 let SYNC='loading',REF=null,lastJson=null,writing=false,dirty=false,wTimer=null,SESSION=null,MYPID=null,READY=false,CH=null;
 const sharedJson=()=>{const{me,...rest}=state;return JSON.stringify(rest)};
-function save(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}if(REF){clearTimeout(wTimer);wTimer=setTimeout(push,400)}}
-async function push(){if(!REF)return;if(writing){dirty=true;return}const j=sharedJson();if(j===lastJson)return;
+function save(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}if(SESSION&&READY){clearTimeout(wTimer);wTimer=setTimeout(push,400)}}
+async function push(){if(!SESSION)return;if(writing){dirty=true;return}const j=sharedJson();if(j===lastJson)return;
   writing=true;try{const{error}=await SB.from('app_state').upsert({id:'main',json:j,updated_at:new Date().toISOString()});if(error)throw error;lastJson=j;if(SYNC!=='ok'){SYNC='ok';render()}}catch(e){SYNC='error';render()}
   writing=false;if(dirty){dirty=false;push()}}
 const person=id=>state.people.find(p=>p.id===id);
@@ -771,6 +771,7 @@ async function loadData(){SYNC='loading';render();
   if(error){SYNC='error';READY=true;render();return}
   if(data&&data.json)adopt(data.json);else if(MYPID)await push();
   SYNC='ok';READY=true;resolveMe();render();
+  if(sharedJson()!==lastJson)push();
   if(!CH)CH=SB.channel('estado').on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'id=eq.main'},pl=>{if(pl.new&&pl.new.json&&!writing){adopt(pl.new.json);resolveMe();render()}}).subscribe();}
 async function syncMember(p,oldEmail){try{
   if(oldEmail&&oldEmail.toLowerCase()!==(p.email||'').toLowerCase())await SB.from('members').delete().eq('email',oldEmail.toLowerCase());
