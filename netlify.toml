@@ -15,3 +15,10 @@
   for = "/index.html"
   [headers.values]
     Cache-Control = "no-cache"
+
+# Solo se permiten los scripts de la app y de las librerías que usa.
+# Esto también evita que Netlify inserte su aviso "Powered by Netlify" sobre la barra de pestañas.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "script-src 'self' https://cdn.jsdelivr.net"
