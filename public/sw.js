@@ -1,6 +1,6 @@
 // Guarda la app para que abra rápido y funcione con mala conexión.
-const CACHE = 'labores-v7';
-const SHELL = ['./', './index.html', './app.js', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const CACHE = 'labores-v8';
+const SHELL = ['./', './index.html', './app.js', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './badge.png'];
 const CDN = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
@@ -32,7 +32,7 @@ self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data && e.data.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || 'Labores Berlín', {
-    body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', data: { url: d.url || './' }
+    body: d.body || '', icon: 'icon-192.png', badge: 'badge.png', data: { url: d.url || './' }
   }));
 });
 self.addEventListener('notificationclick', e => {
