@@ -1,6 +1,6 @@
 // Función "push" de Supabase: envía notificaciones al celular.
 // - mode "send": la app avisa a ciertas personas (solo miembros registrados pueden usarla).
-// - mode "daily": recordatorio de la noche antes (lo llama la tarea programada cada hora; envía a las 20:00 de Berlín).
+// - mode "daily": recordatorio de la noche antes (lo llama la tarea programada cada hora; envía una sola vez por día, a las 20:00 de Berlín).
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 
@@ -60,12 +60,15 @@ function invitees(st: any, m: any): string[] {
   if ((m.areas || []).includes('all')) return people.map((p) => p.id);
   return people.filter((p) => (p.roles || []).some((r: string) => (m.areas || []).includes(ROLEAREA[r])) || ((m.areas || []).includes('pulpito') && p.pastor)).map((p) => p.id);
 }
-async function daily(force: boolean) {
+async function daily() {
   const now = new Date();
   const p = berlin(now);
-  if (!force && Number(p.hour) !== 20) return { skipped: true, hour: p.hour };
+  if (Number(p.hour) !== 20) return { skipped: true, hour: p.hour };
   const q = berlin(new Date(now.getTime() + 24 * 3600e3));
   const date = `${q.year}-${q.month}-${q.day}`;
+  // Solo una vez por día, aunque alguien llame a la función más veces.
+  const { error: dup } = await SB.from('push_log').insert({ day: date });
+  if (dup) return { skipped: true, already: date };
   const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
   if (!data) return { error: 'sin datos' };
   const st = JSON.parse(data.json);
@@ -87,10 +90,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   // deno-lint-ignore no-explicit-any
   const b: any = await req.json().catch(() => ({}));
-  if (b.mode === 'daily') {
-    if (req.headers.get('x-cron-secret') !== Deno.env.get('CRON_SECRET')) return json({ error: 'no autorizado' }, 401);
-    return json(await daily(!!b.force));
-  }
+  if (b.mode === 'daily') return json(await daily());
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
   const { data: u } = await SB.auth.getUser(token);
   const email = u?.user?.email?.toLowerCase();
