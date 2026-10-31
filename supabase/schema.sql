@@ -11,6 +11,7 @@ create table if not exists public.members (
 create table if not exists public.app_state (
   id text primary key,
   json text not null,
+  version bigint not null default 1,
   updated_at timestamptz not null default now()
 );
 

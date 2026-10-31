@@ -94,11 +94,43 @@ if(!state||state.v!==1) state=seed();
 state.reqs=state.reqs||[];state.notifs=state.notifs||[];state.msgs=state.msgs||[];state.meets=state.meets||[];
 if(!state.adminFix){const g=state.people.find(p=>p.id==='gabriela'),d=state.people.find(p=>p.id==='david');if(g)g.admin=false;if(d)d.admin=true;state.adminFix=1;if(state.me==='gabriela')state.me=null}
 const SB=window.supabase.createClient(window.CFG.url,window.CFG.key);
-let SYNC='loading',REF=null,lastJson=null,writing=false,dirty=false,wTimer=null,SESSION=null,MYPID=null,READY=false,CH=null;
-const sharedJson=()=>{const{me,...rest}=state;return JSON.stringify(rest)};
+let SYNC='loading',lastJson=null,BASE=null,VER=0,writing=false,dirty=false,wTimer=null,SESSION=null,MYPID=null,READY=false,CH=null;
+const sharedObj=()=>{const{me,...rest}=state;return rest};
+const sharedJson=()=>JSON.stringify(sharedObj());
 function save(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}if(SESSION&&READY){clearTimeout(wTimer);wTimer=setTimeout(push,400)}}
-async function push(){if(!SESSION)return;if(writing){dirty=true;return}const j=sharedJson();if(j===lastJson)return;
-  writing=true;try{const{error}=await SB.from('app_state').upsert({id:'main',json:j,updated_at:new Date().toISOString()});if(error)throw error;lastJson=j;if(SYNC!=='ok'){SYNC='ok';render()}}catch(e){SYNC='error';render()}
+/* Unir cambios de dos personas que guardan al mismo tiempo (base común, lo mío, lo del servidor). */
+const isObj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+function merge3(b,l,r){
+  if(same(l,b))return r;if(same(r,b)||same(l,r))return l;
+  if(isObj(l)&&isObj(r)){const bb=isObj(b)?b:{},out={};
+    for(const k of new Set([...Object.keys(r),...Object.keys(l)])){const inL=k in l,inR=k in r,inB=k in bb;
+      if(inL&&inR)out[k]=merge3(bb[k],l[k],r[k]);
+      else if(inL){if(inB&&same(bb[k],l[k]))continue;out[k]=l[k]}
+      else{if(inB&&same(bb[k],r[k]))continue;out[k]=r[k]}}
+    return out}
+  if(Array.isArray(l)&&Array.isArray(r)){const ba=Array.isArray(b)?b:[];
+    const withIds=a=>a.every(x=>isObj(x)&&typeof x.id==='string');
+    if(withIds(l)&&withIds(r)&&withIds(ba)){const M=a=>new Map(a.map(x=>[x.id,x])),B=M(ba),L=M(l),R=M(r);
+      const keep=id=>{const inB=B.has(id),inL=L.has(id),inR=R.has(id);if(inL&&inR)return true;if(inL)return !inB;if(inR)return !inB;return false};
+      const newLocal=l.filter(x=>!B.has(x.id)&&!R.has(x.id)).map(x=>x.id);
+      let order;
+      if(!same(l.map(x=>x.id),ba.map(x=>x.id))&&same(r.map(x=>x.id),ba.map(x=>x.id))&&!newLocal.length)order=l.map(x=>x.id);
+      else{const rest=r.map(x=>x.id);order=l.length&&newLocal.includes(l[0].id)?[...newLocal,...rest]:[...rest,...newLocal]}
+      return [...new Set(order)].filter(keep).map(id=>L.has(id)&&R.has(id)?merge3(B.get(id),L.get(id),R.get(id)):(L.get(id)||R.get(id)))}
+    if([l,r,ba].every(a=>a.every(x=>!isObj(x)&&!Array.isArray(x)))){const add=l.filter(x=>!ba.includes(x)),del=ba.filter(x=>!l.includes(x));
+      return [...r.filter(x=>!del.includes(x)),...add.filter(x=>!r.includes(x))]}}
+  return l}
+async function refetch(){const{data}=await SB.from('app_state').select('json,version').eq('id','main').maybeSingle();if(data)adopt(data.json,data.version)}
+async function push(){if(!SESSION||!READY)return;if(writing){dirty=true;return}
+  writing=true;
+  try{for(let i=0;i<6;i++){const j=sharedJson();if(j===lastJson)break;
+      const res=VER?await SB.from('app_state').update({json:j,version:VER+1,updated_at:new Date().toISOString()}).eq('id','main').eq('version',VER).select('version')
+                   :await SB.from('app_state').insert({id:'main',json:j,version:1}).select('version');
+      if(!res.error&&res.data&&res.data.length){VER=res.data[0].version;lastJson=j;BASE=JSON.parse(j);continue}
+      if(res.error&&VER)throw res.error;
+      await refetch()}
+    if(SYNC!=='ok'){SYNC='ok';render()}}catch(e){SYNC='error';render()}
   writing=false;if(dirty){dirty=false;push()}}
 const person=id=>state.people.find(p=>p.id===id);
 const me=()=>person(state.me);
@@ -214,6 +246,7 @@ function migrate(){let ch=false;
   if(!state.leipFix){if(state.leipzig.length===1&&/ejemplo/.test(state.leipzig[0].teaching||''))state.leipzig=[];
     for(const d of ['2026-11-14','2026-11-28'])if(!state.leipzig.some(l=>l.date===d))state.leipzig.push({id:uid(),date:d,teaching:''});
     for(const d of ['2026-11-12','2026-11-26','2026-11-22'])fixDate(d);state.leipFix=1;ch=true}
+  if(!state.pubFix){state.published=state.published||{};for(const ym in state.schedules)if(ym<='2026-11')state.published[ym]=Date.now();state.avReqs=state.avReqs||{};state.pubFix=1;ch=true}
   if(!state.phoneFix){for(const x of state.people)delete x.birthday;state.phoneFix=1;ch=true}
   if(!state.lateFix){for(const x of state.people)delete x.late;state.lateFix=1;ch=true}
   if(!state.grdFix){const t=person('tomasa');if(t&&t.name==='Tomasa')t.name='Tomasa P.';const mr=person('marion');if(mr&&mr.name==='Marion')mr.name='Marion D.';for(const id of ['gabriela','denisse']){const x=person(id);if(x&&!x.roles.includes('guardar_sup'))x.roles.push('guardar_sup')}
@@ -281,7 +314,7 @@ function myAreas(p){const s=new Set(p.roles.filter(r=>r!=='entrega').map(r=>ROLE
 function myItems(p){
   const items={};const add=d=>(items[d]=items[d]||{slots:[],notes:[]});
   const isPul=p.roles.includes('pulpito')||p.pastor, isTrad=p.roles.some(r=>r.startsWith('trad'));
-  for(const ym in state.schedules)for(const date in state.schedules[ym]){
+  for(const ym in state.schedules)if(canSeeMonth(p,ym))for(const date in state.schedules[ym]){
     const as=state.schedules[ym][date],w=pd(date).getDay();
     for(const s of slotsAt(date))if(as[s.k]===p.id)add(date).slots.push(s);
   }
@@ -414,7 +447,38 @@ function installHint(){const sa=window.matchMedia&&matchMedia('(display-mode: st
   return `<div class="card" style="margin-bottom:14px"><div class="dayhead"><b>Instala la app en tu celular</b><button class="x" data-a="install-x" aria-label="Cerrar">✕</button></div>
    <div class="info" style="margin-top:4px">${INSTALL?'Así la abres con un toque y recibes los avisos.':ios?'En Safari toca <b>Compartir</b> (el cuadrado con flecha) y luego <b>Agregar a inicio</b>. En iPhone, las notificaciones solo funcionan con la app instalada.':'En el menú del navegador (⋮) toca <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.'}</div>
    ${INSTALL?'<button class="btn sm" data-a="install" style="margin-top:8px">Instalar</button>':''}</div>`}
-function vMis(p){const top=avisos(p)+misMeets(p)+misMsgs(p);return `<h2>Hola, ${esc(p.name.split(' ')[0])}</h2>`+installHint()+pushCard()+top+(top?'<h3>Tus labores</h3>':'')+misList(p)}
+/* ---- borrador y publicación ---- */
+const isPub=ym=>!!(state.published&&state.published[ym]);
+const canSeeMonth=(p,ym)=>!!(p&&p.admin)||isPub(ym);
+const servers=()=>state.people.filter(x=>x.roles&&x.roles.length).map(x=>x.id);
+function pubBar(m){if(!state.schedules[ui.month])return'';
+  if(isPub(ui.month))return `<div class="info" style="margin-top:10px">Publicado: todos ven el horario de ${MES[m-1]}. <button class="btn ghost sm" data-a="unpublish">Volver a borrador</button></div>`;
+  return `<div class="confirm" style="margin-top:10px"><span><b>Borrador.</b> Los hermanos todavía no ven el horario de ${MES[m-1]}. Ajusta lo que necesites y publícalo.</span><button class="btn sm" data-a="publish">Publicar horario</button></div>`}
+/* ---- pedir disponibilidad ---- */
+const avOf=ym=>(state.avReqs||{})[ym];
+function avAdmin(m){const av=avOf(ui.month);const mes=MES[m-1];
+  if(!av){if(ui.avAsk){const def=(()=>{const d=pd(ui.month+'-01');d.setDate(d.getDate()-6);const t=ds(d);return t<today?today:t})();
+      return `<div class="panel" style="margin-top:10px"><b>Pedir disponibilidad de ${mes}</b><div class="info" style="margin:4px 0 8px">A todos los que sirven les llega un aviso para marcar los días que no pueden.</div>
+        <div class="inline"><label class="field" style="margin:0">Responder hasta<input id="av-deadline" type="date" min="${today}" value="${def}"></label></div>
+        <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="av-send">Enviar pedido</button><button class="btn ghost sm" data-a="av-x">Cancelar</button></div></div>`}
+    return `<div style="margin-top:10px"><button class="btn ghost sm" data-a="av-ask">Pedir disponibilidad de ${mes}</button></div>`}
+  const all=servers(),done=all.filter(i=>av.done&&av.done[i]),pend=all.filter(i=>!(av.done&&av.done[i]));
+  return `<div class="card" style="margin-top:10px"><div class="dayhead"><b>Disponibilidad de ${mes}</b><span class="info" style="margin:0">hasta el ${fmt(av.deadline)}</span></div>
+    <div class="info" style="margin-top:4px"><b>${done.length} de ${all.length}</b> ya respondieron.</div>
+    ${ui.avList?`<div class="note"><b>Faltan:</b> ${pend.map(i=>esc((person(i)||{}).name||'')).join(', ')||'nadie'}</div>`:''}
+    <div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="av-list">${ui.avList?'Ocultar':'Ver quién falta'}</button>${pend.length?'<button class="btn sm" data-a="av-remind">Recordar a los que faltan</button>':''}</div></div>`}
+function misAv(p){if(!p.roles||!p.roles.length)return'';let h='';
+  for(const ym of Object.keys(state.avReqs||{}).sort()){const av=avOf(ym);if(ym<today.slice(0,7))continue;const mes=MES[+ym.slice(5,7)-1];const done=av.done&&av.done[p.id];
+    if(ui.avOpen===ym){const dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,n=dates.filter(d=>p.blocked.includes(d)).length;
+      h+=`<div class="card" style="margin-bottom:14px"><b>Tu disponibilidad de ${mes}</b><div class="info" style="margin:4px 0 10px">Presiona los días que <b>no puedes</b> servir. Los días que dejes sin presionar quedan disponibles.</div>
+        <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${dates.map(d=>`<button class="tog avd" data-a="avday" data-v="${d}" aria-pressed="${p.blocked.includes(d)}" aria-label="${fmt(d)}">${pd(d).getDate()}</button>`).join('')}</div>
+        <div class="info" style="margin-top:8px">${n?`No puedes ${n} ${n===1?'día':'días'}.`:'Puedes todos los días.'}</div>
+        <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="av-done" data-v="${ym}">Enviar mi disponibilidad</button><button class="btn ghost sm" data-a="av-close">Cerrar</button></div></div>`;continue}
+    if(done){if(today<=av.deadline)h+=`<div class="info" style="margin-bottom:12px">Enviaste tu disponibilidad de ${mes}. <button class="btn ghost sm" data-a="av-open" data-v="${ym}">Cambiar</button></div>`;continue}
+    h+=`<div class="card ask" style="margin-bottom:14px"><b>Disponibilidad de ${mes}</b><div class="info" style="margin-top:4px">Marca los días que no puedes servir${today<=av.deadline?` antes del <b>${fmt(av.deadline)}</b>`:''}.</div>
+      <button class="btn sm" data-a="av-open" data-v="${ym}" style="margin-top:8px">Marcar mis días</button></div>`}
+  return h}
+function vMis(p){const top=misAv(p)+avisos(p)+misMeets(p)+misMsgs(p);return `<h2>Hola, ${esc(p.name.split(' ')[0])}</h2>`+installHint()+pushCard()+top+(top?'<h3>Tus labores</h3>':'')+misList(p)}
 /* ---- mensajes por equipo ---- */
 function teamIds(area){return state.people.filter(x=>area==='all'||x.roles.some(r=>ROLEAREA[r]===area)||(area==='pulpito'&&x.pastor)).map(x=>x.id)}
 function msgsFor(p,ym){const a=myAreas(p);return state.msgs.filter(m=>m.month===ym&&(m.area==='all'||a.includes(m.area)||m.from===p.id))}
@@ -451,7 +515,7 @@ function misCal(p){
   return h;
 }
 function misTeam(p){
-  const sched=state.schedules[ui.cm];const areas=myAreas(p);
+  const sched=canSeeMonth(p,ui.cm)?state.schedules[ui.cm]:null;const areas=myAreas(p);
   const grids=GRIDS.filter(g=>g.role?p.roles.includes(g.role):(g.areas||[g.area]).some(a=>areas.includes(a)));
   const mm=msgsFor(p,ui.cm);
   let h=monthNav()+(mm.length?`<div class="list" style="margin-bottom:12px">${mm.map(m=>msgCard(m,false)).join('')}</div>`:'')+`<p class="lead">El horario completo de ${grids.map(g=>g.title.toLowerCase()).join(', ')}. Tu nombre está resaltado.</p>`;
@@ -484,10 +548,11 @@ function vDisp(p){
 }
 
 function vHor(p){const RO=!p.admin;
-  const[y,m]=ui.month.split('-').map(Number);const sched=state.schedules[ui.month];
+  const[y,m]=ui.month.split('-').map(Number);const sched=canSeeMonth(p,ui.month)?state.schedules[ui.month]:null;
   let h=`<div class="bar"><div class="mnav"><button class="ib" data-a="month" data-v="-1" aria-label="Mes anterior">‹</button><b>${MES[m-1]} ${y}</b><button class="ib" data-a="month" data-v="1" aria-label="Mes siguiente">›</button></div>
     <div class="inline">${sched&&DL?`<button class="btn sm" data-a="pdf">Descargar PDF</button>`:''}${RO?'':sched?`<button class="btn ghost sm" data-a="regen">Volver a generar</button>`:`<button class="btn sm" data-a="gen">Generar horario</button>`}</div></div>${ui.pdfMsg?`<div class="info" style="margin-top:8px">${esc(ui.pdfMsg)}</div>`:''}`;
   if(ui.regen)h+=`<div class="confirm">Se reemplazan todos los cambios de ${MES[m-1]}. <button class="btn warnb sm" data-a="gen">Sí, generar de nuevo</button><button class="btn ghost sm" data-a="regen-no">Cancelar</button></div>`;
+  if(!RO)h+=pubBar(m)+avAdmin(m);
   h+=msgBlock(p);
   h+=`<h3>Reuniones</h3>`+meetBlock(p);
   h+=`<div class="filters"><button class="f" data-a="view" data-v="grid" aria-pressed="${ui.view==='grid'}">Tabla</button><button class="f" data-a="view" data-v="cards" aria-pressed="${ui.view==='cards'}">Por día</button><span style="width:1px;background:var(--line);flex:none"></span>${[['all','Todo'],...Object.entries(AREAN)].map(([k,l])=>`<button class="f" data-a="area" data-v="${k}" aria-pressed="${ui.area===k}">${l}</button>`).join('')}</div>`;
@@ -730,6 +795,20 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'rsvp':{const[id,val]=v.split('|');const m=state.meets.find(x=>x.id===id);if(m)m.rsvp[p.id]=val;break}
   case'readall':for(const n of state.notifs)if(n.to.includes(p.id)&&!n.read.includes(p.id))n.read.push(p.id);break;
   case'gen':generate(ui.month);ui.regen=false;break;
+  case'publish':{state.published=state.published||{};state.published[ui.month]=Date.now();const mes=MES[+ui.month.slice(5,7)-1];
+    notify(servers(),`Ya está publicado el horario de ${mes}. Revisa tus labores.`,{push:{title:`Horario de ${mes}`,body:'Ya puedes ver tus labores del mes en la app.'}});break}
+  case'unpublish':if(state.published)delete state.published[ui.month];break;
+  case'av-ask':ui.avAsk=true;break;
+  case'av-x':ui.avAsk=false;break;
+  case'av-send':{const dl=($('av-deadline').value||'').trim();if(!dl)return;state.avReqs=state.avReqs||{};state.avReqs[ui.month]={deadline:dl,ts:Date.now(),done:{}};ui.avAsk=false;const mes=MES[+ui.month.slice(5,7)-1];
+    notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
+  case'av-list':ui.avList=!ui.avList;break;
+  case'av-remind':{const av=avOf(ui.month);if(!av)break;const mes=MES[+ui.month.slice(5,7)-1];const pend=servers().filter(i=>!(av.done&&av.done[i]));
+    notify(pend,`Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmt(av.deadline)}.`,{push:{title:`Falta tu disponibilidad de ${mes}`,body:`Márcala antes del ${fmt(av.deadline)}.`}});ui.toast=`Recordatorio enviado a ${pend.length} ${pend.length===1?'persona':'personas'}.`;break}
+  case'av-open':ui.avOpen=v;break;
+  case'av-close':ui.avOpen=null;break;
+  case'avday':p.blocked=p.blocked.includes(v)?p.blocked.filter(x=>x!==v):[...p.blocked,v];break;
+  case'av-done':{const av=avOf(v);if(av){av.done=av.done||{};av.done[p.id]=Date.now()}ui.avOpen=null;ui.flash='Gracias. Tu disponibilidad quedó guardada.';break}
   case'regen':ui.regen=true;break;
   case'regen-no':ui.regen=false;break;
   case'edit':if(!p.admin)return;ui.edit=v;render();const s=document.getElementById('sel-'+v);if(s){s.focus();try{s.showPicker&&s.showPicker()}catch(_){} }return;
@@ -782,19 +861,23 @@ function resolveMe(){const em=((SESSION&&SESSION.user&&SESSION.user.email)||'').
     upload:async f=>{const path=Date.now()+'-'+f.name.replace(/[^\w.\-]+/g,'_');const{error}=await SB.storage.from('fichas').upload(path,f,{contentType:'application/pdf'});if(error)throw error;return{id:path}},
     delete:async path=>{await SB.storage.from('fichas').remove([path])}}:null}
 const realMe=()=>{const em=((SESSION&&SESSION.user&&SESSION.user.email)||'').toLowerCase();return (MYPID&&person(MYPID))||state.people.find(x=>(x.email||'').toLowerCase()===em&&em)};
-function adopt(j){if(typeof j!=='string'||j===lastJson)return;try{const r=JSON.parse(j);state=r;
-  state.reqs=state.reqs||[];state.notifs=state.notifs||[];state.msgs=state.msgs||[];state.meets=state.meets||[];lastJson=j;if(migrate())save();
-  try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}}catch(e){}}
+function adopt(j,ver){if(typeof j!=='string')return;if(ver)VER=ver;if(j===lastJson)return;
+  let r;try{r=JSON.parse(j)}catch(e){return}
+  const pending=lastJson!==null&&sharedJson()!==lastJson,m=state.me;
+  state=pending&&BASE?merge3(BASE,sharedObj(),r):r;state.me=m;BASE=r;lastJson=j;
+  state.reqs=state.reqs||[];state.notifs=state.notifs||[];state.msgs=state.msgs||[];state.meets=state.meets||[];
+  if(migrate()||pending)save();
+  try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}}
 async function loadData(){SYNC='loading';render();
   const em=SESSION.user.email.toLowerCase();
   try{const m=await SB.from('members').select('person_id').eq('email',em).maybeSingle();MYPID=m.data?m.data.person_id:null}catch(e){}
-  const{data,error}=await SB.from('app_state').select('json').eq('id','main').maybeSingle();
+  const{data,error}=await SB.from('app_state').select('json,version').eq('id','main').maybeSingle();
   if(error){SYNC='error';READY=true;render();return}
-  if(data&&data.json)adopt(data.json);else if(MYPID)await push();
+  if(data&&data.json)adopt(data.json,data.version);
   SYNC='ok';READY=true;resolveMe();render();
   if(sharedJson()!==lastJson)push();
   ensureSub(false);
-  if(!CH)CH=SB.channel('estado').on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'id=eq.main'},pl=>{if(pl.new&&pl.new.json&&!writing){adopt(pl.new.json);resolveMe();render()}}).subscribe();}
+  if(!CH)CH=SB.channel('estado').on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'id=eq.main'},pl=>{if(pl.new&&pl.new.json&&!writing){adopt(pl.new.json,pl.new.version);resolveMe();render()}}).subscribe();}
 async function syncMember(p,oldEmail){try{
   if(oldEmail&&oldEmail.toLowerCase()!==(p.email||'').toLowerCase())await SB.from('members').delete().eq('email',oldEmail.toLowerCase());
   if(p.email)await SB.from('members').upsert({email:p.email.toLowerCase(),person_id:p.id,is_admin:!!p.admin,can_upload:!!(p.admin||p.pastor)})}catch(e){}}

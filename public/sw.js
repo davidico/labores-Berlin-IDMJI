@@ -1,5 +1,5 @@
 // Guarda la app para que abra rápido y funcione con mala conexión.
-const CACHE = 'labores-v3';
+const CACHE = 'labores-v4';
 const SHELL = ['./', './index.html', './app.js', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const CDN = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
