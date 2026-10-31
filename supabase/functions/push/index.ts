@@ -19,6 +19,7 @@ const cors = {
 };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } });
 
+const ERRORS: string[] = [];
 async function sendTo(ids: string[], title: string, body: string, url = '/') {
   if (!ids.length) return 0;
   const { data } = await SB.from('push_subs').select('endpoint,sub').in('person_id', ids);
@@ -29,6 +30,9 @@ async function sendTo(ids: string[], title: string, body: string, url = '/') {
       sent++;
     } catch (e) {
       const code = (e as { statusCode?: number }).statusCode;
+      const msg = String((e as { body?: string }).body || (e as Error).message || e).slice(0, 300);
+      console.error('push fallo', code, msg);
+      ERRORS.push(`${code ?? '-'} ${msg}`);
       if (code === 404 || code === 410) await SB.from('push_subs').delete().eq('endpoint', r.endpoint);
     }
   }
@@ -167,6 +171,15 @@ Deno.serve(async (req) => {
   // deno-lint-ignore no-explicit-any
   const b: any = await req.json().catch(() => ({}));
   if (b.mode === 'daily') return json({ monthly: await monthly(), daily: await daily() });
+  if (b.mode === 'ping') {
+    // Prueba: envía un aviso solo a los administradores.
+    const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
+    // deno-lint-ignore no-explicit-any
+    const admins = data ? (JSON.parse(data.json).people || []).filter((x: any) => x.admin).map((x: any) => x.id) : [];
+    ERRORS.length = 0;
+    const sent = await sendTo(admins, 'Prueba de Labores Berlín', 'Si ves esto, las notificaciones funcionan.');
+    return json({ sent, errors: ERRORS });
+  }
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
   const { data: u } = await SB.auth.getUser(token);
   const email = u?.user?.email?.toLowerCase();

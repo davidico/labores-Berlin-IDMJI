@@ -458,6 +458,7 @@ function pubBar(m){if(!state.schedules[ui.month])return'';
   if(isPub(ui.month))return `<div class="info" style="margin-top:10px">Publicado: todos ven el horario de ${MES[m-1]}. <button class="btn ghost sm" data-a="unpublish">Volver a borrador</button></div>`;
   return `<div class="confirm" style="margin-top:10px"><span><b>Borrador.</b> Los hermanos todavía no ven el horario de ${MES[m-1]}. Ajusta lo que necesites y publícalo.</span><button class="btn sm" data-a="publish">Publicar horario</button></div>`}
 /* ---- pedir disponibilidad ---- */
+const AVDAY=15;
 const avOf=ym=>(state.avReqs||{})[ym];
 function avAdmin(m){const av=avOf(ui.month);const mes=MES[m-1];
   if(!av){if(ui.avAsk){const def=(()=>{const d=pd(ui.month+'-01');d.setDate(d.getDate()-6);const t=ds(d);return t<today?today:t})();
@@ -471,13 +472,13 @@ function avAdmin(m){const av=avOf(ui.month);const mes=MES[m-1];
     ${ui.avList?`<div class="note"><b>Faltan:</b> ${pend.map(i=>esc((person(i)||{}).name||'')).join(', ')||'nadie'}</div>`:''}
     <div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="av-list">${ui.avList?'Ocultar':'Ver quién falta'}</button>${pend.length?'<button class="btn sm" data-a="av-remind">Recordar a los que faltan</button>':''}</div></div>`}
 function misAv(p){if(!p.roles||!p.roles.length)return'';let h='';
-  for(const ym of Object.keys(state.avReqs||{}).sort()){const av=avOf(ym);if(ym<today.slice(0,7))continue;const mes=MES[+ym.slice(5,7)-1];const done=av.done&&av.done[p.id];
+  for(const ym of Object.keys(state.avReqs||{}).sort()){const av=avOf(ym);if(ym<today.slice(0,7)||today>av.deadline)continue;const mes=MES[+ym.slice(5,7)-1];const done=av.done&&av.done[p.id];
     if(ui.avOpen===ym){const dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,n=dates.filter(d=>p.blocked.includes(d)).length;
       h+=`<div class="card" style="margin-bottom:14px"><b>Tu disponibilidad de ${mes}</b><div class="info" style="margin:4px 0 10px">Presiona los días que <b>no puedes</b> servir. Los días que dejes sin presionar quedan disponibles.</div>
         <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${dates.map(d=>`<button class="tog avd" data-a="avday" data-v="${d}" aria-pressed="${p.blocked.includes(d)}" aria-label="${fmt(d)}">${pd(d).getDate()}</button>`).join('')}</div>
         <div class="info" style="margin-top:8px">${n?`No puedes ${n} ${n===1?'día':'días'}.`:'Puedes todos los días.'}</div>
         <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="av-done" data-v="${ym}">Enviar mi disponibilidad</button><button class="btn ghost sm" data-a="av-close">Cerrar</button></div></div>`;continue}
-    if(done){if(today<=av.deadline)h+=`<div class="info" style="margin-bottom:12px">Enviaste tu disponibilidad de ${mes}. <button class="btn ghost sm" data-a="av-open" data-v="${ym}">Cambiar</button></div>`;continue}
+    if(done){h+=`<div class="info" style="margin-bottom:12px">Enviaste tu disponibilidad de ${mes}. <button class="btn ghost sm" data-a="av-open" data-v="${ym}">Cambiar</button></div>`;continue}
     h+=`<div class="card ask" style="margin-bottom:14px"><b>Disponibilidad de ${mes}</b><div class="info" style="margin-top:4px">Marca los días que no puedes servir${today<=av.deadline?` antes del <b>${fmt(av.deadline)}</b>`:''}.</div>
       <button class="btn sm" data-a="av-open" data-v="${ym}" style="margin-top:8px">Marcar mis días</button></div>`}
   return h}
@@ -538,16 +539,22 @@ function misList(p){
 
 function vDisp(p){
   const order=[1,2,3,4,5,6,0];
-  return `<h2>Mi disponibilidad</h2><p class="lead">Marca los días en que puedes servir. El horario se arma con esto.</p>
+  const nx=(()=>{const d=pd(today.slice(0,7)+'-01');d.setMonth(d.getMonth()+1);return ds(d).slice(0,7)})(),nmes=MES[+nx.slice(5,7)-1];
+  const av=avOf(nx),open=misAv(p),late=+today.slice(8)>=AVDAY;
+  const ask=late?`La disponibilidad de <b>${MES[(+nx.slice(5,7))%12]}</b> se pide el ${AVDAY} de ${nmes}.`:`La disponibilidad de <b>${nmes}</b> se pide el ${AVDAY} de ${MES[+today.slice(5,7)-1]}.`;
+  const st=open||`<div class="info" style="margin-bottom:12px">${av||late?`El horario de <b>${nmes}</b> ya se está armando. Si surge algo, avisa desde tu labor con «No puedo». `:''}${ask} Te llega un aviso.</div>`;
+  const byM={};for(const d of p.blocked.filter(d=>d>=today).sort())(byM[d.slice(0,7)]=byM[d.slice(0,7)]||[]).push(d);
+  return `<h2>Mi disponibilidad</h2><p class="lead">El horario de cada mes se arma con esto.</p>
+  <h3>Mes por mes</h3>${st}
   <h3>Mis datos</h3><div class="card">
    <label class="field">Nombre<input id="me-name" type="text" value="${esc(p.name)}" data-c="me-name"></label>
    <label class="field">Número de teléfono<input id="me-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+49 …" value="${esc(p.phone||'')}" data-c="me-phone"></label>
    <div class="info">Labores: <b>${p.roles.map(r=>ROLES[r]).join(', ')||'ninguna todavía'}</b></div></div>
-  <h3>Días que puedo servir</h3><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
+  <h3>Días que puedo servir</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses. Las fechas sueltas se marcan arriba, mes por mes.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
      <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${w}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
   <h3>Fechas en que no puedo</h3><div class="card">
    <div class="inline"><input id="blk" type="date" min="${today}"><button class="btn sm" data-a="block">Agregar</button></div>
-   <div style="margin-top:8px">${p.blocked.filter(d=>d>=today).sort().map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${d}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
+   <div style="margin-top:8px">${Object.entries(byM).map(([ym,ds_])=>`<div class="info" style="margin:10px 0 2px"><b>${MES[+ym.slice(5,7)-1]}</b></div>`+ds_.map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${d}" aria-label="Quitar">✕</button></div>`).join('')).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
 }
 
 function vHor(p){const RO=!p.admin;
