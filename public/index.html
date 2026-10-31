@@ -150,6 +150,15 @@ select.cell{max-width:62%}
 .cd .more{font-size:10px;color:var(--muted);font-weight:700}
 .nt{width:6px;height:6px;border-radius:50%;background:var(--gold);display:inline-block}
 .gn{font-size:13px}
+.sw{display:flex;align-items:center;gap:10px;background:none;border:none;font:inherit;cursor:pointer;padding:4px 0;color:var(--muted);font-weight:600;font-size:13.5px}
+.swl{min-width:64px;text-align:right}
+.card>.drow:first-child{border-top:none;padding-top:2px}
+.swt{width:50px;height:30px;border-radius:999px;background:var(--line);position:relative;transition:background .15s;flex:none}
+.swk{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s}
+.sw[aria-checked="true"] .swt{background:var(--ok)}
+.sw[aria-checked="true"] .swk{transform:translateX(20px)}
+.sw[aria-checked="true"] .swl{color:var(--ok)}
+@media (prefers-reduced-motion:reduce){.swt,.swk{transition:none}}
 .tog.avd{padding:9px 0 8px;font-variant-numeric:tabular-nums}
 .tog.avd[aria-pressed="true"]{text-decoration:line-through}
 .rsvp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;max-width:320px}

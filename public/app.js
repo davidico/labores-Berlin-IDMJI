@@ -540,8 +540,8 @@ function vDisp(p){
    <label class="field">Nombre<input id="me-name" type="text" value="${esc(p.name)}" data-c="me-name"></label>
    <label class="field">Número de teléfono<input id="me-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+49 …" value="${esc(p.phone||'')}" data-c="me-phone"></label>
    <div class="info">Labores: <b>${p.roles.map(r=>ROLES[r]).join(', ')||'ninguna todavía'}</b></div></div>
-  <h3>Días que puedo servir</h3><div class="info" style="margin:-2px 0 8px">Los días <b>presionados</b> son los que puedes servir (${p.days.length} de 7). Toca para cambiar.</div>
-  <div class="togs">${order.map(w=>`<button class="tog" data-a="day" data-v="${w}" aria-pressed="${p.days.includes(w)}">${DOWS[w]}</button>`).join('')}</div>
+  <h3>Días que puedo servir</h3><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
+     <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${w}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
   <h3>Fechas en que no puedo</h3><div class="card">
    <div class="inline"><input id="blk" type="date" min="${today}"><button class="btn sm" data-a="block">Agregar</button></div>
    <div style="margin-top:8px">${p.blocked.filter(d=>d>=today).sort().map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${d}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
