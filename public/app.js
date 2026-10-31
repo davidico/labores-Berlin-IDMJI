@@ -448,6 +448,9 @@ function installHint(){const sa=window.matchMedia&&matchMedia('(display-mode: st
    <div class="info" style="margin-top:4px">${INSTALL?'Así la abres con un toque y recibes los avisos.':ios?'En Safari toca <b>Compartir</b> (el cuadrado con flecha) y luego <b>Agregar a inicio</b>. En iPhone, las notificaciones solo funcionan con la app instalada.':'En el menú del navegador (⋮) toca <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.'}</div>
    ${INSTALL?'<button class="btn sm" data-a="install" style="margin-top:8px">Instalar</button>':''}</div>`}
 /* ---- borrador y publicación ---- */
+function autoDraft(){const r=realMe();if(!r||!r.admin)return;
+  for(const ym of Object.keys(state.avReqs||{})){const av=state.avReqs[ym];
+    if(today>av.deadline&&!state.schedules[ym]&&!av.autoGen){generate(ym);av.autoGen=Date.now();ui.month=ym;ui.toast=`Se generó el borrador de ${MES[+ym.slice(5,7)-1]} con la disponibilidad de todos. Revísalo en Horario y publícalo.`;save()}}}
 const isPub=ym=>!!(state.published&&state.published[ym]);
 const canSeeMonth=(p,ym)=>!!(p&&p.admin)||isPub(ym);
 const servers=()=>state.people.filter(x=>x.roles&&x.roles.length).map(x=>x.id);
@@ -875,6 +878,7 @@ async function loadData(){SYNC='loading';render();
   if(error){SYNC='error';READY=true;render();return}
   if(data&&data.json)adopt(data.json,data.version);
   SYNC='ok';READY=true;resolveMe();render();
+  autoDraft();
   if(sharedJson()!==lastJson)push();
   ensureSub(false);
   if(!CH)CH=SB.channel('estado').on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'id=eq.main'},pl=>{if(pl.new&&pl.new.json&&!writing){adopt(pl.new.json,pl.new.version);resolveMe();render()}}).subscribe();}
