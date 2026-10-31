@@ -384,6 +384,8 @@ function late(d,msg){const p=me(),as=schedOf(d)||{},mine=slotsAt(d).filter(s=>as
 function ago(ts){const m=Math.round((Date.now()-ts)/6e4);if(m<1)return'ahora';if(m<60)return`hace ${m} min`;const h=Math.round(m/60);if(h<24)return`hace ${h} h`;const d=new Date(ts);return`${d.getDate()} ${MESS[d.getMonth()]}`}
 function pendingFor(p){return state.reqs.filter(r=>r.status==='open'&&r.date>=today&&r.cands.includes(p.id)&&!r.declined.includes(p.id))}
 function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).length}
+function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
+  return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function avisos(p){let h='';
   if(ui.flash){h+=`<div class="banner ok">${esc(ui.flash)}</div>`;ui.flash=null}
   const rq=pendingFor(p);
@@ -391,7 +393,7 @@ function avisos(p){let h='';
     <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="acc" data-v="${r.id}">Sí, yo voy</button><button class="btn ghost sm" data-a="dec" data-v="${r.id}">No puedo</button></div></div>`}).join('')}</div>`;
   const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice(0,8);
   if(ns.length){const un=ns.filter(n=>!n.read.includes(p.id)).length;
-    h+=`<h3 style="margin-top:4px">Avisos${un?` <span class="tag">${un} ${un===1?'nuevo':'nuevos'}</span>`:''}</h3><div class="card">${ns.map(n=>`<div class="li ${n.read.includes(p.id)?'':'unread'}"><div class="main">${esc(n.text)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`).join('')}
+    h+=`<h3 style="margin-top:4px">Avisos${un?` <span class="tag">${un} ${un===1?'nuevo':'nuevos'}</span>`:''}</h3><div class="card">${ns.map(n=>`<div class="li ${n.read.includes(p.id)?'':'unread'}"><div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`).join('')}
     ${un?`<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>`:''}</div>`}
   return h}
 function monthNav(){const[y,m]=ui.cm.split('-').map(Number);return `<div class="mnav" style="margin:6px 0 12px"><button class="ib" data-a="cm" data-v="-1" aria-label="Mes anterior">‹</button><b>${MES[m-1]} ${y}</b><button class="ib" data-a="cm" data-v="1" aria-label="Mes siguiente">›</button></div>`}
@@ -786,8 +788,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'msg-open':ui.compose=true;break;
   case'msg-x':ui.compose=false;break;
   case'msg-send':{const txt=($('msg-text').value||'').trim(),area=$('msg-area').value;if(!txt)return;
-    state.msgs.push({id:uid(),month:ui.month,area,text:txt,from:p.id,ts:Date.now()});
-    notify(teamIds(area),`${p.name} dejó un mensaje para ${area==='all'?'todos':'el equipo de '+AREAN[area].toLowerCase()} (${MES[+ui.month.slice(5,7)-1]}). Míralo en Labores.`,{push:{title:`${p.name} → ${area==='all'?'Todos los equipos':'Equipo de '+AREAN[area].toLowerCase()}`,body:txt.slice(0,240)}});ui.compose=false;break}
+    const mid=uid();state.msgs.push({id:mid,month:ui.month,area,text:txt,from:p.id,ts:Date.now()});
+    notify(teamIds(area),`${p.name} dejó un mensaje para ${area==='all'?'todos':'el equipo de '+AREAN[area].toLowerCase()} (${MES[+ui.month.slice(5,7)-1]}):`,{msg:mid,push:{title:`${p.name} → ${area==='all'?'Todos los equipos':'Equipo de '+AREAN[area].toLowerCase()}`,body:txt.slice(0,240)}});ui.compose=false;break}
   case'msg-del':state.msgs=state.msgs.filter(m=>m.id!==v);break;
   case'help':{const n=state.notifs.find(x=>x.id===v);if(!n||n.helper)break;n.helper=p.id;
     notify([n.from],`${p.name} te ayuda mientras llegas el ${fmt(n.date)}.`);
