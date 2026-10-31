@@ -303,7 +303,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
 const schedOf=d=>(state.schedules[d.slice(0,7)]||{})[d];
 const admins=()=>state.people.filter(x=>x.admin).map(x=>x.id);
 function svcPeople(d,pred){const as=schedOf(d)||{},out=[];for(const s of slotsAt(d))if(as[s.k]&&pred(s))out.push(as[s.k]);return out}
-function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state.me&&person(i));if(!ids.length)return 0;state.notifs.unshift({id:uid(),ts:Date.now(),to:ids,text,read:[],...(extra||{})});state.notifs=state.notifs.slice(0,300);return ids.length}
+function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state.me&&person(i));if(!ids.length)return 0;state.notifs.unshift({id:uid(),ts:Date.now(),to:ids,text,read:[],...(extra&&extra.push?(({push,...r})=>r)(extra):(extra||{}))});pushOut(ids,extra&&extra.push?extra.push.title:'Labores Berlín',extra&&extra.push?extra.push.body:text);state.notifs=state.notifs.slice(0,300);return ids.length}
 function candFor(d,k,from,asIn){const slots=slotsAt(d),s=slots.find(z=>z.k===k),as={...(asIn||schedOf(d)||{})};delete as[k];
   const partner=(s.pair||s.pairOf)?person(as[s.pair||s.pairOf]):null;
   return state.people.filter(x=>x.id!==from&&!why(x,s,d,as,slots)&&(!partner||partner.sex===x.sex))}
@@ -389,12 +389,32 @@ function meetBlock(p){const ms=state.meets.filter(m=>m.date>=today).sort((a,b)=>
       <div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="m-open" data-v="${m.id}">${ui.mOpen===m.id?'Ocultar respuestas':'Ver respuestas'}</button>
       ${m.from===p.id||p.admin?(ui.mDel===m.id?`<button class="btn warnb sm" data-a="m-del-yes" data-v="${m.id}">Sí, cancelar reunión</button><button class="btn ghost sm" data-a="m-del-no">No</button>`:`<button class="btn ghost sm" data-a="m-del" data-v="${m.id}">Cancelar reunión</button>`):''}</div></div>`}).join('')}</div>`;
   return h}
+/* ---- notificaciones al celular ---- */
+function pushOut(ids,title,body){if(!SESSION||!ids||!ids.length)return;try{SB.functions.invoke('push',{body:{mode:'send',to:ids,title,body}}).catch(()=>{})}catch(e){}}
+const pushOk=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window&&window.CFG&&CFG.vapid;
+const isStandalone=()=>(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
+function b64u(s){const p='='.repeat((4-s.length%4)%4),b=(s+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(b),a=new Uint8Array(r.length);for(let i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a}
+async function ensureSub(ask){if(!pushOk())return false;const me_=realMe();if(!me_)return false;
+  if(ask){const perm=await Notification.requestPermission();if(perm!=='granted'){ui.subMsg=perm==='denied'?'Las notificaciones quedaron bloqueadas. Puedes activarlas en los ajustes del navegador para este sitio.':'';render();return false}}
+  else if(Notification.permission!=='granted')return false;
+  try{const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(CFG.vapid)});
+    const j=sub.toJSON();const{error}=await SB.from('push_subs').upsert({endpoint:j.endpoint,person_id:me_.id,sub:j});if(error)throw error;
+    ui.subOk=true;ui.subMsg='';render();return true}catch(e){ui.subMsg='No se pudieron activar las notificaciones. Intenta de nuevo.';render();return false}}
+function pushCard(){if(!pushOk()||ui.subOk)return'';
+  if(isIOS()&&!isStandalone())return'';
+  if(Notification.permission==='granted')return'';
+  return `<div class="card" style="margin-bottom:14px"><b>Activa las notificaciones</b>
+   <div class="info" style="margin-top:4px">Te avisamos cuando te pidan un reemplazo, cuando haya un mensaje de púlpito o una reunión, y la noche antes de cada labor.</div>
+   ${ui.subMsg?`<div class="info" style="color:var(--warn);margin-top:6px">${esc(ui.subMsg)}</div>`:''}
+   ${Notification.permission==='denied'?'':'<button class="btn sm" data-a="push-on" style="margin-top:8px">Activar notificaciones</button>'}</div>`}
 function installHint(){const sa=window.matchMedia&&matchMedia('(display-mode: standalone)').matches||navigator.standalone;let hidden=ui.hideInstall;try{hidden=hidden||localStorage.getItem('lb-noinstall')==='1'}catch(e){}
   if(sa||hidden)return'';const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
   return `<div class="card" style="margin-bottom:14px"><div class="dayhead"><b>Instala la app en tu celular</b><button class="x" data-a="install-x" aria-label="Cerrar">✕</button></div>
-   <div class="info" style="margin-top:4px">${INSTALL?'Así la abres con un toque y recibes los avisos.':ios?'En Safari toca <b>Compartir</b> (el cuadrado con flecha) y luego <b>Agregar a inicio</b>.':'En el menú del navegador (⋮) toca <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.'}</div>
+   <div class="info" style="margin-top:4px">${INSTALL?'Así la abres con un toque y recibes los avisos.':ios?'En Safari toca <b>Compartir</b> (el cuadrado con flecha) y luego <b>Agregar a inicio</b>. En iPhone, las notificaciones solo funcionan con la app instalada.':'En el menú del navegador (⋮) toca <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.'}</div>
    ${INSTALL?'<button class="btn sm" data-a="install" style="margin-top:8px">Instalar</button>':''}</div>`}
-function vMis(p){const top=avisos(p)+misMeets(p)+misMsgs(p);return `<h2>Hola, ${esc(p.name.split(' ')[0])}</h2>`+installHint()+top+(top?'<h3>Tus labores</h3>':'')+misList(p)}
+function vMis(p){const top=avisos(p)+misMeets(p)+misMsgs(p);return `<h2>Hola, ${esc(p.name.split(' ')[0])}</h2>`+installHint()+pushCard()+top+(top?'<h3>Tus labores</h3>':'')+misList(p)}
 /* ---- mensajes por equipo ---- */
 function teamIds(area){return state.people.filter(x=>area==='all'||x.roles.some(r=>ROLEAREA[r]===area)||(area==='pulpito'&&x.pastor)).map(x=>x.id)}
 function msgsFor(p,ym){const a=myAreas(p);return state.msgs.filter(m=>m.month===ym&&(m.area==='all'||a.includes(m.area)||m.from===p.id))}
@@ -669,6 +689,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'viewas':ui.viewAs=v;resolveMe();ui.tab='mis';scrollTo(0,0);break;
   case'auth-mode':ui.authMode=v;ui.authMsg='';break;
   case'auth-newpass':{const pw=$('au-pass').value;SB.auth.updateUser({password:pw}).then(r=>{if(r.error){ui.authMsg=AUTHERR(r.error);ui.authOk=false}else{ui.authMode='login';ui.authMsg='';if(r.data&&r.data.user){SESSION={...SESSION,user:r.data.user};loadData()}}render()});return}
+  case'push-on':ensureSub(true);return;
   case'install':if(INSTALL){INSTALL.prompt();INSTALL=null}return;
   case'install-x':ui.hideInstall=true;try{localStorage.setItem('lb-noinstall','1')}catch(e){}break;
   case'tab':ui.tab=v;ui.edit=null;scrollTo(0,0);break;
@@ -691,7 +712,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'msg-x':ui.compose=false;break;
   case'msg-send':{const txt=($('msg-text').value||'').trim(),area=$('msg-area').value;if(!txt)return;
     state.msgs.push({id:uid(),month:ui.month,area,text:txt,from:p.id,ts:Date.now()});
-    notify(teamIds(area),`${p.name} dejó un mensaje para ${area==='all'?'todos':'el equipo de '+AREAN[area].toLowerCase()} (${MES[+ui.month.slice(5,7)-1]}). Míralo en Labores.`);ui.compose=false;break}
+    notify(teamIds(area),`${p.name} dejó un mensaje para ${area==='all'?'todos':'el equipo de '+AREAN[area].toLowerCase()} (${MES[+ui.month.slice(5,7)-1]}). Míralo en Labores.`,{push:{title:`${p.name} → ${area==='all'?'Todos los equipos':'Equipo de '+AREAN[area].toLowerCase()}`,body:txt.slice(0,240)}});ui.compose=false;break}
   case'msg-del':state.msgs=state.msgs.filter(m=>m.id!==v);break;
   case'help':{const n=state.notifs.find(x=>x.id===v);if(!n||n.helper)break;n.helper=p.id;
     notify([n.from],`${p.name} te ayuda mientras llegas el ${fmt(n.date)}.`);
@@ -772,6 +793,7 @@ async function loadData(){SYNC='loading';render();
   if(data&&data.json)adopt(data.json);else if(MYPID)await push();
   SYNC='ok';READY=true;resolveMe();render();
   if(sharedJson()!==lastJson)push();
+  ensureSub(false);
   if(!CH)CH=SB.channel('estado').on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'id=eq.main'},pl=>{if(pl.new&&pl.new.json&&!writing){adopt(pl.new.json);resolveMe();render()}}).subscribe();}
 async function syncMember(p,oldEmail){try{
   if(oldEmail&&oldEmail.toLowerCase()!==(p.email||'').toLowerCase())await SB.from('members').delete().eq('email',oldEmail.toLowerCase());
