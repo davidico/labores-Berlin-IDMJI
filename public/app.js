@@ -351,7 +351,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
 const schedOf=d=>(state.schedules[d.slice(0,7)]||{})[d];
 const admins=()=>state.people.filter(x=>x.admin).map(x=>x.id);
 function svcPeople(d,pred){const as=schedOf(d)||{},out=[];for(const s of slotsAt(d))if(as[s.k]&&pred(s))out.push(as[s.k]);return out}
-function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state.me&&person(i));if(!ids.length)return 0;state.notifs.unshift({id:uid(),ts:Date.now(),to:ids,text,read:[],...(extra&&extra.push?(({push,...r})=>r)(extra):(extra||{}))});pushOut(ids,extra&&extra.push?extra.push.title:'Labores Berlín',extra&&extra.push?extra.push.body:text);state.notifs=state.notifs.slice(0,300);return ids.length}
+function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state.me&&person(i));if(!ids.length)return 0;state.notifs.unshift({id:uid(),ts:Date.now(),to:ids,text,read:[],by:state.me,...(extra&&extra.push?(({push,...r})=>r)(extra):(extra||{}))});pushOut(ids,extra&&extra.push?extra.push.title:'Labores Berlín',extra&&extra.push?extra.push.body:text);state.notifs=state.notifs.slice(0,300);return ids.length}
 function candFor(d,k,from,asIn){const slots=slotsAt(d),s=slots.find(z=>z.k===k),as={...(asIn||schedOf(d)||{})};delete as[k];
   const partner=(s.pair||s.pairOf)?person(as[s.pair||s.pairOf]):null;
   return state.people.filter(x=>x.id!==from&&!why(x,s,d,as,slots)&&(!partner||partner.sex===x.sex))}
@@ -401,8 +401,8 @@ function pendingFor(p){return state.reqs.filter(r=>r.status==='open'&&r.date>=to
 function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).length}
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
-function nItem(n,p,un){return `<div class="li ${un?'unread':''}"><div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='1.6';
+function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
+const APPV='1.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -439,8 +439,8 @@ function vAj(p){const em=ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||
 function avisos(p){let h='';
   if(ui.flash){h+=`<div class="banner ok">${esc(ui.flash)}</div>`;ui.flash=null}
   const rq=pendingFor(p);
-  if(rq.length)h+=`<div class="list" style="margin-bottom:14px">${rq.map(r=>{const f=person(r.from),s=slotOf(r.date,r.k);return `<div class="card ask"><div class="info" style="margin:0 0 4px">Piden reemplazo</div><b>${esc(f?f.name:'Un hermano')}</b> no puede ir el <b>${fmt(r.date)}</b> · ${esc(s.l)}. ¿Puedes ir tú?
-    <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="acc" data-v="${r.id}">Sí, yo voy</button><button class="btn ghost sm" data-a="dec" data-v="${r.id}">No puedo</button></div></div>`}).join('')}</div>`;
+  if(rq.length)h+=`<div class="list" style="margin-bottom:14px">${rq.map(r=>{const f=person(r.from),s=slotOf(r.date,r.k);return `<div class="card ask" style="display:flex;gap:12px;align-items:flex-start">${f?avatar(f,44):''}<div style="flex:1;min-width:0"><div class="info" style="margin:0 0 4px">Piden reemplazo</div><b>${esc(f?f.name:'Un hermano')}</b> no puede ir el <b>${fmt(r.date)}</b> · ${esc(s.l)}. ¿Puedes ir tú?
+    <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="acc" data-v="${r.id}">Sí, yo voy</button><button class="btn ghost sm" data-a="dec" data-v="${r.id}">No puedo</button></div></div></div>`}).join('')}</div>`;
   const ns=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).slice(0,8);
   if(ns.length){const un=ns.filter(n=>!n.read.includes(p.id)).length;
     h+=`<h3 style="margin-top:4px">Avisos${un?` <span class="tag">${un} ${un===1?'nuevo':'nuevos'}</span>`:''}</h3><div class="card">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}
@@ -833,8 +833,8 @@ function vPer(){
   let h=`<h2>Personas</h2><p class="lead">${state.people.length} colaboradores. Toca un nombre para editar sus labores.</p>`;
   h+='<div class="card">';
   for(const x of state.people){
-    h+=`<div class="li" style="display:block"><button class="pbtn" data-a="open" data-v="${x.id}"><b>${esc(x.name)}</b>${x.admin?'<span class="tag gold">Admin</span>':''}${x.pastor?'<span class="tag gold">Pastor</span>':''}${x.phone?`<small class="info" style="display:block;margin-top:2px">${esc(x.phone)}</small>`:''}
-      <div class="chips" style="margin-top:4px">${x.roles.map(r=>chip(ROLEAREA[r],ROLES[r])).join('')||'<span class="info">Sin labores</span>'}</div></button>`;
+    h+=`<div class="li" style="display:block"><button class="pbtn" data-a="open" data-v="${x.id}" style="display:flex;gap:12px;align-items:flex-start;width:100%">${avatar(x,44)}<div style="flex:1;min-width:0;text-align:left"><b>${esc(x.name)}</b>${x.admin?'<span class="tag gold">Admin</span>':''}${x.pastor?'<span class="tag gold">Pastor</span>':''}${x.phone?`<small class="info" style="display:block;margin-top:2px">${esc(x.phone)}</small>`:''}
+      <div class="chips" style="margin-top:4px">${x.roles.map(r=>chip(ROLEAREA[r],ROLES[r])).join('')||'<span class="info">Sin labores</span>'}</div></div></button>`;
     if(ui.open===x.id){h+=`<div style="margin-top:10px">
       <label class="field">Nombre<input id="pn-${x.id}" type="text" value="${esc(x.name)}" data-c="p-name" data-v="${x.id}"></label>
       <label class="field">Correo para entrar a la app<input id="pe-${x.id}" type="email" placeholder="correo@ejemplo.com" value="${esc(x.email||'')}" data-c="p-email" data-v="${x.id}"></label>
