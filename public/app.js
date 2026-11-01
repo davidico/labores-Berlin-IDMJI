@@ -45,7 +45,7 @@ const ORDER=['predica','pul','pul_ini','pul_fin','sonido','grd1','grd2','grd3','
 function leipThu(date){const d=pd(date);if(d.getDay()!==4)return false;const sat=ds(new Date(d.getTime()+2*864e5));return state.leipzig.some(l=>l.date===sat)}
 function slotsAt(date){const a=slotsFor(pd(date).getDay());if(!state.leipThuRule||!leipThu(date))return a;
   return [S('predica','Púlpito · predicación','pulpito','pred','pulpito',{only:['david']}),...a.map(s=>s.k==='pul'?{...s,noPastor:0,only:['oswaldo','javier'],prefer:['oswaldo','javier']}:s)]}
-function pen(p,s,dow){let v=0;if(s.altRole&&!p.roles.includes(s.role))v+=800;if(p.avoidSlots&&p.avoidSlots.includes(s.k))v+=300;if(p.avoidDays&&p.avoidDays.includes(dow))v+=300;if(p.favorSlots&&p.favorSlots.includes(s.k))v-=100;return v}
+function pen(p,s,dow){let v=0;if(s.altRole&&!p.roles.includes(s.role))v+=800;if(p.avoidSlots&&p.avoidSlots.includes(s.k))v+=300;if(p.avoidDays&&p.avoidDays.includes(dow))v+=300;if(p.favorSlots&&p.favorSlots.includes(s.k))v-=100;if(p.predDays&&p.predDays.length&&/_pred$/.test(s.k))if(p.predDays.includes(dow))v-=60;return v}
 function combo(a,b){
   if(a.tag==='son'||b.tag==='son') return false;
   const k=[a.tag,b.tag].sort().join('|');
@@ -616,6 +616,8 @@ function vDisp(p){
   <h3>Mes por mes</h3>${st}
   <h3>Días que puedo servir</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses. Las fechas sueltas se marcan arriba, mes por mes.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
      <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${w}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
+  ${p.roles.includes('trad_de')?`<h3>Día preferido para traducir la predicación</h3><div class="card"><div class="info" style="margin:0 0 8px">Si se puede, te ponemos la predicación ese día. Si no, cualquier otro.</div>
+   <div class="filters" style="margin:0">${[[4,'Jueves'],[0,'Domingo'],[-1,'Me da igual']].map(([w,l])=>{const on=w<0?!(p.predDays&&p.predDays.length):!!(p.predDays&&p.predDays.length===1&&p.predDays[0]===w);return `<button class="f" data-a="pred-day" data-v="${w}" aria-pressed="${on}">${l}</button>`}).join('')}</div></div>`:''}
   <h3>Fechas en que no puedo</h3><div class="card">
    <div class="inline"><input id="blk" type="date" min="${today}"><button class="btn sm" data-a="block">Agregar</button></div>
    <div style="margin-top:8px">${Object.entries(byM).map(([ym,ds_])=>{const o=!!(ui.blkOpen||{})[ym],mes=MES[+ym.slice(5,7)-1];return `<button class="mfold" data-a="blk-fold" data-v="${ym}" aria-expanded="${o}"><span><b>${mes[0].toUpperCase()+mes.slice(1)}</b> · ${ds_.length} ${ds_.length===1?'fecha':'fechas'}</span><span class="chev">${o?'▾':'▸'}</span></button>`+(o?ds_.map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${d}" aria-label="Quitar">✕</button></div>`).join(''):'')}).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
@@ -878,6 +880,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
   case'av-list':ui.avList=!ui.avList;break;
   case'av-all':ui.avAll=!ui.avAll;break;
+  case'pred-day':{const w=+v;if(w<0)delete p.predDays;else p.predDays=[w];break}
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
   case'bell':ui.menu=false;ui.bell=true;ui.bellNew=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).map(n=>n.id);for(const n of state.notifs)if(ui.bellNew.includes(n.id))n.read.push(p.id);break;
   case'sheet-x':ui.menu=false;ui.bell=false;ui.bellNew=[];break;
