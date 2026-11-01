@@ -222,7 +222,7 @@ async function calendar(pid: string, t: string) {
         ev(`${date}-todos`, date, hr, 120, `${sn} · labores`, ks.map((k) => `${LBL[k] || k}: ${nm(as[k])}`).join('\n'));
       } else {
         const mine = [...new Set(ks.filter((k) => as[k] === pid).map((k) => LBL[k] || k))];
-        if (mine.length) ev(`${date}-${pid}`, date, hr, 120, `Labor: ${mine.join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.\nVer en la app: https://labores-berlin.netlify.app`);
+        if (mine.length) ev(`${date}-${pid}`, date, hr, 120, `Labor: ${mine.join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.\nVer en la app: https://labores-berlin-idmji.pages.dev`);
       }
     }
   }

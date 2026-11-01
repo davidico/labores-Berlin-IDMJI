@@ -1,5 +1,7 @@
 [build]
   publish = "public"
+  # La app ahora vive en Cloudflare Pages: Netlify ya no publica (cada publicación gastaba créditos).
+  ignore = "exit 0"
 
 [[headers]]
   for = "/sw.js"
