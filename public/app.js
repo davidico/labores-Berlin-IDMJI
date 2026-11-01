@@ -318,7 +318,7 @@ function render(){
   $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
     ${hdr(p)}</div>${ui.viewAs?`<div class="viewas">Viendo como <b>${esc(p.name)}</b><button class="linkbtn" data-a="logout">Volver a mi cuenta</button></div>`:''}
     ${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div>${body}</div>
-    <nav class="tabs">${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}</nav>${ui.menu?menuSheet(p):''}${ui.bell?bellSheet(p):''}`;
+    <nav class="tabs">${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}</nav>${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.bell?bellSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
 const chip=(area,label)=>`<span class="chip" style="--c:var(${AREAC[area]})">${esc(label)}</span>`;
@@ -667,12 +667,7 @@ function dayCard(d,as,tm){
       if(warn)c++}
     if(ui.area!=='all'&&s.area!==ui.area)continue;
     const key=d+'|'+s.k;let right;
-    if(ui.edit===key){const others={...as};delete others[s.k];const ok=[],no=[];
-      for(const x of state.people)if(x.roles.includes(s.role)){const r=why(x,s,d,others,slots);(r?no:ok).push([x,r])}
-      right=`<select class="cell" id="sel-${key}" data-c="cell" data-v="${key}"><option value="">— Sin asignar</option>
-        <optgroup label="Disponibles">${ok.map(([x])=>`<option value="${x.id}" ${x.id===pid?'selected':''}>${esc(x.name)}</option>`).join('')}</optgroup>
-        ${no.length?`<optgroup label="Con conflicto">${no.map(([x,r])=>`<option value="${x.id}" ${x.id===pid?'selected':''}>${esc(x.name)} (${esc(r)})</option>`).join('')}</optgroup>`:''}</select>`}
-    else if(!me().admin)right=`<span class="fixedn ${p&&p.id===state.me?'gn meh':''}">${p?esc(p.name):'—'}</span>`;
+    if(!me().admin)right=`<span class="fixedn ${p&&p.id===state.me?'gn meh':''}">${p?esc(p.name):'—'}</span>`;
     else right=`<div style="min-width:0"><button class="pick ${p?'':'empty'}" data-a="edit" data-v="${key}">${p?esc(p.name):emptyLbl(d,s.k,'Sin asignar')}</button>${warn?`<span class="warn">${esc(warn)}</span>`:''}</div>`;
     rows+=`<div class="row"><span class="lbl"><i class="dot" style="--c:var(${AREAC[s.area]})"></i>${esc(s.l)}</span>${right}</div>`}
   if(!rows)return{h:'',e,c};
@@ -711,10 +706,17 @@ function gridView(weeks,sched,opt={}){
 }
 function gcell(d,s,as,slots,opt={}){const key=d+'|'+s.k,p=person(as[s.k]);
   if(opt.ro)return `<span class="gn ${p&&p.id===opt.me?'meh':''}">${p?esc(p.name):'—'}</span>`;
-  if(ui.edit===key)return selectFor(d,s,as,slots);
   let warn=p?why(p,s,d,as,slots):'';
   if(p&&!warn&&(s.pair||s.pairOf)){const o=person(as[s.pair||s.pairOf]);if(o&&o.sex!==p.sex)warn='pareja mixta'}
   return `<button class="pick g ${p?'':'empty'} ${warn?'bad':''}" data-a="edit" data-v="${key}" ${warn?`title="${esc(warn)}"`:''}>${p?esc(p.name):emptyLbl(d,s.k,'Vacío')}${warn?' · '+esc(warn):''}</button>`}
+function pickSheet(){const[d,k]=ui.edit.split('|');const slots=slotsAt(d),s=slots.find(z=>z.k===k);if(!s)return'';
+  const as=(state.schedules[d.slice(0,7)]||{})[d]||{},pid=as[k],others={...as};delete others[k];const ok=[],no=[];
+  for(const x of state.people)if(x.roles.includes(s.role)||(s.altRole&&x.roles.includes(s.altRole))){const r=why(x,s,d,others,slots);(r?no:ok).push([x,r])}
+  const it=(x,r)=>`<button class="pk ${x.id===pid?'on':''} ${r?'no':''}" data-a="assign" data-v="${ui.edit}|${x.id}"><span>${esc(x.name)}</span>${r?`<small>${esc(r)}</small>`:''}${x.id===pid?'<b>✓</b>':''}</button>`;
+  return `<div class="scrim" data-a="pick-x"></div><div class="sheet" role="dialog" aria-label="Elegir persona"><div class="dayhead"><div><b>${esc(s.l)}</b><small class="info" style="display:block;margin:2px 0 0">${fmt(d)}</small></div><button class="x" data-a="pick-x" aria-label="Cerrar">✕</button></div>
+   <div class="pklist">${pid?`<button class="pk clear" data-a="assign" data-v="${ui.edit}|">Dejar sin asignar</button>`:''}
+   <div class="pkh">Disponibles</div>${ok.map(([x])=>it(x,'')).join('')||'<div class="info">Nadie disponible.</div>'}
+   ${no.length?`<div class="pkh">Con conflicto</div>${no.map(([x,r])=>it(x,r)).join('')}`:''}</div></div>`}
 function selectFor(d,s,as,slots){const key=d+'|'+s.k,pid=as[s.k],others={...as};delete others[s.k];const ok=[],no=[];
   for(const x of state.people)if(x.roles.includes(s.role)){const r=why(x,s,d,others,slots);(r?no:ok).push([x,r])}
   return `<select class="cell" id="sel-${key}" data-c="cell" data-v="${key}"><option value="">— Sin asignar</option><optgroup label="Disponibles">${ok.map(([x])=>`<option value="${x.id}" ${x.id===pid?'selected':''}>${esc(x.name)}</option>`).join('')}</optgroup>${no.length?`<optgroup label="Con conflicto">${no.map(([x,r])=>`<option value="${x.id}" ${x.id===pid?'selected':''}>${esc(x.name)} (${esc(r)})</option>`).join('')}</optgroup>`:''}</select>`}
@@ -905,7 +907,9 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'av-done':{const av=avOf(v);if(av){av.done=av.done||{};av.done[p.id]=Date.now()}ui.avOpen=null;ui.flash='Gracias. Tu disponibilidad quedó guardada.';break}
   case'regen':ui.regen=true;break;
   case'regen-no':ui.regen=false;break;
-  case'edit':if(!p.admin)return;ui.edit=v;render();const s=document.getElementById('sel-'+v);if(s){s.focus();try{s.showPicker&&s.showPicker()}catch(_){} }return;
+  case'edit':if(!p.admin)return;ui.edit=v;break;
+  case'pick-x':ui.edit=null;break;
+  case'assign':{const[d,k,id]=v.split('|');const ym=d.slice(0,7);state.schedules[ym]=state.schedules[ym]||{};const as=state.schedules[ym][d]=state.schedules[ym][d]||{};if(id)as[k]=id;else delete as[k];ui.edit=null;break}
   case'day':{const w=+v;p.days=p.days.includes(w)?p.days.filter(x=>x!==w):[...p.days,w];break}
   case'dayset':{const[w,on]=v.split('|').map(Number);p.days=p.days.filter(x=>x!==w);if(on)p.days.push(w);break}
   case'block':{const d=$('blk').value;if(d&&!p.blocked.includes(d))p.blocked.push(d);if(d)(ui.blkOpen=ui.blkOpen||{})[d.slice(0,7)]=true;break}
