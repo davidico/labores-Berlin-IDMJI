@@ -34,10 +34,12 @@ input:disabled{background:var(--soft);color:var(--muted);cursor:not-allowed}
 .fich{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-top:8px}
 .fich .fl{font-size:13px;color:var(--muted);font-weight:600}
 .fich .fc{display:flex;align-items:center;gap:8px;min-width:0}.fich .fc .pdfl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
-input.ed{width:100%;border:1px dashed var(--line);background:transparent;border-radius:8px;padding:4px 6px;margin:2px 0 2px -7px;font:inherit;font-size:15px;color:var(--ink)}
+input.ed{width:100%;border:1px solid transparent;background:transparent;border-radius:8px;padding:4px 6px;margin:2px 0 2px -7px;font:inherit;font-size:15px;color:var(--ink)}
 input.ed.b{font-weight:700}
 input.ed:hover{border-color:var(--line)}input.ed:focus{border-color:var(--navy);background:var(--surface);outline:none}
 input.ed::placeholder{color:var(--muted);font-weight:400}
+.nrow{display:flex;align-items:center;gap:6px;min-width:0}.nrow>b,.nrow>small{min-width:0}
+.pen{border:0;background:none;color:var(--muted);padding:6px;border-radius:8px;cursor:pointer;display:inline-flex;flex:none}.pen:hover{background:var(--soft);color:var(--navy)}
 .hdr{display:flex;align-items:center;gap:6px}
 .hb{position:relative;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--surface);border-radius:999px;height:42px;min-width:42px;justify-content:center;padding:0 6px;cursor:pointer;color:var(--ink)}
 .hb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
