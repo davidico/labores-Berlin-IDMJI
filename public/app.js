@@ -402,7 +402,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='1.7';
+const APPV='1.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -813,7 +813,7 @@ function vEns(p){
    ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&dateOf[t.id]<today),fut=state.teachings.filter(t=>!(dateOf[t.id]&&dateOf[t.id]<today));
      const last=fut.length?dateOf[fut[fut.length-1].id]:'';
      let h=past.length?`<button class="mfold" data-a="t-past" aria-expanded="${!!ui.tPast}"><span><b>Ya pasaron</b> · ${past.length}</span><span class="chev">${ui.tPast?'▾':'▸'}</span></button>${ui.tPast?past.map(t=>`<div class="li"><div class="main" style="opacity:.6"><b>${esc(t.title)}</b><small>${fmt(dateOf[t.id])}</small></div></div>`).join(''):''}`:'';
-     h+=fut.map((t,i)=>`<div class="li"><div class="main"><b>${esc(t.title)}</b><small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>
+     h+=fut.map((t,i)=>`<div class="li"><div class="main"><input class="ed b" type="text" value="${esc(t.title)}" data-c="t-name" data-v="${t.id}" aria-label="Título de la enseñanza"><small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>
      ${pdfCtl('t',t)}</div>
      <button class="x" data-a="t-up" data-v="${t.id}" aria-label="Subir" ${i?'':'disabled'}>↑</button><button class="x" data-a="t-down" data-v="${t.id}" aria-label="Bajar" ${i<fut.length-1?'':'disabled'}>↓</button><button class="x" data-a="t-del" data-v="${t.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info" style="padding:8px 0">No hay enseñanzas por venir. Agrega las siguientes abajo.</div>';
      if(last)h+=`<div class="info" style="margin-top:8px">Hay enseñanzas cargadas hasta el <b>${fmt(last)}</b>. Para seguir después, agrega más abajo y se acomodan solas en los siguientes jueves y domingos.</div>`;
@@ -824,7 +824,7 @@ function vEns(p){
    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><input id="tr-date" type="date" style="align-self:flex-start"><textarea id="tr-link" rows="4" placeholder="Escribe la información de la transmisión. Puedes pegar el link aquí."></textarea><button class="btn sm" data-a="tr-add" style="align-self:flex-start">Agregar</button></div>
    <div class="info" style="margin-top:6px">Este texto lo ven el pastor y los de púlpito en sus labores. Los links se pueden tocar.</div></div>
   <h3>Visitas a Leipzig</h3><div class="card">
-   ${state.leipzig.slice().sort((a,b)=>a.date<b.date?-1:1).map(l=>`<div class="li"><div class="main"><b>${fmt(l.date)}</b><small>${esc(l.teaching||'Predicación por definir')}</small><div class="inline" style="margin-top:6px">${pdfCtl('l',l)}</div></div><button class="x" data-a="lz-del" data-v="${l.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}
+   ${state.leipzig.slice().sort((a,b)=>a.date<b.date?-1:1).map(l=>`<div class="li"><div class="main"><b>${fmt(l.date)}</b><input class="ed" type="text" value="${esc(l.teaching||'')}" placeholder="Escribe la predicación" data-c="lz-name" data-v="${l.id}" aria-label="Predicación de Leipzig"><div class="inline" style="margin-top:6px">${pdfCtl('l',l)}</div></div><button class="x" data-a="lz-del" data-v="${l.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}
    <div class="inline" style="margin-top:10px"><input id="lz-date" type="date"><input id="lz-t" type="text" placeholder="Predicación que se dará"><button class="btn sm" data-a="lz-add">Agregar</button></div>
    <div class="info" style="margin-top:6px">Viajan: ${esc(state.people.filter(x=>x.leipzig).map(x=>x.name).join(' y ')||'nadie marcado')}. Ese día no se les asigna nada en Berlín. Lo ven púlpito y traducción.</div></div>`;
 }
@@ -958,6 +958,8 @@ document.addEventListener('change',e=>{const t=e.target.closest('[data-c]');if(!
   case'cell':{const[d,k]=v.split('|');const ym=d.slice(0,7);const as=state.schedules[ym][d]=state.schedules[ym][d]||{};if(t.value)as[k]=t.value;else delete as[k];ui.edit=null;break}
   case'me-name':if(t.value.trim())p.name=t.value.trim();break;
   case'me-phone':p.phone=t.value.trim();break;
+  case'lz-name':{const l=state.leipzig.find(x=>x.id===v);if(l)l.teaching=t.value.trim();break}
+  case't-name':{const x=state.teachings.find(z=>z.id===v);if(x&&t.value.trim())x.title=t.value.trim();break}
   case'pred-pref':{p.predPref=p.predPref||{};if(t.value)p.predPref[v]=t.value;else delete p.predPref[v];break}
   case'photo':{const f=t.files&&t.files[0];if(!f)return;const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const S=128,c=document.createElement('canvas');c.width=c.height=S;const k=Math.min(im.width,im.height),g=c.getContext('2d');g.drawImage(im,(im.width-k)/2,(im.height-k)/2,k,k,0,0,S,S);URL.revokeObjectURL(u);p.photo=c.toDataURL('image/jpeg',.72);save();render()};im.onerror=()=>{ui.toast='No se pudo leer esa imagen.';render()};im.src=u;return}
   case'p-email':{const x=person(v),old=x.email||'';x.email=t.value.trim();syncMember(x,old);break}
