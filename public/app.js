@@ -135,7 +135,8 @@ async function push(){if(!SESSION||!READY)return;if(writing){dirty=true;return}
 const person=id=>state.people.find(p=>p.id===id);
 const me=()=>person(state.me);
 
-const today=ds(new Date());
+let today=ds(new Date());
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&ds(new Date())!==today){today=ds(new Date());try{render()}catch(e){}}});
 function defaultMonth(){const d=new Date();if(d.getDate()>20)d.setMonth(d.getMonth()+1,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
 const ui={tab:'mis',month:defaultMonth(),area:'all',view:'grid',mv:'cal',cm:defaultMonth(),sel:null,edit:null,open:null,regen:false,delp:null};
 
