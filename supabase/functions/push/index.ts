@@ -174,7 +174,7 @@ async function sig(id: string) {
   const b = new Uint8Array(await crypto.subtle.sign('HMAC', HK, enc.encode(id)));
   return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 24);
 }
-const icsTxt = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const icsTxt = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 function fold(l: string) {
   const out: string[] = [];
   const b = enc.encode(l);
