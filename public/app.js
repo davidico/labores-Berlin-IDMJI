@@ -530,8 +530,12 @@ function avAll(m){const mes=MES[m-1],av=avOf(ui.month);
       ${off.length?`<small>Nunca: ${off.map(w=>DOWS[w]).join(', ')}</small>`:''}${x.predPref&&x.predPref[ui.month]?`<small>Prefiere traducir la predicación: ${DOWS[pd(x.predPref[ui.month]).getDay()]} ${pd(x.predPref[ui.month]).getDate()}</small>`:''}</div></div>`}).join('')||'<div class="info">No hay nadie en esta área.</div>';
   return `<div class="card" style="margin-top:10px"><div class="dayhead"><b>Quién no puede en ${mes}</b><button class="x" data-a="av-all" aria-label="Cerrar">✕</button></div>
     <div class="info" style="margin-top:2px">${ui.area==='all'?'Todas las áreas':'Área: '+AREAN[ui.area]} · cambia el área con los filtros de abajo.</div>${tabs}${body}</div>`}
-function calCard(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userAgent);
-  let h=`<h3>Mi calendario</h3><div class="card"><div class="info" style="margin:0">Tus labores y reuniones aparecen solas en tu calendario${ios?'':' de Google'} y se actualizan si cambia el horario (puede tardar unas horas).</div>`;
+function calCard(p){return `<h3>Mi calendario</h3><div class="card">${calBody(p)}</div>`}
+const calHidden=()=>{try{return localStorage.getItem('lb-calhide')==='1'}catch(e){return!!ui.calHide}};
+function calBanner(p){if(ui.calHide||calHidden())return'';
+  return `<div class="card" style="margin:6px 0 14px"><div class="dayhead"><b>Lleva tus labores a tu calendario</b><button class="x" data-a="cal-hide" aria-label="Cerrar">✕</button></div><div style="margin-top:4px">${calBody(p)}</div><div class="info" style="margin-top:8px">Si lo cierras, lo encuentras en tu foto ⋮ → Ajustes.</div></div>`}
+function calBody(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userAgent);
+  let h=`<div class="info" style="margin:0">Tus labores y reuniones aparecen solas en tu calendario${ios?'':' de Google'} y se actualizan si cambia el horario (puede tardar unas horas).</div>`;
   if(!c)h+=`<button class="btn sm" data-a="cal-get" style="margin-top:10px">Conectar con mi calendario</button>${ui.calErr?`<div class="info" style="color:var(--warn)">${esc(ui.calErr)}</div>`:''}`;
   else{const w=c.me.replace(/^https:/,'webcal:');
     h+=ios?`<a class="btn sm" href="${esc(w)}" style="margin-top:10px">Agregar a mi calendario</a>
@@ -539,7 +543,7 @@ function calCard(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userA
       :`<a class="btn sm" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(w)}" target="_blank" rel="noopener" style="margin-top:10px">Agregar a Google Calendar</a>
       <ol class="steps" style="margin-top:12px"><li>Toca <b>Agregar a Google Calendar</b>. Se abre Google en el navegador.</li><li>Toca <b>Agregar</b> <i>(Hinzufügen)</i>.</li><li>Abre la app <b>Google Calendar</b>. Si no aparece, ve a ☰ → <b>Ajustes</b> <i>(Einstellungen)</i> → «Mis labores · Berlín» y activa <b>Sincronizar</b> <i>(Synchronisieren)</i>.</li></ol>`;
     h+=`<div class="info" style="margin-top:4px">¿Usas otro calendario? <button class="linkbtn" data-a="cal-copy" data-v="${esc(c.me)}" style="font-size:14px">${ui.calCopied===c.me?'¡Enlace copiado!':'Copiar enlace'}</button></div>`}
-  return h+'</div>'}
+  return h}
 function predPick(p,ym,dates){const ok=dates.filter(d=>!p.blocked.includes(d)&&slotsAt(d).some(z=>/_pred$/.test(z.k)&&p.roles.includes(z.role)));if(!ok.length)return'';
   const cur=(p.predPref||{})[ym]||'';
   return `<label class="field" style="margin-top:12px">Fecha en que prefieres traducir la predicación <span class="info" style="display:inline;margin:0">(opcional)</span>
@@ -577,7 +581,7 @@ function msgBlock(p){const ms=state.msgs.filter(m=>m.month===ui.month),mo=+ui.mo
 function vCal(p){
   const tabs=[['cal','Mi mes']];if(myAreas(p).length)tabs.push(['equipo','Mi equipo']);
   if(!tabs.some(t=>t[0]===ui.mv))ui.mv='cal';
-  const h=`<h2>Calendario</h2>${tabs.length>1?`<div class="filters" style="padding:4px 0 6px">${tabs.map(([k,l])=>`<button class="f" data-a="mv" data-v="${k}" aria-pressed="${ui.mv===k}">${l}</button>`).join('')}</div>`:''}`;
+  const h=`<h2>Calendario</h2>${calBanner(p)}${tabs.length>1?`<div class="filters" style="padding:4px 0 6px">${tabs.map(([k,l])=>`<button class="f" data-a="mv" data-v="${k}" aria-pressed="${ui.mv===k}">${l}</button>`).join('')}</div>`:''}`;
   return h+(ui.mv==='equipo'?misTeam:misCal)(p);
 }
 function misCal(p){
@@ -885,6 +889,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
   case'av-list':ui.avList=!ui.avList;break;
   case'av-all':ui.avAll=!ui.avAll;break;
+  case'cal-hide':ui.calHide=true;try{localStorage.setItem('lb-calhide','1')}catch(e){}break;
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
   case'bell':ui.menu=false;ui.bell=true;ui.bellNew=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).map(n=>n.id);for(const n of state.notifs)if(ui.bellNew.includes(n.id))n.read.push(p.id);break;
   case'sheet-x':ui.menu=false;ui.bell=false;ui.bellNew=[];break;
