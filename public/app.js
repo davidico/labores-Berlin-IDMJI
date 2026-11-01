@@ -17,7 +17,7 @@ const AREAN={pulpito:'Púlpito',puerta:'Puerta',sonido:'Sonido',trad:'Traducció
 const PREAMB=['Prepararnos para alabar a Dios','Darle gracias a Dios','Buscar los dones espirituales','Concentrarnos y dejar la timidez','¿Cómo recibir el Bautismo con el Espíritu Santo?','La reverencia'];
 const SVC={1:['Alabanza','18:30'],2:['Estudio bíblico','18:30'],3:['Alabanza','18:30'],4:['Enseñanza','18:30'],5:['Alabanza','18:30'],6:['Estudio bíblico','18:00'],0:['Enseñanza','10:00']};
 // Combinaciones permitidas en el mismo culto. El sonido nunca combina.
-const ALLOWED=new Set(['grd|trI','grd|trP','ent|trI','puerta|pul','mic|pul','ofr|pul','ofr|puerta','mic|puerta','ofr|trI','trP|trT','ent|puerta','ent|pul','ent|mic']);
+const ALLOWED=new Set(['grd|trI','grd|trP','ent|trI','puerta|pul','mic|pul','ofr|pul','ofr|puerta','mic|puerta','ofr|trI','trP|trT','ent|puerta','ent|pul','ent|mic','pul|pul']);
 
 const S=(k,l,role,tag,area,x={})=>({k,l,role,tag,area,...x});
 function slotsFor(dow){
