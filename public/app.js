@@ -311,12 +311,12 @@ function render(){
   if(!READY){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Iglesia de Dios Ministerial · Berlín</small></div></div><div class="card empty-state">Cargando tus labores…</div></div>`;return}
   if(!p){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Iglesia de Dios Ministerial · Berlín</small></div><button class="who" data-a="logout">Salir</button></div>
     <h2>Tu correo aún no está registrado</h2><p class="lead">Entraste como <b>${esc(SESSION.user.email)}</b>, pero ese correo no está asignado a ningún hermano. Pide al administrador que lo agregue en Personas y vuelve a entrar.</p></div>`;return}
-  const tabs=tabsFor(p);if(!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
-  const body={mis:vMis,cal:vCal,disp:vDisp,hor:vHor,ens:vEns,per:vPer}[ui.tab](p);
+  const tabs=tabsFor(p);if(ui.tab!=='aj'&&!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
+  const body={mis:vMis,cal:vCal,disp:vDisp,hor:vHor,ens:vEns,per:vPer,aj:vAj}[ui.tab](p);
   $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
-    <button class="who" data-a="logout">${ui.viewAs?'Viendo como '+esc(p.name)+' · volver':esc(p.name)+' · salir'}</button></div>
+    ${hdr(p)}</div>${ui.viewAs?`<div class="viewas">Viendo como <b>${esc(p.name)}</b><button class="linkbtn" data-a="logout">Volver a mi cuenta</button></div>`:''}
     ${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div>${body}</div>
-    <nav class="tabs">${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+unreadFor(p)+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}</nav>`;
+    <nav class="tabs">${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}</nav>${ui.menu?menuSheet(p):''}${ui.bell?bellSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
 const chip=(area,label)=>`<span class="chip" style="--c:var(${AREAC[area]})">${esc(label)}</span>`;
@@ -399,14 +399,41 @@ function pendingFor(p){return state.reqs.filter(r=>r.status==='open'&&r.date>=to
 function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).length}
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
+function nItem(n,p,un){return `<div class="li ${un?'unread':''}"><div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
+const APPV='1.2';
+function avatar(p,sz){const ini=(p.name||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  return p.photo?`<img class="ava" src="${esc(p.photo)}" alt="" style="width:${sz}px;height:${sz}px">`:`<span class="ava ini" style="width:${sz}px;height:${sz}px;font-size:${Math.round(sz*.4)}px">${esc(ini)}</span>`}
+const BELL='<svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>';
+function hdr(p){const un=unreadFor(p);
+  return `<div class="hdr"><button class="hb" data-a="bell" aria-label="Notificaciones${un?`, ${un} sin leer`:''}">${BELL}${un?`<span class="hbd">${un>9?'9+':un}</span>`:''}</button>
+    <button class="hb menu" data-a="menu" aria-label="Menú">${avatar(p,30)}<svg class="dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></div>`}
+function menuSheet(p){return `<div class="scrim" data-a="sheet-x"></div><div class="pop menu-pop" role="menu">
+  <div class="pophead">${avatar(p,40)}<div><b>${esc(p.name)}</b><small>${esc(ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||'')}</small></div></div>
+  <button role="menuitem" data-a="tab" data-v="aj">Ajustes</button>
+  ${ui.viewAs?'<button role="menuitem" data-a="logout">Volver a mi cuenta</button>':'<button role="menuitem" data-a="logout">Salir</button>'}</div>`}
+function bellSheet(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice(0,60),hl=ui.bellNew||[];
+  return `<div class="scrim" data-a="sheet-x"></div><div class="pop bell-pop"><div class="dayhead"><b>Notificaciones</b><button class="x" data-a="sheet-x" aria-label="Cerrar">✕</button></div>
+  <div class="bell-list">${ns.length?ns.map(n=>nItem(n,p,hl.includes(n.id))).join(''):'<div class="info" style="padding:14px 0">No tienes notificaciones.</div>'}</div></div>`}
+function vAj(p){const em=ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||'';
+  return `<button class="linkbtn" data-a="tab" data-v="${ui.prevTab||'mis'}" style="margin-bottom:6px">‹ Volver</button><h2>Ajustes</h2>
+  <div class="card"><div class="phrow">${avatar(p,84)}<div class="inline" style="flex-direction:column;align-items:flex-start;gap:6px">
+     <label class="btn ghost sm" style="cursor:pointer">${p.photo?'Cambiar foto':'Agregar foto de perfil'}<input type="file" accept="image/*" hidden id="ph-in" data-c="photo"></label>
+     ${p.photo?'<button class="linkbtn" data-a="photo-del" style="font-size:14px">Quitar foto</button>':''}</div></div>
+   <label class="field" style="margin-top:14px">Nombre<input id="me-name" type="text" value="${esc(p.name)}" data-c="me-name"></label>
+   <label class="field">Número de teléfono<input id="me-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+49 …" value="${esc(p.phone||'')}" data-c="me-phone"></label>
+   <label class="field">Correo<input type="email" value="${esc(em)}" disabled></label>
+   <div class="info" style="margin-top:-4px">El correo solo lo puede cambiar el administrador.</div>
+   <div class="info" style="margin-top:10px">Labores: <b>${p.roles.map(r=>ROLES[r]).join(', ')||'ninguna todavía'}</b></div></div>
+  ${calCard(p)}
+  <p class="ver">Labores Berlín · versión ${APPV}</p>`}
 function avisos(p){let h='';
   if(ui.flash){h+=`<div class="banner ok">${esc(ui.flash)}</div>`;ui.flash=null}
   const rq=pendingFor(p);
   if(rq.length)h+=`<div class="list" style="margin-bottom:14px">${rq.map(r=>{const f=person(r.from),s=slotOf(r.date,r.k);return `<div class="card ask"><div class="info" style="margin:0 0 4px">Piden reemplazo</div><b>${esc(f?f.name:'Un hermano')}</b> no puede ir el <b>${fmt(r.date)}</b> · ${esc(s.l)}. ¿Puedes ir tú?
     <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="acc" data-v="${r.id}">Sí, yo voy</button><button class="btn ghost sm" data-a="dec" data-v="${r.id}">No puedo</button></div></div>`}).join('')}</div>`;
-  const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice(0,8);
+  const ns=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).slice(0,8);
   if(ns.length){const un=ns.filter(n=>!n.read.includes(p.id)).length;
-    h+=`<h3 style="margin-top:4px">Avisos${un?` <span class="tag">${un} ${un===1?'nuevo':'nuevos'}</span>`:''}</h3><div class="card">${ns.map(n=>`<div class="li ${n.read.includes(p.id)?'':'unread'}"><div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`).join('')}
+    h+=`<h3 style="margin-top:4px">Avisos${un?` <span class="tag">${un} ${un===1?'nuevo':'nuevos'}</span>`:''}</h3><div class="card">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}
     ${un?`<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>`:''}</div>`}
   return h}
 function monthNav(){const[y,m]=ui.cm.split('-').map(Number);return `<div class="mnav" style="margin:6px 0 12px"><button class="ib" data-a="cm" data-v="-1" aria-label="Mes anterior">‹</button><b>${MES[m-1]} ${y}</b><button class="ib" data-a="cm" data-v="1" aria-label="Mes siguiente">›</button></div>`}
@@ -585,11 +612,6 @@ function vDisp(p){
   const byM={};for(const d of p.blocked.filter(d=>d>=today).sort())(byM[d.slice(0,7)]=byM[d.slice(0,7)]||[]).push(d);
   return `<h2>Mi disponibilidad</h2><p class="lead">El horario de cada mes se arma con esto.</p>
   <h3>Mes por mes</h3>${st}
-  <h3>Mis datos</h3><div class="card">
-   <label class="field">Nombre<input id="me-name" type="text" value="${esc(p.name)}" data-c="me-name"></label>
-   <label class="field">Número de teléfono<input id="me-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+49 …" value="${esc(p.phone||'')}" data-c="me-phone"></label>
-   <div class="info">Labores: <b>${p.roles.map(r=>ROLES[r]).join(', ')||'ninguna todavía'}</b></div></div>
-  ${calCard(p)}
   <h3>Días que puedo servir</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses. Las fechas sueltas se marcan arriba, mes por mes.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
      <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${w}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
   <h3>Fechas en que no puedo</h3><div class="card">
@@ -807,7 +829,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'push-on':ensureSub(true);return;
   case'install':if(INSTALL){INSTALL.prompt();INSTALL=null}return;
   case'install-x':ui.hideInstall=true;try{localStorage.setItem('lb-noinstall','1')}catch(e){}break;
-  case'tab':ui.tab=v;ui.edit=null;scrollTo(0,0);break;
+  case'tab':if(v==='aj'&&ui.tab!=='aj')ui.prevTab=ui.tab;ui.menu=false;ui.bell=false;ui.tab=v;ui.edit=null;scrollTo(0,0);break;
   case'month':{const[y,m]=ui.month.split('-').map(Number);const d=new Date(y,m-1+(+v),1);ui.month=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;ui.regen=false;break}
   case'area':ui.area=v;break;
   case'view':ui.view=v;ui.edit=null;break;
@@ -854,6 +876,10 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
   case'av-list':ui.avList=!ui.avList;break;
   case'av-all':ui.avAll=!ui.avAll;break;
+  case'menu':ui.menu=!ui.menu;ui.bell=false;break;
+  case'bell':ui.menu=false;ui.bell=true;ui.bellNew=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).map(n=>n.id);for(const n of state.notifs)if(ui.bellNew.includes(n.id))n.read.push(p.id);break;
+  case'sheet-x':ui.menu=false;ui.bell=false;ui.bellNew=[];break;
+  case'photo-del':delete p.photo;break;
   case'cal-get':ui.calErr='';SB.functions.invoke('push',{body:{mode:'caltoken'}}).then(r=>{if(r.error||!r.data||!r.data.me)ui.calErr='No se pudo crear el enlace. Inténtalo de nuevo.';else ui.cal=r.data;render()}).catch(()=>{ui.calErr='No se pudo crear el enlace. Revisa tu conexión.';render()});return;
   case'cal-copy':try{navigator.clipboard.writeText(v).then(()=>{ui.calCopied=v;render()})}catch(e){prompt('Copia este enlace:',v)}return;
   case'av-mode':ui.avMode=v;break;
@@ -895,6 +921,7 @@ document.addEventListener('change',e=>{const t=e.target.closest('[data-c]');if(!
   case'cell':{const[d,k]=v.split('|');const ym=d.slice(0,7);const as=state.schedules[ym][d]=state.schedules[ym][d]||{};if(t.value)as[k]=t.value;else delete as[k];ui.edit=null;break}
   case'me-name':if(t.value.trim())p.name=t.value.trim();break;
   case'me-phone':p.phone=t.value.trim();break;
+  case'photo':{const f=t.files&&t.files[0];if(!f)return;const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const S=128,c=document.createElement('canvas');c.width=c.height=S;const k=Math.min(im.width,im.height),g=c.getContext('2d');g.drawImage(im,(im.width-k)/2,(im.height-k)/2,k,k,0,0,S,S);URL.revokeObjectURL(u);p.photo=c.toDataURL('image/jpeg',.72);save();render()};im.onerror=()=>{ui.toast='No se pudo leer esa imagen.';render()};im.src=u;return}
   case'p-email':{const x=person(v),old=x.email||'';x.email=t.value.trim();syncMember(x,old);break}
   case'p-name':if(t.value.trim())person(v).name=t.value.trim();break;
   case'p-sex':person(v).sex=t.value;break;
