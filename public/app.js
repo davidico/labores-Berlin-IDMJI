@@ -529,14 +529,15 @@ function avAll(m){const mes=MES[m-1],av=avOf(ui.month);
       ${off.length?`<small>Nunca: ${off.map(w=>DOWS[w]).join(', ')}</small>`:''}</div></div>`}).join('')||'<div class="info">No hay nadie en esta área.</div>';
   return `<div class="card" style="margin-top:10px"><div class="dayhead"><b>Quién no puede en ${mes}</b><button class="x" data-a="av-all" aria-label="Cerrar">✕</button></div>
     <div class="info" style="margin-top:2px">${ui.area==='all'?'Todas las áreas':'Área: '+AREAN[ui.area]} · cambia el área con los filtros de abajo.</div>${tabs}${body}</div>`}
-function calLinks(u,lbl){const w=u.replace(/^https:/,'webcal:');
-  return `<div class="inline" style="margin-top:10px;flex-wrap:wrap"><a class="btn sm" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(w)}" target="_blank" rel="noopener">${lbl} · Google</a><a class="btn ghost sm" href="${esc(w)}">iPhone / Mac</a><button class="btn ghost sm" data-a="cal-copy" data-v="${esc(u)}">${ui.calCopied===u?'¡Copiado!':'Copiar enlace'}</button></div>`}
-function calCard(p){const c=ui.cal;
-  let h=`<h3>Mi calendario</h3><div class="card"><div class="info" style="margin:0">Tus labores y reuniones aparecen solas en tu calendario del celular y se actualizan si cambia el horario (puede tardar unas horas).</div>`;
+function calCard(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userAgent);
+  let h=`<h3>Mi calendario</h3><div class="card"><div class="info" style="margin:0">Tus labores y reuniones aparecen solas en tu calendario${ios?'':' de Google'} y se actualizan si cambia el horario (puede tardar unas horas).</div>`;
   if(!c)h+=`<button class="btn sm" data-a="cal-get" style="margin-top:10px">Conectar con mi calendario</button>${ui.calErr?`<div class="info" style="color:var(--warn)">${esc(ui.calErr)}</div>`:''}`;
-  else{h+=calLinks(c.me,'Mis labores');
-    if(c.all)h+=`<div class="info" style="margin-top:12px"><b>Horario completo de todos</b> (solo administradores), como calendario aparte:</div>`+calLinks(c.all,'Todos');
-    h+=`<div class="note" style="margin-top:12px"><b>En Android:</b> el botón de Google abre calendar.google.com; toca <b>Agregar</b> <i>(Hinzufügen)</i>. Si no aparece en la app de Calendar del celular, entra en sus <b>Ajustes</b> <i>(Einstellungen)</i>, toca el calendario nuevo y activa <b>Sincronizar</b> <i>(Synchronisieren)</i>.<br><b>En iPhone:</b> toca «iPhone / Mac» y luego <b>Suscribirse</b> <i>(Abonnieren)</i>.<br>Este enlace es solo tuyo, no lo compartas.</div>`}
+  else{const w=c.me.replace(/^https:/,'webcal:');
+    h+=ios?`<a class="btn sm" href="${esc(w)}" style="margin-top:10px">Agregar a mi calendario</a>
+      <ol class="steps" style="margin-top:12px"><li>Toca <b>Agregar a mi calendario</b>.</li><li>Toca <b>Suscribirse</b> <i>(Abonnieren)</i> y luego <b>OK</b>.</li><li>Tus labores aparecen en la app <b>Calendario</b> <i>(Kalender)</i>.</li></ol>`
+      :`<a class="btn sm" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(w)}" target="_blank" rel="noopener" style="margin-top:10px">Agregar a Google Calendar</a>
+      <ol class="steps" style="margin-top:12px"><li>Toca <b>Agregar a Google Calendar</b>. Se abre Google en el navegador.</li><li>Toca <b>Agregar</b> <i>(Hinzufügen)</i>.</li><li>Abre la app <b>Google Calendar</b>. Si no aparece, ve a ☰ → <b>Ajustes</b> <i>(Einstellungen)</i> → «Mis labores · Berlín» y activa <b>Sincronizar</b> <i>(Synchronisieren)</i>.</li></ol>`;
+    h+=`<div class="info" style="margin-top:4px">¿Usas otro calendario? <button class="linkbtn" data-a="cal-copy" data-v="${esc(c.me)}" style="font-size:14px">${ui.calCopied===c.me?'¡Enlace copiado!':'Copiar enlace'}</button></div>`}
   return h+'</div>'}
 function misAv(p){if(!p.roles||!p.roles.length)return'';let h='';
   for(const ym of Object.keys(state.avReqs||{}).sort()){const av=avOf(ym);if(ym<today.slice(0,7)||today>av.deadline)continue;const mes=MES[+ym.slice(5,7)-1];const done=av.done&&av.done[p.id];
