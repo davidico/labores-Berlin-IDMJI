@@ -45,7 +45,7 @@ const ORDER=['predica','pul','pul_ini','pul_fin','sonido','grd1','grd2','grd3','
 function leipThu(date){const d=pd(date);if(d.getDay()!==4)return false;const sat=ds(new Date(d.getTime()+2*864e5));return state.leipzig.some(l=>l.date===sat)}
 function slotsAt(date){const a=slotsFor(pd(date).getDay());if(!state.leipThuRule||!leipThu(date))return a;
   return [S('predica','Púlpito · predicación','pulpito','pred','pulpito',{only:['david']}),...a.map(s=>s.k==='pul'?{...s,noPastor:0,only:['oswaldo','javier'],prefer:['oswaldo','javier']}:s)]}
-function pen(p,s,dow){let v=0;if(s.altRole&&!p.roles.includes(s.role))v+=800;if(p.avoidSlots&&p.avoidSlots.includes(s.k))v+=300;if(p.avoidDays&&p.avoidDays.includes(dow))v+=300;if(p.favorSlots&&p.favorSlots.includes(s.k))v-=100;if(p.predDays&&p.predDays.length&&/_pred$/.test(s.k))if(p.predDays.includes(dow))v-=60;return v}
+function pen(p,s,dow){let v=0;if(s.altRole&&!p.roles.includes(s.role))v+=800;if(p.avoidSlots&&p.avoidSlots.includes(s.k))v+=300;if(p.avoidDays&&p.avoidDays.includes(dow))v+=300;if(p.favorSlots&&p.favorSlots.includes(s.k))v-=100;return v}
 function combo(a,b){
   if(a.tag==='son'||b.tag==='son') return false;
   const k=[a.tag,b.tag].sort().join('|');
@@ -186,6 +186,7 @@ function genOnce(ym){
       if(s.prefer){const i=s.prefer.indexOf(p.id);if(i>=0)v-=(s.prefer.length-i)*500}
       if(p.pref&&p.pref[s.area]&&!p.pref[s.area].includes(dow)) v+=40;
       if(p.freeAlab&&(dow===1||dow===3)) v+=60;
+      if(p.predPref&&p.predPref[ym]===date&&/_pred$/.test(s.k)) v-=150;
       v+=pen(p,s,dow);return v};
     const cands=s=>state.people.filter(p=>!why(p,s,date,as,slots)).sort((a,b)=>score(a,s)-score(b,s));
     for(const k of ORDER){const s=byK[k];if(!s)continue;
@@ -526,7 +527,7 @@ function avAll(m){const mes=MES[m-1],av=avOf(ui.month);
   else body=ppl.map(x=>{const off=[1,2,3,4,5,6,0].filter(w=>!x.days.includes(w)),b=blk(x),ok=av&&av.done&&av.done[x.id];
     return `<div class="li"><div class="main"><b>${esc(x.name)}</b>${av?`<span class="info" style="margin:0 0 0 6px;display:inline">${ok?'· respondió':'· <b>falta</b>'}</span>`:''}
       <small>${b.length?`No puede: ${b.map(d=>DOWS[pd(d).getDay()]+' '+pd(d).getDate()).join(', ')}`:'Sin fechas marcadas'}</small>
-      ${off.length?`<small>Nunca: ${off.map(w=>DOWS[w]).join(', ')}</small>`:''}</div></div>`}).join('')||'<div class="info">No hay nadie en esta área.</div>';
+      ${off.length?`<small>Nunca: ${off.map(w=>DOWS[w]).join(', ')}</small>`:''}${x.predPref&&x.predPref[ui.month]?`<small>Prefiere traducir la predicación: ${DOWS[pd(x.predPref[ui.month]).getDay()]} ${pd(x.predPref[ui.month]).getDate()}</small>`:''}</div></div>`}).join('')||'<div class="info">No hay nadie en esta área.</div>';
   return `<div class="card" style="margin-top:10px"><div class="dayhead"><b>Quién no puede en ${mes}</b><button class="x" data-a="av-all" aria-label="Cerrar">✕</button></div>
     <div class="info" style="margin-top:2px">${ui.area==='all'?'Todas las áreas':'Área: '+AREAN[ui.area]} · cambia el área con los filtros de abajo.</div>${tabs}${body}</div>`}
 function calCard(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userAgent);
@@ -539,12 +540,18 @@ function calCard(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userA
       <ol class="steps" style="margin-top:12px"><li>Toca <b>Agregar a Google Calendar</b>. Se abre Google en el navegador.</li><li>Toca <b>Agregar</b> <i>(Hinzufügen)</i>.</li><li>Abre la app <b>Google Calendar</b>. Si no aparece, ve a ☰ → <b>Ajustes</b> <i>(Einstellungen)</i> → «Mis labores · Berlín» y activa <b>Sincronizar</b> <i>(Synchronisieren)</i>.</li></ol>`;
     h+=`<div class="info" style="margin-top:4px">¿Usas otro calendario? <button class="linkbtn" data-a="cal-copy" data-v="${esc(c.me)}" style="font-size:14px">${ui.calCopied===c.me?'¡Enlace copiado!':'Copiar enlace'}</button></div>`}
   return h+'</div>'}
+function predPick(p,ym,dates){const ok=dates.filter(d=>!p.blocked.includes(d)&&slotsAt(d).some(z=>/_pred$/.test(z.k)&&p.roles.includes(z.role)));if(!ok.length)return'';
+  const cur=(p.predPref||{})[ym]||'';
+  return `<label class="field" style="margin-top:12px">Fecha en que prefieres traducir la predicación <span class="info" style="display:inline;margin:0">(opcional)</span>
+    <select data-c="pred-pref" data-v="${ym}"><option value="">Me da igual</option>${ok.map(d=>`<option value="${d}" ${d===cur?'selected':''}>${fmt(d)}</option>`).join('')}</select></label>
+    <div class="info" style="margin-top:-6px">Si se puede, te ponemos la predicación ese día. Si no, otro día.</div>`}
 function misAv(p){if(!p.roles||!p.roles.length)return'';let h='';
   for(const ym of Object.keys(state.avReqs||{}).sort()){const av=avOf(ym);if(ym<today.slice(0,7)||today>av.deadline)continue;const mes=MES[+ym.slice(5,7)-1];const done=av.done&&av.done[p.id];
     if(ui.avOpen===ym){const dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,n=dates.filter(d=>p.blocked.includes(d)).length;
       h+=`<div class="card" style="margin-bottom:14px"><b>Tu disponibilidad de ${mes}</b><div class="info" style="margin:4px 0 10px">Presiona los días que <b>no puedes</b> servir. Los días que dejes sin presionar quedan disponibles.</div>
         <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${dates.map(d=>`<button class="tog avd" data-a="avday" data-v="${d}" aria-pressed="${p.blocked.includes(d)}" aria-label="${fmt(d)}">${pd(d).getDate()}</button>`).join('')}</div>
         <div class="info" style="margin-top:8px">${n?`No puedes ${n} ${n===1?'día':'días'}.`:'Puedes todos los días.'}</div>
+        ${predPick(p,ym,dates)}
         <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="av-done" data-v="${ym}">Enviar mi disponibilidad</button><button class="btn ghost sm" data-a="av-close">Cerrar</button></div></div>`;continue}
     if(done){h+=`<div class="info" style="margin-bottom:12px">Enviaste tu disponibilidad de ${mes}. <button class="btn ghost sm" data-a="av-open" data-v="${ym}">Cambiar</button></div>`;continue}
     h+=`<div class="card ask" style="margin-bottom:14px"><b>Disponibilidad de ${mes}</b><div class="info" style="margin-top:4px">Marca los días que no puedes servir${today<=av.deadline?` antes del <b>${fmt(av.deadline)}</b>`:''}.</div>
@@ -616,8 +623,6 @@ function vDisp(p){
   <h3>Mes por mes</h3>${st}
   <h3>Días que puedo servir</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses. Las fechas sueltas se marcan arriba, mes por mes.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
      <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${w}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
-  ${p.roles.includes('trad_de')?`<h3>Día preferido para traducir la predicación</h3><div class="card"><div class="info" style="margin:0 0 8px">Si se puede, te ponemos la predicación ese día. Si no, cualquier otro.</div>
-   <div class="filters" style="margin:0">${[[4,'Jueves'],[0,'Domingo'],[-1,'Me da igual']].map(([w,l])=>{const on=w<0?!(p.predDays&&p.predDays.length):!!(p.predDays&&p.predDays.length===1&&p.predDays[0]===w);return `<button class="f" data-a="pred-day" data-v="${w}" aria-pressed="${on}">${l}</button>`}).join('')}</div></div>`:''}
   <h3>Fechas en que no puedo</h3><div class="card">
    <div class="inline"><input id="blk" type="date" min="${today}"><button class="btn sm" data-a="block">Agregar</button></div>
    <div style="margin-top:8px">${Object.entries(byM).map(([ym,ds_])=>{const o=!!(ui.blkOpen||{})[ym],mes=MES[+ym.slice(5,7)-1];return `<button class="mfold" data-a="blk-fold" data-v="${ym}" aria-expanded="${o}"><span><b>${mes[0].toUpperCase()+mes.slice(1)}</b> · ${ds_.length} ${ds_.length===1?'fecha':'fechas'}</span><span class="chev">${o?'▾':'▸'}</span></button>`+(o?ds_.map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${d}" aria-label="Quitar">✕</button></div>`).join(''):'')}).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
@@ -880,7 +885,6 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
   case'av-list':ui.avList=!ui.avList;break;
   case'av-all':ui.avAll=!ui.avAll;break;
-  case'pred-day':{const w=+v;if(w<0)delete p.predDays;else p.predDays=[w];break}
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
   case'bell':ui.menu=false;ui.bell=true;ui.bellNew=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).map(n=>n.id);for(const n of state.notifs)if(ui.bellNew.includes(n.id))n.read.push(p.id);break;
   case'sheet-x':ui.menu=false;ui.bell=false;ui.bellNew=[];break;
@@ -926,6 +930,7 @@ document.addEventListener('change',e=>{const t=e.target.closest('[data-c]');if(!
   case'cell':{const[d,k]=v.split('|');const ym=d.slice(0,7);const as=state.schedules[ym][d]=state.schedules[ym][d]||{};if(t.value)as[k]=t.value;else delete as[k];ui.edit=null;break}
   case'me-name':if(t.value.trim())p.name=t.value.trim();break;
   case'me-phone':p.phone=t.value.trim();break;
+  case'pred-pref':{p.predPref=p.predPref||{};if(t.value)p.predPref[v]=t.value;else delete p.predPref[v];break}
   case'photo':{const f=t.files&&t.files[0];if(!f)return;const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const S=128,c=document.createElement('canvas');c.width=c.height=S;const k=Math.min(im.width,im.height),g=c.getContext('2d');g.drawImage(im,(im.width-k)/2,(im.height-k)/2,k,k,0,0,S,S);URL.revokeObjectURL(u);p.photo=c.toDataURL('image/jpeg',.72);save();render()};im.onerror=()=>{ui.toast='No se pudo leer esa imagen.';render()};im.src=u;return}
   case'p-email':{const x=person(v),old=x.email||'';x.email=t.value.trim();syncMember(x,old);break}
   case'p-name':if(t.value.trim())person(v).name=t.value.trim();break;
