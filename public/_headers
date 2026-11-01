@@ -1,0 +1,9 @@
+# Cabeceras para Cloudflare Pages
+/*
+  Content-Security-Policy: script-src 'self' https://cdn.jsdelivr.net
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/*.js
+  Cache-Control: no-cache
