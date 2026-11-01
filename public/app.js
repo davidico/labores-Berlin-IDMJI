@@ -795,7 +795,6 @@ function vEns(p){
   if(!(p.admin||p.pastor))return `<h2>Predicaciones</h2><p class="lead">Lo que se predica en los próximos jueves y domingos, las transmisiones y las visitas a Leipzig.</p>${cronograma(p)}`;
   const tm=teachMap();const dateOf={};for(const d in tm)dateOf[tm[d].id]=d;
   return `<h2>Enseñanzas y viajes</h2><p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas.</p>
-  <h3>Cronograma</h3>${cronograma(p)}
   <h3>Enseñanzas en orden</h3>${ui.uplMsg?`<div class="banner warnbn">${esc(ui.uplMsg)}</div>`:''}<div class="card">
    <label class="field">Empiezan desde<input id="t-start" type="date" value="${state.teachStart}" data-c="t-start"></label>
    ${state.teachings.map((t,i)=>`<div class="li"><div class="main"><b>${esc(t.title)}</b><small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>
