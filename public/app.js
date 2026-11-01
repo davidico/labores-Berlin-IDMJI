@@ -594,7 +594,7 @@ function vDisp(p){
      <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${w}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
   <h3>Fechas en que no puedo</h3><div class="card">
    <div class="inline"><input id="blk" type="date" min="${today}"><button class="btn sm" data-a="block">Agregar</button></div>
-   <div style="margin-top:8px">${Object.entries(byM).map(([ym,ds_])=>`<div class="info" style="margin:10px 0 2px"><b>${MES[+ym.slice(5,7)-1]}</b></div>`+ds_.map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${d}" aria-label="Quitar">✕</button></div>`).join('')).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
+   <div style="margin-top:8px">${Object.entries(byM).map(([ym,ds_])=>{const o=!!(ui.blkOpen||{})[ym],mes=MES[+ym.slice(5,7)-1];return `<button class="mfold" data-a="blk-fold" data-v="${ym}" aria-expanded="${o}"><span><b>${mes[0].toUpperCase()+mes.slice(1)}</b> · ${ds_.length} ${ds_.length===1?'fecha':'fechas'}</span><span class="chev">${o?'▾':'▸'}</span></button>`+(o?ds_.map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${d}" aria-label="Quitar">✕</button></div>`).join(''):'')}).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
 }
 
 function vHor(p){const RO=!p.admin;
@@ -868,7 +868,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'edit':if(!p.admin)return;ui.edit=v;render();const s=document.getElementById('sel-'+v);if(s){s.focus();try{s.showPicker&&s.showPicker()}catch(_){} }return;
   case'day':{const w=+v;p.days=p.days.includes(w)?p.days.filter(x=>x!==w):[...p.days,w];break}
   case'dayset':{const[w,on]=v.split('|').map(Number);p.days=p.days.filter(x=>x!==w);if(on)p.days.push(w);break}
-  case'block':{const d=$('blk').value;if(d&&!p.blocked.includes(d))p.blocked.push(d);break}
+  case'block':{const d=$('blk').value;if(d&&!p.blocked.includes(d))p.blocked.push(d);if(d)(ui.blkOpen=ui.blkOpen||{})[d.slice(0,7)]=true;break}
+  case'blk-fold':(ui.blkOpen=ui.blkOpen||{})[v]=!ui.blkOpen[v];break;
   case'unblock':p.blocked=p.blocked.filter(x=>x!==v);break;
   case'open':ui.open=ui.open===v?null:v;ui.delp=null;break;
   case'delp':ui.delp=v;break;
