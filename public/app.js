@@ -341,7 +341,7 @@ function myItems(p){
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const notes=[...it.notes];
   if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo ${preamb(d)+1}:</b> ${PREAMB[preamb(d)]}`);
-  if((w===4||w===0)&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d])notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}${pdfLink('t',tm[d])}`);
+  if((w===4||w===0)&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d])notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}${pdfLink('t',tm[d],it.slots.some(s=>s.area==='pulpito')?['de','en']:[...new Set(it.slots.filter(s=>s.area==='trad').map(s=>s.k.slice(0,2)))])}`);
   return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length?sn:'Aviso'} <small>${it.slots.length?st:''}</small></div>
     ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}
@@ -402,7 +402,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){return `<div class="li ${un?'unread':''}"><div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='1.5';
+const APPV='1.6';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -779,21 +779,26 @@ async function savePdf(ym){
   catch(e){ui.pdfMsg=e&&e.code==='declined'?'':'No se pudo descargar el PDF. Intenta de nuevo.'}
   render()}
 
-const pdfLink=(kind,t)=>t&&t.pdf?`<div style="margin-top:6px">${DL?`<button class="pdfl dl" data-a="dlpdf" data-v="${kind}|${t.id}">Descargar ficha de interpretación</button>`:`<a class="pdfl" href="/_blob/${esc(t.pdf.id)}" target="_blank" rel="noopener">Ficha de interpretación</a>`}</div>`:'';
-async function dlPdf(kv){const[kind,id]=kv.split('|');const t=pdfList(kind).find(x=>x.id===id);if(!t||!t.pdf)return;
-  try{const{data:b,error}=await SB.storage.from('fichas').download(t.pdf.id);if(error)throw error;await DL.save({filename:t.pdf.name||'ficha.pdf',data:b});ui.toast=''}
+/* Fichas de interpretación: una en alemán (campo pdf) y otra en inglés (campo pdfEn). */
+const LANGF={de:'pdf',en:'pdfEn'},LANGN={de:'alemán',en:'inglés'};
+const pdfLink=(kind,t,langs=['de','en'])=>{if(!t)return'';const ls=langs.filter(l=>t[LANGF[l]]);if(!ls.length)return'';
+  return `<div class="inline" style="margin-top:6px;flex-wrap:wrap">${ls.map(l=>`<button class="pdfl dl" data-a="dlpdf" data-v="${kind}|${t.id}|${l}">Ficha en ${LANGN[l]}</button>`).join('')}</div>`};
+const myLangs=(p,d)=>{const as=schedOf(d)||{};return[...new Set(slotsAt(d).filter(s=>s.area==='trad'&&as[s.k]===p.id).map(s=>s.k.slice(0,2)))]};
+async function dlPdf(kv){const[kind,id,l='de']=kv.split('|');const t=pdfList(kind).find(x=>x.id===id),f=t&&t[LANGF[l]];if(!f)return;
+  try{const{data:b,error}=await SB.storage.from('fichas').download(f.id);if(error)throw error;await DL.save({filename:f.name||'ficha.pdf',data:b});ui.toast=''}
   catch(e){ui.toast=e&&e.code==='declined'?'':'No se pudo descargar la ficha. Intenta de nuevo.'}render()}
 const transOnDay=(p,d)=>{const as=schedOf(d)||{};return slotsAt(d).some(s=>s.area==='trad'&&as[s.k]===p.id)};
 let AS=null;
-function pdfCtl(kind,t){return t.pdf?`<button class="pdfl dl" data-a="dlpdf" data-v="${kind}|${t.id}">${esc(t.pdf.name)}</button>${AS?`<button class="x" data-a="pdfdel" data-v="${kind}|${t.id}">Quitar ficha</button>`:''}`:ui.upl===t.id?'<span class="info">Subiendo ficha…</span>':AS?`<label class="btn ghost sm" style="cursor:pointer">Adjuntar ficha de interpretación<input type="file" accept="application/pdf" hidden id="pf-${t.id}" data-c="pdf" data-v="${kind}|${t.id}"></label>`:''}
+function pdfCtl(kind,t){return `<div class="fich">${['de','en'].map(l=>{const f=t[LANGF[l]],k=t.id+'|'+l,L=LANGN[l][0].toUpperCase()+LANGN[l].slice(1);
+  return `<span class="fl">${L}</span><div class="fc">${f?`<button class="pdfl dl" data-a="dlpdf" data-v="${kind}|${t.id}|${l}">${esc(f.name)}</button>${AS?`<button class="linkbtn" style="font-size:13px" data-a="pdfdel" data-v="${kind}|${t.id}|${l}">Quitar</button>`:''}`:ui.upl===k?'<span class="info" style="margin:0">Subiendo…</span>':AS?`<label class="btn ghost sm" style="cursor:pointer">Adjuntar<input type="file" accept="application/pdf" hidden id="pf-${t.id}-${l}" data-c="pdf" data-v="${kind}|${t.id}|${l}"></label>`:'<span class="info" style="margin:0">Sin ficha</span>'}</div>`}).join('')}</div>`}
 const pdfList=kind=>kind==='l'?state.leipzig:state.teachings;
-async function uploadPdf(kv,file){const[kind,id]=kv.split('|');const t=pdfList(kind).find(x=>x.id===id);if(!t||!file||!AS)return;
+async function uploadPdf(kv,file){const[kind,id,l='de']=kv.split('|');const t=pdfList(kind).find(x=>x.id===id);if(!t||!file||!AS)return;
   if(file.type!=='application/pdf'){ui.uplMsg='La ficha debe ser un PDF.';render();return}
-  ui.upl=id;ui.uplMsg='';render();
-  try{const r=await AS.upload(file);t.pdf={id:r.id,name:file.name};save()}catch(e){ui.uplMsg=e&&e.code==='too_large'?'La ficha es muy grande (máximo 20 MB).':'No se pudo subir la ficha. Intenta de nuevo.'}
+  ui.upl=id+'|'+l;ui.uplMsg='';render();
+  try{const r=await AS.upload(file);const old=t[LANGF[l]];t[LANGF[l]]={id:r.id,name:file.name};save();if(old&&old.id!==r.id)AS.delete(old.id).catch(()=>{})}catch(e){ui.uplMsg=e&&e.code==='too_large'?'La ficha es muy grande (máximo 20 MB).':'No se pudo subir la ficha. Intenta de nuevo.'}
   ui.upl=null;render()}
 function cronograma(p){const tm=teachMap(),it=[];const allT=p.admin||p.pastor||p.roles.includes('pulpito');const pastor=state.people.find(x=>x.pastor);
-  for(const d in tm)if(d>=today){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<b>${esc(tm[d].title)}</b>${allT||transOnDay(p,d)?pdfLink('t',tm[d]):''}`,s:`Predica: ${esc(pr?pr.name:'—')}`})}
+  for(const d in tm)if(d>=today){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<b>${esc(tm[d].title)}</b>${pdfLink('t',tm[d],allT?['de','en']:myLangs(p,d))}`,s:`Predica: ${esc(pr?pr.name:'—')}`})}
   for(const t of state.trans)if(t.date>=today)it.push({d:t.date,h:'<b>Transmisión internacional</b>',s:t.link?`<div class="pre">${linkify(t.link)}</div>`:'La información aún no está.'});
   for(const l of state.leipzig)if(l.date>=today)it.push({d:l.date,h:'<b>Visita a Leipzig</b>',s:`Predicación: ${esc(l.teaching||'por definir')}${pdfLink('l',l)}`});
   it.sort((a,b)=>a.d<b.d?-1:1);
@@ -809,7 +814,7 @@ function vEns(p){
      const last=fut.length?dateOf[fut[fut.length-1].id]:'';
      let h=past.length?`<button class="mfold" data-a="t-past" aria-expanded="${!!ui.tPast}"><span><b>Ya pasaron</b> · ${past.length}</span><span class="chev">${ui.tPast?'▾':'▸'}</span></button>${ui.tPast?past.map(t=>`<div class="li"><div class="main" style="opacity:.6"><b>${esc(t.title)}</b><small>${fmt(dateOf[t.id])}</small></div></div>`).join(''):''}`:'';
      h+=fut.map((t,i)=>`<div class="li"><div class="main"><b>${esc(t.title)}</b><small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>
-     <div class="inline" style="margin-top:6px">${pdfCtl('t',t)}</div></div>
+     ${pdfCtl('t',t)}</div>
      <button class="x" data-a="t-up" data-v="${t.id}" aria-label="Subir" ${i?'':'disabled'}>↑</button><button class="x" data-a="t-down" data-v="${t.id}" aria-label="Bajar" ${i<fut.length-1?'':'disabled'}>↓</button><button class="x" data-a="t-del" data-v="${t.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info" style="padding:8px 0">No hay enseñanzas por venir. Agrega las siguientes abajo.</div>';
      if(last)h+=`<div class="info" style="margin-top:8px">Hay enseñanzas cargadas hasta el <b>${fmt(last)}</b>. Para seguir después, agrega más abajo y se acomodan solas en los siguientes jueves y domingos.</div>`;
      return h})()}
@@ -935,7 +940,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'delp-yes':{const x=person(v);if(x&&x.email)SB.from('members').delete().eq('email',x.email.toLowerCase()).then(()=>{});}state.people=state.people.filter(x=>x.id!==v);ui.delp=null;ui.open=null;break;
   case'addp':{const n=$('np-name').value.trim();if(!n)return;const id=uid();state.people.push(P(id,n,$('np-sex').value,[]));ui.open=id;break}
   case't-add':{const n=$('t-new').value.trim();if(!n)return;state.teachings.push({id:uid(),title:n});break}
-  case'pdfdel':{const[kd,iv]=v.split('|');const x=pdfList(kd).find(z=>z.id===iv);if(x&&x.pdf){const aid=x.pdf.id;delete x.pdf;if(AS)AS.delete(aid).catch(()=>{})}break}
+  case'pdfdel':{const[kd,iv,l='de']=v.split('|');const x=pdfList(kd).find(z=>z.id===iv),fk=LANGF[l];if(x&&x[fk]){const aid=x[fk].id;delete x[fk];if(AS)AS.delete(aid).catch(()=>{})}break}
   case't-del':state.teachings=state.teachings.filter(t=>t.id!==v);break;
   case't-up':case't-down':{const i=state.teachings.findIndex(t=>t.id===v),j=a==='t-up'?i-1:i+1;if(j<0||j>=state.teachings.length)return;const arr=state.teachings;[arr[i],arr[j]]=[arr[j],arr[i]];break}
   case'tr-add':{const d=$('tr-date').value;if(!d)return;state.trans.push({id:uid(),date:d,link:$('tr-link').value.trim(),note:''});break}
