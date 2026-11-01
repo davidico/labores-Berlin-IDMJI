@@ -279,14 +279,16 @@ function tabsFor(p){const t=[['mis','Labores'],['cal','Calendario'],['disp','Mis
 
 function authView(){const m=ui.authMode||'login';const msg=ui.authMsg?`<div class="banner ${ui.authOk?'ok':'warnbn'}">${esc(ui.authMsg)}</div>`:'';
   const head=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Iglesia de Dios Ministerial · Berlín</small></div></div>`;
-  if(m==='newpass')return head+`<h2>Nueva contraseña</h2>${msg}<div class="card"><label class="field">Contraseña nueva<input id="au-pass" type="password" autocomplete="new-password" minlength="6"></label><button class="btn" data-a="auth-newpass">Guardar contraseña</button></div></div>`;
+  if(m==='newpass')return head+`<h2>Nueva contraseña</h2>${msg}<div class="card"><label class="field">Contraseña nueva${pwIn('new-password',false)}</label><button class="btn" data-a="auth-newpass">Guardar contraseña</button></div></div>`;
   return head+`<h2>${m==='signup'?'Crear cuenta':m==='reset'?'Recuperar contraseña':'Entrar'}</h2>
    <p class="lead">${m==='signup'?'Usa el correo que le diste al administrador.':m==='reset'?'Te enviamos un correo para crear una contraseña nueva.':'Entra con tu correo y contraseña para ver tus labores.'}</p>${msg}
    <form class="card" id="auth-form" data-mode="${m}"><label class="field">Correo<input id="au-email" type="email" autocomplete="email" required value="${esc(ui.authEmail||'')}"></label>
-   ${m==='reset'?'':`<label class="field">Contraseña<input id="au-pass" type="password" autocomplete="${m==='signup'?'new-password':'current-password'}" minlength="6" required></label>`}
+   ${m==='reset'?'':`<label class="field">Contraseña${pwIn(m==='signup'?'new-password':'current-password',true)}</label>`}
    <button class="btn" type="submit" style="width:100%">${m==='signup'?'Crear cuenta':m==='reset'?'Enviar correo':'Entrar'}</button></form>
    <div class="inline" style="margin-top:12px;justify-content:center">${m!=='login'?'<button class="btn ghost sm" data-a="auth-mode" data-v="login">Ya tengo cuenta</button>':''}${m!=='signup'?'<button class="btn ghost sm" data-a="auth-mode" data-v="signup">Crear cuenta</button>':''}${m!=='reset'?'<button class="btn ghost sm" data-a="auth-mode" data-v="reset">Olvidé mi contraseña</button>':''}</div></div>`}
 const AUTHERR=e=>{const t=(e&&e.message||'').toLowerCase();if(t.includes('invalid login'))return'Correo o contraseña incorrectos.';if(t.includes('not confirmed'))return'Primero confirma tu correo: revisa tu bandeja de entrada.';if(t.includes('already registered'))return'Ese correo ya tiene cuenta. Usa "Ya tengo cuenta".';if(t.includes('password'))return'La contraseña debe tener al menos 6 caracteres.';return'No se pudo completar. Revisa tu conexión e intenta de nuevo.'};
+function pwIn(ac,req){return `<span class="pwrap"><input id="au-pass" type="password" autocomplete="${ac}" minlength="6"${req?' required':''}><button type="button" class="pweye" data-pw aria-label="Mostrar contraseña">Ver</button></span>`}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-pw]');if(!b)return;e.preventDefault();e.stopPropagation();const i=$('au-pass');if(!i)return;const show=i.type==='password';i.type=show?'text':'password';b.textContent=show?'Ocultar':'Ver';b.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña')},true);
 document.addEventListener('submit',async e=>{if(e.target.id!=='auth-form')return;e.preventDefault();const m=e.target.dataset.mode,email=$('au-email').value.trim(),pass=$('au-pass')?$('au-pass').value:'';ui.authEmail=email;ui.authMsg='';ui.authOk=false;
   let r;if(m==='login')r=await SB.auth.signInWithPassword({email,password:pass});
   else if(m==='signup'){r=await SB.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}});if(!r.error){ui.authOk=true;ui.authMsg='Te enviamos un correo. Ábrelo y toca el enlace para confirmar tu cuenta.'}}
@@ -488,6 +490,15 @@ function avAll(m){const mes=MES[m-1],av=avOf(ui.month);
       ${off.length?`<small>Nunca: ${off.map(w=>DOWS[w]).join(', ')}</small>`:''}</div></div>`}).join('')||'<div class="info">No hay nadie en esta área.</div>';
   return `<div class="card" style="margin-top:10px"><div class="dayhead"><b>Quién no puede en ${mes}</b><button class="x" data-a="av-all" aria-label="Cerrar">✕</button></div>
     <div class="info" style="margin-top:2px">${ui.area==='all'?'Todas las áreas':'Área: '+AREAN[ui.area]} · cambia el área con los filtros de abajo.</div>${tabs}${body}</div>`}
+function calLinks(u,lbl){const w=u.replace(/^https:/,'webcal:');
+  return `<div class="inline" style="margin-top:10px;flex-wrap:wrap"><a class="btn sm" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(w)}" target="_blank" rel="noopener">${lbl} · Google</a><a class="btn ghost sm" href="${esc(w)}">iPhone / Mac</a><button class="btn ghost sm" data-a="cal-copy" data-v="${esc(u)}">${ui.calCopied===u?'¡Copiado!':'Copiar enlace'}</button></div>`}
+function calCard(p){const c=ui.cal;
+  let h=`<h3>Mi calendario</h3><div class="card"><div class="info" style="margin:0">Tus labores y reuniones aparecen solas en tu calendario del celular y se actualizan si cambia el horario (puede tardar unas horas).</div>`;
+  if(!c)h+=`<button class="btn sm" data-a="cal-get" style="margin-top:10px">Conectar con mi calendario</button>${ui.calErr?`<div class="info" style="color:var(--warn)">${esc(ui.calErr)}</div>`:''}`;
+  else{h+=calLinks(c.me,'Mis labores');
+    if(c.all)h+=`<div class="info" style="margin-top:12px"><b>Horario completo de todos</b> (solo administradores), como calendario aparte:</div>`+calLinks(c.all,'Todos');
+    h+=`<div class="note" style="margin-top:12px"><b>En Android:</b> el botón de Google abre calendar.google.com; toca <b>Agregar</b>. Si no aparece en la app de Calendar del celular, entra en sus Ajustes, toca el calendario nuevo y activa <b>Sincronizar</b>.<br><b>En iPhone:</b> toca «iPhone / Mac» y luego <b>Suscribirse</b>.<br>Este enlace es solo tuyo, no lo compartas.</div>`}
+  return h+'</div>'}
 function misAv(p){if(!p.roles||!p.roles.length)return'';let h='';
   for(const ym of Object.keys(state.avReqs||{}).sort()){const av=avOf(ym);if(ym<today.slice(0,7)||today>av.deadline)continue;const mes=MES[+ym.slice(5,7)-1];const done=av.done&&av.done[p.id];
     if(ui.avOpen===ym){const dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,n=dates.filter(d=>p.blocked.includes(d)).length;
@@ -567,6 +578,7 @@ function vDisp(p){
    <label class="field">Nombre<input id="me-name" type="text" value="${esc(p.name)}" data-c="me-name"></label>
    <label class="field">Número de teléfono<input id="me-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+49 …" value="${esc(p.phone||'')}" data-c="me-phone"></label>
    <div class="info">Labores: <b>${p.roles.map(r=>ROLES[r]).join(', ')||'ninguna todavía'}</b></div></div>
+  ${calCard(p)}
   <h3>Días que puedo servir</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses. Las fechas sueltas se marcan arriba, mes por mes.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
      <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${w}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
   <h3>Fechas en que no puedo</h3><div class="card">
@@ -831,6 +843,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
   case'av-list':ui.avList=!ui.avList;break;
   case'av-all':ui.avAll=!ui.avAll;break;
+  case'cal-get':ui.calErr='';SB.functions.invoke('push',{body:{mode:'caltoken'}}).then(r=>{if(r.error||!r.data||!r.data.me)ui.calErr='No se pudo crear el enlace. Inténtalo de nuevo.';else ui.cal=r.data;render()}).catch(()=>{ui.calErr='No se pudo crear el enlace. Revisa tu conexión.';render()});return;
+  case'cal-copy':try{navigator.clipboard.writeText(v).then(()=>{ui.calCopied=v;render()})}catch(e){prompt('Copia este enlace:',v)}return;
   case'av-mode':ui.avMode=v;break;
   case'av-remind':{const av=avOf(ui.month);if(!av)break;const mes=MES[+ui.month.slice(5,7)-1];const pend=servers().filter(i=>!(av.done&&av.done[i]));
     notify(pend,`Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmt(av.deadline)}.`,{push:{title:`Falta tu disponibilidad de ${mes}`,body:`Márcala antes del ${fmt(av.deadline)}.`}});ui.toast=`Recordatorio enviado a ${pend.length} ${pend.length===1?'persona':'personas'}.`;break}

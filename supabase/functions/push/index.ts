@@ -166,8 +166,82 @@ async function daily() {
   return { date, sent };
 }
 
+// ---- calendario (Google Calendar, iPhone): enlace personal y secreto ----
+const enc = new TextEncoder();
+let HK: CryptoKey | null = null;
+async function sig(id: string) {
+  HK ??= await crypto.subtle.importKey('raw', enc.encode(Deno.env.get('VAPID_PRIVATE_KEY') + ':cal'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const b = new Uint8Array(await crypto.subtle.sign('HMAC', HK, enc.encode(id)));
+  return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 24);
+}
+const icsTxt = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+function fold(l: string) {
+  const out: string[] = [];
+  const b = enc.encode(l);
+  if (b.length <= 74) return l;
+  let cur = '';
+  for (const ch of l) { if (enc.encode(cur + ch).length > 73) { out.push(cur); cur = ' ' + ch; } else cur += ch; }
+  out.push(cur);
+  return out.join('\r\n');
+}
+const VTZ = ['BEGIN:VTIMEZONE', 'TZID:Europe/Berlin', 'BEGIN:DAYLIGHT', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0200', 'TZNAME:CEST', 'DTSTART:19700329T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU', 'END:DAYLIGHT',
+  'BEGIN:STANDARD', 'TZOFFSETFROM:+0200', 'TZOFFSETTO:+0100', 'TZNAME:CET', 'DTSTART:19701025T030000', 'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU', 'END:STANDARD', 'END:VTIMEZONE'];
+const lt = (date: string, hm: string) => date.replace(/-/g, '') + 'T' + hm.replace(':', '') + '00';
+function plus(hm: string, min: number) { const [h, m] = hm.split(':').map(Number); const t = h * 60 + m + min; return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; }
+const ORDERK = Object.keys(LBL);
+async function calendar(pid: string, t: string) {
+  if (!pid || !t || t !== await sig(pid)) return new Response('Enlace no válido', { status: 403 });
+  const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
+  if (!data) return new Response('sin datos', { status: 500 });
+  const st = JSON.parse(data.json);
+  const all = pid === '*todos';
+  // deno-lint-ignore no-explicit-any
+  const people: any[] = st.people || [];
+  const me = people.find((x) => x.id === pid);
+  if (!all && !me) return new Response('Enlace no válido', { status: 403 });
+  const nm = (id: string) => (people.find((x) => x.id === id) || {}).name || id;
+  const p0 = berlin(new Date());
+  const from = `${p0.year}-${p0.month}-01`.slice(0, 7);
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+  const L: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Labores Berlin//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    `X-WR-CALNAME:${all ? 'Labores Berlín · todos' : 'Mis labores · Berlín'}`, 'X-WR-TIMEZONE:Europe/Berlin', 'REFRESH-INTERVAL;VALUE=DURATION:PT6H', 'X-PUBLISHED-TTL:PT6H', ...VTZ];
+  const ev = (uid: string, date: string, hm: string, mins: number, sum: string, desc: string) => {
+    L.push('BEGIN:VEVENT', `UID:${uid}@labores-berlin`, `DTSTAMP:${stamp}`, `DTSTART;TZID=Europe/Berlin:${lt(date, hm)}`, `DTEND;TZID=Europe/Berlin:${lt(date, plus(hm, mins))}`,
+      `SUMMARY:${icsTxt(sum)}`, `LOCATION:${icsTxt('IDMJI Berlín, Pistoriusstraße 114, Berlin')}`);
+    if (desc) L.push(`DESCRIPTION:${icsTxt(desc)}`);
+    L.push('END:VEVENT');
+  };
+  for (const ym of Object.keys(st.schedules || {}).sort()) {
+    if (ym < from || !(st.published && st.published[ym])) continue;
+    for (const [date, as] of Object.entries(st.schedules[ym] as Record<string, Record<string, string>>).sort()) {
+      const dow = new Date(date + 'T12:00:00Z').getUTCDay();
+      const [sn, hr] = SVC[dow];
+      const ks = Object.keys(as).filter((k) => as[k]).sort((a, b) => ORDERK.indexOf(a) - ORDERK.indexOf(b));
+      if (all) {
+        if (!ks.length) continue;
+        ev(`${date}-todos`, date, hr, 120, `${sn} · labores`, ks.map((k) => `${LBL[k] || k}: ${nm(as[k])}`).join('\n'));
+      } else {
+        const mine = [...new Set(ks.filter((k) => as[k] === pid).map((k) => LBL[k] || k))];
+        if (mine.length) ev(`${date}-${pid}`, date, hr, 120, `Labor: ${mine.join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.\nVer en la app: https://labores-berlin.netlify.app`);
+      }
+    }
+  }
+  // deno-lint-ignore no-explicit-any
+  for (const m of (st.meets || []) as any[]) {
+    if (!m.date || m.date.slice(0, 7) < from) continue;
+    if (!all && !invitees(st, m).includes(pid)) continue;
+    const hm = /^\d{1,2}:\d{2}$/.test(m.time || '') ? m.time.padStart(5, '0') : '';
+    const sum = `Reunión: ${m.title || ''}`;
+    if (hm) ev(`meet-${m.id || m.date}-${pid}`, m.date, hm, 60, sum, m.place || '');
+    else L.push('BEGIN:VEVENT', `UID:meet-${m.id || m.date}-${pid}@labores-berlin`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${m.date.replace(/-/g, '')}`, `SUMMARY:${icsTxt(sum)}`, ...(m.place ? [`DESCRIPTION:${icsTxt(m.place)}`] : []), 'END:VEVENT');
+  }
+  L.push('END:VCALENDAR');
+  return new Response(L.map(fold).join('\r\n') + '\r\n', { headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' } });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (req.method === 'GET') { const q = new URL(req.url).searchParams; return calendar(q.get('p') || '', q.get('t') || ''); }
   // deno-lint-ignore no-explicit-any
   const b: any = await req.json().catch(() => ({}));
   if (b.mode === 'daily') return json({ monthly: await monthly(), daily: await daily() });
@@ -186,6 +260,13 @@ Deno.serve(async (req) => {
   if (!email) return json({ error: 'no autorizado' }, 401);
   const { data: m } = await SB.from('members').select('person_id').eq('email', email).maybeSingle();
   if (!m) return json({ error: 'no es miembro' }, 403);
+  if (b.mode === 'caltoken') {
+    const base = `${Deno.env.get('SUPABASE_URL')}/functions/v1/push`;
+    const { data: adm } = await SB.from('members').select('is_admin').eq('email', email).maybeSingle();
+    const out: Record<string, string> = { me: `${base}?p=${encodeURIComponent(m.person_id)}&t=${await sig(m.person_id)}` };
+    if (adm?.is_admin) out.all = `${base}?p=${encodeURIComponent('*todos')}&t=${await sig('*todos')}`;
+    return json(out);
+  }
   const to = (Array.isArray(b.to) ? b.to : []).filter((x: unknown) => typeof x === 'string').slice(0, 200);
   const sent = await sendTo(to, String(b.title || 'Labores Berlín').slice(0, 120), String(b.body || '').slice(0, 500), '/');
   return json({ sent });
