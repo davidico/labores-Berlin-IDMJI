@@ -428,7 +428,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='2.6';
+const APPV='2.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -454,7 +454,7 @@ function vAj(p){const em=ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||
   return `<button class="linkbtn" data-a="tab" data-v="${ui.prevTab||'mis'}" style="margin-bottom:6px">‹ Volver</button><h2>Ajustes</h2>
   <div class="card"><div class="phrow">${avatar(p,84)}<div class="inline" style="flex-direction:column;align-items:flex-start;gap:6px">
      <label class="btn ghost sm" style="cursor:pointer">${p.photo?'Cambiar foto':'Agregar foto de perfil'}<input type="file" accept="image/*" hidden id="ph-in" data-c="photo"></label>
-     ${p.photo?'<button class="linkbtn" data-a="photo-del" style="font-size:14px">Quitar foto</button>':''}</div></div>
+     ${p.photo?'<button class="linkbtn" data-a="photo-del" style="font-size:15px">Quitar foto</button>':''}</div></div>
    <label class="field" style="margin-top:14px">Nombre<input id="me-name" type="text" value="${esc(p.name)}" data-c="me-name"></label>
    <label class="field">Número de teléfono<input id="me-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+49 …" value="${esc(p.phone||'')}" data-c="me-phone"></label>
    <label class="field">Correo<input type="email" value="${esc(em)}" disabled></label>
@@ -582,7 +582,7 @@ function calBody(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userA
       :`<button class="btn sm" data-a="cal-copy" data-v="${esc(c.me)}" style="margin-top:10px">${ui.calCopied===c.me?'¡Enlace copiado!':'Copiar mi enlace'}</button>
       <div class="info" style="margin-top:10px">En Android, Google solo deja agregarlo <b>desde una computadora</b>. Se hace <b>una sola vez</b>: después se actualiza solo cada mes y aparece en tu celular.</div>
       <ol class="steps" style="margin-top:8px"><li>Toca <b>Copiar mi enlace</b> y mándatelo (por WhatsApp o correo) para abrirlo en la computadora.</li><li>En la computadora entra a <b>calendar.google.com</b> con la misma cuenta de Google de tu celular.</li><li>A la izquierda, junto a <b>Otros calendarios</b> <i>(Weitere Kalender)</i>, toca <b>+</b> → <b>Desde URL</b> <i>(Per URL)</i>.</li><li>Pega el enlace y toca <b>Agregar calendario</b> <i>(Kalender hinzufügen)</i>.</li><li>En tu celular, en Google Calendar: ☰ → <b>Ajustes</b> <i>(Einstellungen)</i> → «Mis labores · Berlín» → activa <b>Sincronizar</b> <i>(Synchronisieren)</i>.</li></ol>`;
-    if(ios)h+=`<div class="info" style="margin-top:4px">¿Usas otro calendario? <button class="linkbtn" data-a="cal-copy" data-v="${esc(c.me)}" style="font-size:14px">${ui.calCopied===c.me?'¡Enlace copiado!':'Copiar enlace'}</button></div>`}
+    if(ios)h+=`<div class="info" style="margin-top:4px">¿Usas otro calendario? <button class="linkbtn" data-a="cal-copy" data-v="${esc(c.me)}" style="font-size:15px">${ui.calCopied===c.me?'¡Enlace copiado!':'Copiar enlace'}</button></div>`}
   return h}
 function predPick(p,ym,dates){const ok=dates.filter(d=>!p.blocked.includes(d)&&slotsAt(d).some(z=>/_pred$/.test(z.k)&&p.roles.includes(z.role)));if(!ok.length)return'';
   const cur=(p.predPref||{})[ym]||'';
@@ -822,7 +822,7 @@ async function dlPdf(kv){const[kind,id,l='de']=kv.split('|');const t=pdfList(kin
 const transOnDay=(p,d)=>{const as=schedOf(d)||{};return slotsAt(d).some(s=>s.area==='trad'&&as[s.k]===p.id)};
 let AS=null;
 function pdfCtl(kind,t){return `<div class="fich">${['de','en'].map(l=>{const f=t[LANGF[l]],k=t.id+'|'+l,L=LANGN[l][0].toUpperCase()+LANGN[l].slice(1);
-  return `<span class="fl">${L}</span><div class="fc">${f?`<button class="pdfl dl" data-a="dlpdf" data-v="${kind}|${t.id}|${l}">${esc(f.name)}</button>${AS?`<button class="linkbtn" style="font-size:13px" data-a="pdfdel" data-v="${kind}|${t.id}|${l}">Quitar</button>`:''}`:ui.upl===k?'<span class="info" style="margin:0">Subiendo…</span>':AS?`<label class="btn ghost sm" style="cursor:pointer">Adjuntar<input type="file" accept="application/pdf" hidden id="pf-${t.id}-${l}" data-c="pdf" data-v="${kind}|${t.id}|${l}"></label>`:'<span class="info" style="margin:0">Sin ficha</span>'}</div>`}).join('')}</div>`}
+  return `<span class="fl">${L}</span><div class="fc">${f?`<button class="pdfl dl" data-a="dlpdf" data-v="${kind}|${t.id}|${l}">${esc(f.name)}</button>${AS?`<button class="linkbtn" style="font-size:14px" data-a="pdfdel" data-v="${kind}|${t.id}|${l}">Quitar</button>`:''}`:ui.upl===k?'<span class="info" style="margin:0">Subiendo…</span>':AS?`<label class="btn ghost sm" style="cursor:pointer">Adjuntar<input type="file" accept="application/pdf" hidden id="pf-${t.id}-${l}" data-c="pdf" data-v="${kind}|${t.id}|${l}"></label>`:'<span class="info" style="margin:0">Sin ficha</span>'}</div>`}).join('')}</div>`}
 const pdfList=kind=>kind==='l'?state.leipzig:state.teachings;
 async function uploadPdf(kv,file){const[kind,id,l='de']=kv.split('|');const t=pdfList(kind).find(x=>x.id===id);if(!t||!file||!AS)return;
   if(file.type!=='application/pdf'){ui.uplMsg='La ficha debe ser un PDF.';render();return}
