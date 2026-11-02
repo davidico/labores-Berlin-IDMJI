@@ -179,16 +179,15 @@ async function pastorReminders() {
       if ((st.trans || []).some((t: any) => t.date === d)) continue;
       const t = tm[d];
       if (!t) { lines.push(`${fmtD(d)}: falta cargar la enseñanza`); continue; }
-      const miss = [!t.pdf && 'alemán', !t.pdfEn && 'inglés'].filter(Boolean);
-      if (miss.length) lines.push(`${fmtD(d)} («${t.title}»): falta la ficha en ${miss.join(' y ')}`);
+      if (!t.link) lines.push(`${fmtD(d)} («${t.title}»): falta el enlace de las fichas`);
     }
     // deno-lint-ignore no-explicit-any
     for (const l of (st.leipzig || []) as any[]) {
       if (!l.date || l.date < today || l.date > plusDays(today, 7 - dow)) continue;
-      const miss = [!l.teaching && 'el título', !l.pdf && 'la ficha en alemán', !l.pdfEn && 'la ficha en inglés'].filter(Boolean);
+      const miss = [!l.teaching && 'el título', !l.link && 'el enlace de las fichas'].filter(Boolean);
       if (miss.length) lines.push(`Leipzig ${fmtD(l.date)}: falta ${miss.join(', ')}`);
     }
-    title = 'Faltan fichas de esta semana';
+    title = 'Faltan enlaces de fichas de esta semana';
   } else {
     const sun = plusDays(today, 7 - dow);
     // deno-lint-ignore no-explicit-any
@@ -198,7 +197,7 @@ async function pastorReminders() {
   if (!lines.length) return { ok: 'nada pendiente' };
   if (!(await once(`pastor-${today}`))) return { skipped: true, already: today };
   const body = lines.join('\n');
-  const note = dow >= 5 ? `${title}: ${lines.join(' · ')}` : `${title}: ${lines.join(' · ')}. Súbelas a más tardar el miércoles en la pestaña Pastor.`;
+  const note = dow >= 5 ? `${title}: ${lines.join(' · ')}` : `${title}: ${lines.join(' · ')}. Pon el enlace a más tardar el miércoles en la pestaña Pastor.`;
   await editState((s2) => addNotif(s2, pastors, note));
   const sent = await sendTo(pastors, title, body);
   return { sent, lines };
