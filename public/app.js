@@ -407,7 +407,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='2.2';
+const APPV='2.3';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -818,7 +818,12 @@ function cronograma(p){const tm=teachMap(),it=[];const allT=p.admin||p.pastor||p
 function vEns(p){
   if(!(p.admin||p.pastor))return `<h2>Predicaciones</h2><p class="lead">Lo que se predica en los próximos jueves y domingos, las transmisiones y las visitas a Leipzig.</p>${cronograma(p)}`;
   const tm=teachMap();const dateOf={};for(const d in tm)dateOf[tm[d].id]=d;
-  return `<h2>Enseñanzas y viajes</h2><p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas.</p>
+  const pend=(()=>{const out=[],w=pd(today).getDay(),sun=ds(new Date(pd(today).getTime()+((7-w)%7)*864e5)),thu=ds(new Date(pd(today).getTime()+((4-w+7)%7)*864e5));
+    for(const d of [...new Set([thu,sun])].sort()){if(d<today||transOn(d))continue;const t=tm[d];if(!t){out.push(`${fmt(d)}: falta cargar la enseñanza`);continue}const miss=[!t.pdf&&'alemán',!t.pdfEn&&'inglés'].filter(Boolean);if(miss.length)out.push(`${fmt(d)}: falta la ficha en ${miss.join(' y ')}`)}
+    for(const l of state.leipzig)if(l.date>=today&&l.date<=sun){const miss=[!l.teaching&&'el título',!l.pdf&&'la ficha en alemán',!l.pdfEn&&'la ficha en inglés'].filter(Boolean);if(miss.length)out.push(`Leipzig ${fmt(l.date)}: falta ${miss.join(', ')}`)}
+    if(w>=5||w===0){if(!transOn(sun)&&w!==0)out.push(`¿Hay transmisión internacional el ${fmt(sun)}? Si la hay, agrégala abajo.`)}
+    return out})();
+  return `<h2>Enseñanzas y viajes</h2>${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas.</p>
   <h3>Enseñanzas en orden</h3>${ui.uplMsg?`<div class="banner warnbn">${esc(ui.uplMsg)}</div>`:''}<div class="card">
    <label class="field">Empiezan desde<input id="t-start" type="date" value="${state.teachStart}" data-c="t-start"></label>
    ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id])));

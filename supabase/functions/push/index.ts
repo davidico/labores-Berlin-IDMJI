@@ -140,6 +140,70 @@ async function monthly() {
   return { skipped: true, day };
 }
 
+// ---- recordatorios al pastor: fichas de la semana (lun–mié) y transmisión del domingo (vie–sáb), a las 9:00 ----
+// deno-lint-ignore no-explicit-any
+function teachMapS(st: any): Record<string, any> {
+  // deno-lint-ignore no-explicit-any
+  const m: Record<string, any> = {}; const ts: any[] = st.teachings || []; const tr: any[] = st.trans || [];
+  if (!st.teachStart) return m;
+  const d = new Date(st.teachStart + 'T12:00:00Z'); let i = 0, g = 0;
+  while (i < ts.length && g < 2000) {
+    const s = d.toISOString().slice(0, 10), w = d.getUTCDay();
+    if ((w === 4 || w === 0) && !tr.some((t) => t.date === s)) { m[s] = ts[i]; i++; }
+    d.setUTCDate(d.getUTCDate() + 1); g++;
+  }
+  return m;
+}
+const plusDays = (iso: string, n: number) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const fmtD = (iso: string) => { const d = new Date(iso + 'T12:00:00Z'); return `${DOW[d.getUTCDay()]} ${d.getUTCDate()}`; };
+async function pastorReminders() {
+  const p = berlin(new Date());
+  if (Number(p.hour) !== 9) return { skipped: true };
+  const today = `${p.year}-${p.month}-${p.day}`;
+  const dow = new Date(today + 'T12:00:00Z').getUTCDay();
+  if (![1, 2, 3, 5, 6].includes(dow)) return { skipped: true, dow };
+  const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
+  if (!data) return { error: 'sin datos' };
+  const st = JSON.parse(data.json);
+  // deno-lint-ignore no-explicit-any
+  const pastors: string[] = (st.people || []).filter((x: any) => x.pastor).map((x: any) => x.id);
+  if (!pastors.length) return { skipped: true, noPastor: true };
+  const lines: string[] = [];
+  let title = '';
+  if (dow >= 1 && dow <= 3) {
+    // Jueves y domingo de esta semana
+    const thu = plusDays(today, 4 - dow), sun = plusDays(today, 7 - dow);
+    const tm = teachMapS(st);
+    for (const d of [thu, sun]) {
+      // deno-lint-ignore no-explicit-any
+      if ((st.trans || []).some((t: any) => t.date === d)) continue;
+      const t = tm[d];
+      if (!t) { lines.push(`${fmtD(d)}: falta cargar la enseñanza`); continue; }
+      const miss = [!t.pdf && 'alemán', !t.pdfEn && 'inglés'].filter(Boolean);
+      if (miss.length) lines.push(`${fmtD(d)} («${t.title}»): falta la ficha en ${miss.join(' y ')}`);
+    }
+    // deno-lint-ignore no-explicit-any
+    for (const l of (st.leipzig || []) as any[]) {
+      if (!l.date || l.date < today || l.date > plusDays(today, 7 - dow)) continue;
+      const miss = [!l.teaching && 'el título', !l.pdf && 'la ficha en alemán', !l.pdfEn && 'la ficha en inglés'].filter(Boolean);
+      if (miss.length) lines.push(`Leipzig ${fmtD(l.date)}: falta ${miss.join(', ')}`);
+    }
+    title = 'Faltan fichas de esta semana';
+  } else {
+    const sun = plusDays(today, 7 - dow);
+    // deno-lint-ignore no-explicit-any
+    if (!(st.trans || []).some((t: any) => t.date === sun)) lines.push(`¿Hay transmisión internacional el ${fmtD(sun)}? Si la hay, agrégala en la pestaña Pastor.`);
+    title = 'Transmisión del domingo';
+  }
+  if (!lines.length) return { ok: 'nada pendiente' };
+  if (!(await once(`pastor-${today}`))) return { skipped: true, already: today };
+  const body = lines.join('\n');
+  const note = dow >= 5 ? `${title}: ${lines.join(' · ')}` : `${title}: ${lines.join(' · ')}. Súbelas a más tardar el miércoles en la pestaña Pastor.`;
+  await editState((s2) => addNotif(s2, pastors, note));
+  const sent = await sendTo(pastors, title, body);
+  return { sent, lines };
+}
+
 async function daily() {
   const now = new Date();
   const p = berlin(now);
@@ -244,7 +308,7 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') { const q = new URL(req.url).searchParams; return calendar(q.get('p') || '', q.get('t') || ''); }
   // deno-lint-ignore no-explicit-any
   const b: any = await req.json().catch(() => ({}));
-  if (b.mode === 'daily') return json({ monthly: await monthly(), daily: await daily() });
+  if (b.mode === 'daily') return json({ monthly: await monthly(), pastor: await pastorReminders(), daily: await daily() });
   if (b.mode === 'ping') {
     // Prueba: envía un aviso solo a los administradores.
     const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
