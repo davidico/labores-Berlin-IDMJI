@@ -179,7 +179,8 @@ async function pastorReminders() {
       if ((st.trans || []).some((t: any) => t.date === d)) continue;
       const t = tm[d];
       if (!t) { lines.push(`${fmtD(d)}: falta cargar la enseñanza`); continue; }
-      if (!t.link) lines.push(`${fmtD(d)} («${t.title}»): falta el enlace de las fichas`);
+      const davidPreaches = Object.keys((st.schedules?.[d.slice(0, 7)] || {})[d] || {}).includes('predica');
+      if (!t.link && !davidPreaches) lines.push(`${fmtD(d)} («${t.title}»): falta el enlace de las fichas`);
     }
     // deno-lint-ignore no-explicit-any
     for (const l of (st.leipzig || []) as any[]) {
