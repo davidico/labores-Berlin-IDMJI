@@ -352,6 +352,32 @@ Deno.serve(async (req) => {
   if (!email) return json({ error: 'no autorizado' }, 401);
   const { data: m } = await SB.from('members').select('person_id').eq('email', email).maybeSingle();
   if (!m) return json({ error: 'no es miembro' }, 403);
+  if (b.mode === 'delete-me') {
+    // Borrar mi cuenta: se borran los datos personales y la cuenta de acceso.
+    const pid = m.person_id;
+    const today = (() => { const p = berlin(new Date()); return `${p.year}-${p.month}-${p.day}`; })();
+    await SB.from('push_subs').delete().eq('person_id', pid);
+    let name = '';
+    await editState((st) => {
+      // deno-lint-ignore no-explicit-any
+      const p = (st.people || []).find((x: any) => x.id === pid);
+      if (!p) return;
+      name = p.name;
+      Object.assign(p, { name: 'Persona eliminada', email: '', phone: '', photo: undefined, roles: [], days: [], blocked: [], predPref: undefined, privacy: undefined, deleted: Date.now(), admin: false, pastor: false });
+      delete p.photo; delete p.predPref; delete p.privacy;
+      const freed: string[] = [];
+      for (const ym of Object.keys(st.schedules || {})) for (const [d, as] of Object.entries(st.schedules[ym] as Record<string, Record<string, string>>)) {
+        if (d < today) continue;
+        for (const k of Object.keys(as)) if (as[k] === pid) { delete as[k]; freed.push(d); }
+      }
+      // deno-lint-ignore no-explicit-any
+      const admins = (st.people || []).filter((x: any) => x.admin && x.id !== pid).map((x: any) => x.id);
+      if (admins.length) addNotif(st, admins, `${name} borró su cuenta.${freed.length ? ` Quedaron labores sin asignar: ${[...new Set(freed)].sort().join(', ')}. Revisa el horario.` : ''}`);
+    });
+    await SB.from('members').delete().eq('email', email);
+    const { error } = await SB.auth.admin.deleteUser(u!.user!.id);
+    return json({ ok: !error });
+  }
   if (b.mode === 'caltoken') {
     const base = `${Deno.env.get('SUPABASE_URL')}/functions/v1/push`;
     const { data: adm } = await SB.from('members').select('is_admin').eq('email', email).maybeSingle();

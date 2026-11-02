@@ -312,6 +312,7 @@ function authView(){const m=ui.authMode||'login';const msg=ui.authMsg?`<div clas
    <div class="authtag">Primera vez</div><h2 style="margin-top:6px">Crear tu cuenta</h2>
    <ol class="steps"><li>Escribe el <b>correo que le diste al administrador</b>.</li><li>Elige una contraseña de <b>al menos 6 caracteres</b>.</li></ol>${msg}
    <form class="card signup" id="auth-form" data-mode="signup">${em}<label class="field">Elige tu contraseña${pwIn('new-password',true)}</label>
+   <label class="chk" style="margin:4px 0 12px"><input type="checkbox" id="au-priv" required> <span>He leído y acepto el <button type="button" class="linkbtn" data-a="priv-open" style="font-size:inherit;min-height:0;padding:0">aviso de privacidad</button></span></label>
    <button class="btn" type="submit" style="width:100%">Crear cuenta</button></form>
    <p class="authalt">¿Ya tienes cuenta? <button class="linkbtn" data-a="auth-mode" data-v="login">Entrar</button></p></div></div>`;
   if(m==='reset')return head+`<div class="authbox"><h2>Recuperar contraseña</h2><p class="lead">Escribe tu correo y te enviamos un enlace para crear una contraseña nueva.</p>${msg}
@@ -323,27 +324,30 @@ function authView(){const m=ui.authMode||'login';const msg=ui.authMsg?`<div clas
    <button class="btn" type="submit" style="width:100%">Entrar</button>
    <button class="linkbtn" type="button" data-a="auth-mode" data-v="reset" style="display:block;margin:14px auto 2px">Olvidé mi contraseña</button></form>
    <div class="authsep"><span>¿Primera vez aquí?</span></div>
-   <button class="btn ghost" data-a="auth-mode" data-v="signup" style="width:100%">Crear cuenta</button></div></div>`}
+   <button class="btn ghost" data-a="auth-mode" data-v="signup" style="width:100%">Crear cuenta</button>
+   <p class="authalt"><button class="linkbtn" data-a="priv-open" style="font-size:14px;font-weight:500">Aviso de privacidad</button></p></div></div>`}
 const AUTHERR=e=>{const t=(e&&e.message||'').toLowerCase();if(t.includes('invalid login'))return'Correo o contraseña incorrectos.';if(t.includes('not confirmed'))return'Primero confirma tu correo: revisa tu bandeja de entrada.';if(t.includes('already registered'))return'Ese correo ya tiene cuenta. Usa "Ya tengo cuenta".';if(t.includes('password'))return'La contraseña debe tener al menos 6 caracteres.';return'No se pudo completar. Revisa tu conexión e intenta de nuevo.'};
 function pwIn(ac,req){return `<span class="pwrap"><input id="au-pass" type="password" autocomplete="${ac}" minlength="6"${req?' required':''}><button type="button" class="pweye" data-pw aria-label="Mostrar contraseña">Ver</button></span>`}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pw]');if(!b)return;e.preventDefault();e.stopPropagation();const i=$('au-pass');if(!i)return;const show=i.type==='password';i.type=show?'text':'password';b.textContent=show?'Ocultar':'Ver';b.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña')},true);
 document.addEventListener('submit',async e=>{if(e.target.id!=='auth-form')return;e.preventDefault();const m=e.target.dataset.mode,email=$('au-email').value.trim(),pass=$('au-pass')?$('au-pass').value:'';ui.authEmail=email;ui.authMsg='';ui.authOk=false;
   let r;if(m==='login')r=await SB.auth.signInWithPassword({email,password:pass});
-  else if(m==='signup'){r=await SB.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}});if(!r.error){ui.authOk=true;ui.authMsg='Te enviamos un correo. Ábrelo y toca el enlace para confirmar tu cuenta.'}}
+  else if(m==='signup'){try{localStorage.setItem('lb-priv',window.PRIV_V+'|'+Date.now())}catch(e){}r=await SB.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}});if(!r.error){ui.authOk=true;ui.authMsg='Te enviamos un correo. Ábrelo y toca el enlace para confirmar tu cuenta.'}}
   else{r=await SB.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(!r.error){ui.authOk=true;ui.authMsg='Listo. Revisa tu correo para crear una contraseña nueva.'}}
   if(r&&r.error){ui.authMsg=AUTHERR(r.error)}render()});
 function render(){
   const p=me();
-  if(!SESSION||ui.authMode==='newpass'){$('app').innerHTML=authView();return}
+  if(!SESSION||ui.authMode==='newpass'){$('app').innerHTML=authView()+(ui.priv?privSheet():'');return}
   if(!READY){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Iglesia de Dios Ministerial · Berlín</small></div></div><div class="card empty-state">Cargando tus labores…</div></div>`;return}
   if(!p){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Iglesia de Dios Ministerial · Berlín</small></div><button class="who" data-a="logout">Salir</button></div>
     <h2>Tu correo aún no está registrado</h2><p class="lead">Entraste como <b>${esc(SESSION.user.email)}</b>, pero ese correo no está asignado a ningún hermano. Pide al administrador que lo agregue en Personas y vuelve a entrar.</p></div>`;return}
   const tabs=tabsFor(p);if(ui.tab!=='aj'&&!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
-  const body={mis:vMis,cal:vCal,disp:vDisp,hor:vHor,ens:vEns,per:vPer,aj:vAj}[ui.tab](p);
+  {const r=realMe();if(r&&!privOk(r)){let pend='';try{pend=localStorage.getItem('lb-priv')||''}catch(e){}if(pend.split('|')[0]===window.PRIV_V){r.privacy={v:window.PRIV_V,ts:+pend.split('|')[1]||Date.now()};try{localStorage.removeItem('lb-priv')}catch(e){}save()}}}
+  const gate=!ui.viewAs&&!privOk(realMe());
+  const body=gate?privGate(p):{mis:vMis,cal:vCal,disp:vDisp,hor:vHor,ens:vEns,per:vPer,aj:vAj}[ui.tab](p);
   $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
     ${hdr(p)}</div>${ui.viewAs?`<div class="viewas">Viendo como <b>${esc(p.name)}</b><button class="linkbtn" data-a="logout">Volver a mi cuenta</button></div>`:''}
     ${ui.upd?`<div class="banner ok" style="display:flex;align-items:center;justify-content:space-between;gap:10px">Hay una versión nueva (${esc(ui.upd)}).<button class="btn sm" data-a="upd">Actualizar</button></div>`:''}${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div>${body}</div>
-    <nav class="tabs">${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}</nav>${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.bell?bellSheet(p):''}`;
+    <nav class="tabs" ${gate?'hidden':''}>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}</nav>${ui.priv?privSheet():''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.bell?bellSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
 const chip=(area,label)=>`<span class="chip" style="--c:var(${AREAC[area]})">${esc(label)}</span>`;
@@ -428,7 +432,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='2.8';
+const APPV='2.9';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -446,6 +450,7 @@ function hdr(p){const un=unreadFor(p);
 function menuSheet(p){return `<div class="scrim" data-a="sheet-x"></div><div class="pop menu-pop" role="menu">
   <div class="pophead">${avatar(p,40)}<div><b>${esc(p.name)}</b><small>${esc(ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||'')}</small></div></div>
   <button role="menuitem" data-a="tab" data-v="aj">Ajustes</button>
+  <button role="menuitem" data-a="priv-open">Aviso de privacidad</button>
   ${ui.viewAs?'<button role="menuitem" data-a="logout">Volver a mi cuenta</button>':'<button role="menuitem" data-a="logout">Salir</button>'}</div>`}
 function bellSheet(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice(0,60),hl=ui.bellNew||[];
   return `<div class="scrim" data-a="sheet-x"></div><div class="pop bell-pop"><div class="dayhead"><b>Notificaciones</b><button class="x" data-a="sheet-x" aria-label="Cerrar">✕</button></div>
@@ -461,12 +466,32 @@ function vAj(p){const em=ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||
    <div class="info" style="margin-top:-4px">El correo solo lo puede cambiar el administrador.</div>
    <div class="info" style="margin-top:10px">Labores: <b>${p.roles.map(r=>ROLES[r]).join(', ')||'ninguna todavía'}</b></div></div>
   ${calCard(p)}
+  <h3>Privacidad</h3><div class="card">
+   <button class="linkbtn" data-a="priv-open">Leer el aviso de privacidad</button>
+   ${p.privacy?`<div class="info">Lo aceptaste el ${fmt(ds(new Date(p.privacy.ts)))}.</div>`:''}
+   ${ui.viewAs?'':`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><button class="linkbtn" data-a="del-ask" style="color:var(--warn)">Borrar mi cuenta</button>${ui.delAsk?delBox():''}</div>`}</div>
   <p class="ver">Labores Berlín · versión ${APPV}</p>`}
 const PENCIL='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 function nameEd(kind,id,val,ph,bold){const k=kind+'|'+id;
   if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:4px 0;flex-wrap:nowrap"><input id="ne-in" type="text" value="${esc(val)}" placeholder="${esc(ph||'Escribe el nombre')}" style="flex:1;min-width:0" data-k="${k}"><button class="btn sm" data-a="ne-save" data-v="${k}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
   return `<div class="nrow">${bold?`<b>${esc(val||ph)}</b>`:`<small>${esc(val||ph)}</small>`}<button class="pen" data-a="ne-edit" data-v="${k}" aria-label="Editar nombre">${PENCIL}</button></div>`}
 document.addEventListener('keydown',e=>{if(e.target.id!=='ne-in')return;if(e.key==='Enter'){e.preventDefault();const b=document.querySelector('[data-a=ne-save]');b&&b.click()}else if(e.key==='Escape'){const b=document.querySelector('[data-a=ne-x]');b&&b.click()}});
+/* ---- Privacidad ---- */
+const privOk=p=>!!(p&&p.privacy&&p.privacy.v===window.PRIV_V);
+function privSheet(){const L=ui.privLang||'es';
+  return `<div class="scrim" data-a="priv-x"></div><div class="sheet doc" role="dialog" aria-label="Aviso de privacidad"><div class="dayhead"><div class="filters" style="margin:0"><button class="f" data-a="priv-lang" data-v="es" aria-pressed="${L==='es'}">Español</button><button class="f" data-a="priv-lang" data-v="de" aria-pressed="${L==='de'}">Deutsch</button></div><button class="x" data-a="priv-x" aria-label="Cerrar">✕</button></div>
+  <div class="pklist privtxt">${(window.PRIV||{})[L]||''}</div></div>`}
+function privGate(p){return `<div class="card" style="margin-top:8px"><h2 style="margin-top:0">Aviso de privacidad</h2>
+  <p>Para seguir usando la app, lee y acepta cómo se guardan y usan tus datos. Solo se usan para organizar las labores del grupo de Berlín.</p>
+  <button class="linkbtn" data-a="priv-open">Leer el aviso de privacidad</button>
+  <label class="chk" style="margin:12px 0"><input type="checkbox" id="priv-chk"> <span>He leído y acepto el aviso de privacidad.</span></label>
+  ${ui.privErr?`<div class="info" style="color:var(--warn);margin:-4px 0 8px">Marca la casilla para continuar.</div>`:''}
+  <button class="btn" data-a="priv-accept" style="width:100%">Aceptar y continuar</button>
+  <div class="info" style="margin-top:14px">¿No estás de acuerdo? Puedes <button class="linkbtn" data-a="del-ask" style="font-size:14px">borrar tu cuenta</button>.</div>
+  ${ui.delAsk?delBox():''}</div>`}
+function delBox(){return `<div class="confirm" style="display:block;margin-top:10px"><b>¿Borrar tu cuenta?</b><div style="margin:6px 0 10px">Se eliminan tu correo, teléfono, foto y disponibilidad, y se te quita de las labores que vienen. No se puede deshacer.</div>
+  ${ui.delErr?`<div class="info" style="color:var(--warn);margin-bottom:8px">${esc(ui.delErr)}</div>`:''}
+  <div class="inline"><button class="btn warnb sm" data-a="del-yes" ${ui.delBusy?'disabled':''}>${ui.delBusy?'Borrando…':'Sí, borrar mi cuenta'}</button><button class="btn ghost sm" data-a="del-no">Cancelar</button></div></div>`}
 function avisos(p){let h='';
   if(ui.flash){h+=`<div class="banner ok">${esc(ui.flash)}</div>`;ui.flash=null}
   const rq=pendingFor(p);
@@ -868,10 +893,10 @@ function vEns(p){
 }
 
 function vPer(){
-  let h=`<h2>Personas</h2><p class="lead">${state.people.length} colaboradores. Toca un nombre para editar sus labores.</p>`;
+  let h=`<h2>Personas</h2><p class="lead">${state.people.filter(z=>!z.deleted).length} colaboradores. Toca un nombre para editar sus labores.</p>`;
   h+='<div class="card">';
-  for(const x of state.people){
-    h+=`<div class="li" style="display:block"><button class="pbtn" data-a="open" data-v="${x.id}" style="display:flex;gap:12px;align-items:flex-start;width:100%">${avatar(x,44)}<div style="flex:1;min-width:0;text-align:left"><b>${esc(x.name)}</b>${x.admin?'<span class="tag gold">Admin</span>':''}${x.pastor?'<span class="tag gold">Pastor</span>':''}${x.phone?`<small class="info" style="display:block;margin-top:2px">${esc(x.phone)}</small>`:''}
+  for(const x of state.people.filter(z=>!z.deleted)){
+    h+=`<div class="li" style="display:block"><button class="pbtn" data-a="open" data-v="${x.id}" style="display:flex;gap:12px;align-items:flex-start;width:100%">${avatar(x,44)}<div style="flex:1;min-width:0;text-align:left"><b>${esc(x.name)}</b>${x.admin?'<span class="tag gold">Admin</span>':''}${x.pastor?'<span class="tag gold">Pastor</span>':''}${x.phone?`<small class="info" style="display:block;margin-top:2px">${esc(x.phone)}</small>`:''}${x.deleted?'':`<small class="info" style="display:block">${x.privacy?'Privacidad aceptada el '+fmt(ds(new Date(x.privacy.ts))):'Privacidad: pendiente'}</small>`}
       <div class="chips" style="margin-top:4px">${x.roles.map(r=>chip(ROLEAREA[r],ROLES[r])).join('')||'<span class="info">Sin labores</span>'}</div></div></button>`;
     if(ui.open===x.id){h+=`<div style="margin-top:10px">
       <label class="field">Nombre<input id="pn-${x.id}" type="text" value="${esc(x.name)}" data-c="p-name" data-v="${x.id}"></label>
@@ -946,6 +971,13 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
   case'av-list':ui.avList=!ui.avList;break;
   case'av-all':ui.avAll=!ui.avAll;break;
+  case'priv-open':ui.priv=true;ui.menu=false;break;
+  case'priv-x':ui.priv=false;break;
+  case'priv-lang':ui.privLang=v;break;
+  case'priv-accept':{if(!($('priv-chk')||{}).checked){ui.privErr=true;break}const r=realMe();if(r){r.privacy={v:window.PRIV_V,ts:Date.now()}}ui.privErr=false;break}
+  case'del-ask':ui.delAsk=true;ui.delErr='';break;
+  case'del-no':ui.delAsk=false;break;
+  case'del-yes':{{const r=realMe();if(r&&r.admin&&state.people.filter(x=>x.admin&&!x.deleted).length<2){ui.delErr='Eres el único administrador. Antes de borrar tu cuenta, nombra a otro administrador en Personas.';break}}ui.delBusy=true;ui.delErr='';render();SB.functions.invoke('push',{body:{mode:'delete-me'}}).then(r=>{ui.delBusy=false;if(r.error||!r.data||!r.data.ok){ui.delErr='No se pudo borrar la cuenta. Inténtalo de nuevo o escribe al administrador.';render();return}ui.delAsk=false;try{localStorage.clear()}catch(e){}SB.auth.signOut().finally(()=>{ui.authMsg='Tu cuenta y tus datos se borraron.';ui.authOk=true;render()})}).catch(()=>{ui.delBusy=false;ui.delErr='No se pudo borrar la cuenta. Revisa tu conexión.';render()});return}
   case'cal-g':ui.calG=!ui.calG;break;
   case'ne-edit':ui.edName=v;render();setTimeout(()=>{const i=$('ne-in');if(i){i.focus();i.select()}},30);return;
   case'ne-x':ui.edName=null;break;
