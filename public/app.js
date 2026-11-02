@@ -179,7 +179,18 @@ function why(p,s,date,as,slots){
 
 function generate(ym){let best=null,bs=1e9;
   for(let i=0;i<40;i++){const r=genOnce(ym);let e=0;for(const d in r)e+=slotsAt(d).filter(s=>!r[d][s.k]).length;if(e<bs){bs=e;best=r}if(!e)break}
-  state.schedules[ym]=best;save()}
+  alabSwap(best,ym,'');state.schedules[ym]=best;save()}
+/* El día de alabanza (lun/mié/vie) que David no tiene labor, Gabriela hace sonido. Una vez por semana. */
+const ALABSWAP={free:'david',give:'gabriela',k:'sonido'};
+function alabSwap(sched,ym,from){const out=[],F=person(ALABSWAP.free),G=person(ALABSWAP.give);if(!F||!G||!sched)return out;
+  const weeks={};for(const d of monthDates(ym)){const w=pd(d).getDay();if((w===1||w===3||w===5)&&(!from||d>=from))(weeks[mondayOf(d)]=weeks[mondayOf(d)]||[]).push(d)}
+  for(const ds_ of Object.values(weeks)){
+    if(ds_.some(d=>sched[d]&&sched[d][ALABSWAP.k]===G.id&&!Object.values(sched[d]).includes(F.id)))continue;
+    for(const d of ds_){const as=sched[d]=sched[d]||{};if(Object.values(as).includes(F.id))continue;
+      const slots=slotsAt(d),s=slots.find(z=>z.k===ALABSWAP.k);if(!s)continue;const prev=as[s.k];if(prev===G.id)break;
+      const others={...as};delete others[s.k];if(why(G,s,d,others,slots))continue;
+      as[s.k]=G.id;out.push({d,prev});break}}
+  return out}
 let GEN=null,GENYM=null;
 function genOnce(ym){
   const sched={},cnt={};GEN=sched;GENYM=ym;
@@ -258,6 +269,9 @@ function migrate(){let ch=false;
   if(!state.lateFix){for(const x of state.people)delete x.late;state.lateFix=1;ch=true}
   if(!state.grdFix){const t=person('tomasa');if(t&&t.name==='Tomasa')t.name='Tomasa P.';const mr=person('marion');if(mr&&mr.name==='Marion')mr.name='Marion D.';for(const id of ['gabriela','denisse']){const x=person(id);if(x&&!x.roles.includes('guardar_sup'))x.roles.push('guardar_sup')}
     for(const ym in state.schedules)for(const d of Object.keys(state.schedules[ym]).sort())if([0,4].includes(pd(d).getDay()))fixDate(d);state.grdFix=1;ch=true}
+  if(!state.gabyAlab){let r=null;try{r=SESSION&&realMe()}catch(e){}if(r&&r.admin){const nextMon=ds(new Date(pd(mondayOf(today)).getTime()+7*864e5));for(const ym of [...new Set([today.slice(0,7),defaultMonth()])]){const sc=state.schedules[ym];if(!sc)continue;
+      for(const {d,prev} of alabSwap(sc,ym,nextMon)){const sl=slotOf(d,'sonido');notify(['gabriela'],`Te toca ${sl.l.toLowerCase()} el ${fmt(d)} (alabanza).`);if(prev&&prev!=='gabriela')notify([prev],`Ya no te toca ${sl.l.toLowerCase()} el ${fmt(d)}: lo hace Gabriela.`)}}
+    state.gabyAlab=1;ch=true}}
   if(!state.ruleFix3){const a=person('aicardo');if(a)a.days=[0];const g=person('gabriela');if(g){g.noSlots=[...new Set([...(g.noSlots||[]),'en_test','de_test'])];g.maxOne=true;g.introNotWith='david'}
     for(const ym in state.schedules)for(const d of Object.keys(state.schedules[ym]).sort())fixDate(d);state.ruleFix3=1;ch=true}
   if(!state.roxFix){const r=person('roxana');if(r){r.avoidSlots=['de_intro'];r.avoidDays=[4];r.favorSlots=['de_pred','de_test']}state.roxFix=1;ch=true}
@@ -407,7 +421,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='2.3';
+const APPV='2.4';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
