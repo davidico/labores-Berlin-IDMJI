@@ -432,7 +432,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='3.8';
+const APPV='3.9';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -567,7 +567,7 @@ function pushCard(){if(!pushOk()||ui.subOk)return'';
   return `<div class="card" style="margin-bottom:14px"><b>Activa las notificaciones</b>
    <div class="info" style="margin-top:4px">Te avisamos cuando te pidan un reemplazo, cuando haya un mensaje de púlpito o una reunión, y la noche antes de cada labor.</div>
    ${ui.subMsg?`<div class="info" style="color:var(--warn);margin-top:6px">${esc(ui.subMsg)}</div>`:''}
-   ${Notification.permission==='denied'?'':'<button class="btn sm" data-a="push-on" style="margin-top:8px">Activar notificaciones</button>'}</div>`}
+   ${Notification.permission==='denied'?`<div class="note" style="margin-top:8px"><b>Las notificaciones están bloqueadas para esta app.</b> Para activarlas:<ol class="steps" style="margin:6px 0 0">${isIOS()?'<li>Abre <b>Ajustes</b> <i>(Einstellungen)</i> del iPhone → <b>Notificaciones</b> <i>(Mitteilungen)</i> → <b>Labores</b> → activa <b>Permitir notificaciones</b> <i>(Mitteilungen erlauben)</i>.</li>':'<li>Si la abriste en Chrome: toca el ícono a la izquierda de la dirección (🔒 o ⚙) → <b>Permisos</b> <i>(Berechtigungen)</i> → <b>Notificaciones</b> <i>(Benachrichtigungen)</i> → <b>Permitir</b> <i>(Zulassen)</i>.</li><li>Si la tienes instalada: mantén presionado el ícono de Labores → <b>Información de la app</b> <i>(App-Info)</i> → <b>Notificaciones</b> <i>(Benachrichtigungen)</i> → actívalas.</li>'}<li>Vuelve a abrir la app.</li></ol></div>`:'<button class="btn sm" data-a="push-on" style="margin-top:8px">Activar notificaciones</button>'}</div>`}
 function installHint(){const sa=window.matchMedia&&matchMedia('(display-mode: standalone)').matches||navigator.standalone;let hidden=ui.hideInstall;try{hidden=hidden||localStorage.getItem('lb-noinstall')==='1'}catch(e){}
   if(sa||hidden)return'';const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
   return `<div class="card" style="margin-bottom:14px"><div class="dayhead"><b>Instala la app en tu celular</b><button class="x" data-a="install-x" aria-label="Cerrar">✕</button></div>
