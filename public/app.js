@@ -432,7 +432,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='2.9';
+const APPV='3.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -470,7 +470,16 @@ function vAj(p){const em=ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||
    <button class="linkbtn" data-a="priv-open">Leer el aviso de privacidad</button>
    ${p.privacy?`<div class="info">Lo aceptaste el ${fmt(ds(new Date(p.privacy.ts)))}.</div>`:''}
    ${ui.viewAs?'':`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><button class="linkbtn" data-a="del-ask" style="color:var(--warn)">Borrar mi cuenta</button>${ui.delAsk?delBox():''}</div>`}</div>
+  ${p.admin&&!ui.viewAs?privDocsCard():''}
   <p class="ver">Labores Berlín · versión ${APPV}</p>`}
+const PRIV_LINKS=[['Registro de actividades (Verzeichnis von Verarbeitungstätigkeiten)','https://claude.ai/artifact/UzDqQAZR4exa7RwshiHuje'],['Contrato de Supabase (DPA) · ya incluido en sus condiciones','https://supabase.com/legal/dpa'],['Contrato de Cloudflare (DPA)','https://www.cloudflare.com/dpa']];
+function privDocsCard(){const ds_=state.privDocs||[];
+  return `<h3>Documentos de privacidad · solo administrador</h3><div class="card">
+   ${PRIV_LINKS.map(([l,u])=>`<div class="li"><div class="main"><a href="${u}" target="_blank" rel="noopener" style="color:var(--navy);font-weight:600">${esc(l)}</a></div></div>`).join('')}
+   ${ds_.map(d=>`<div class="li"><div class="main"><button class="pdfl dl" data-a="dlpdf" data-v="pd|${d.id}|de">${esc(d.name)}</button><small>Guardado el ${fmt(ds(new Date(d.ts)))}</small></div><button class="x" data-a="pd-del" data-v="${d.id}" aria-label="Quitar">✕</button></div>`).join('')}
+   ${ui.upl==='pd'?'<div class="info">Subiendo…</div>':AS?`<label class="btn ghost sm" style="cursor:pointer;margin-top:10px">Guardar un PDF aquí<input type="file" accept="application/pdf" hidden data-c="pd-up"></label>`:''}
+   ${ui.uplMsg?`<div class="info" style="color:var(--warn)">${esc(ui.uplMsg)}</div>`:''}
+   <div class="info" style="margin-top:8px">Solo tú ves esta sección. Guarda aquí los PDF (por ejemplo el contrato de Cloudflare descargado o el registro en PDF).</div></div>`}
 const PENCIL='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 function nameEd(kind,id,val,ph,bold){const k=kind+'|'+id;
   if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:4px 0;flex-wrap:nowrap"><input id="ne-in" type="text" value="${esc(val)}" placeholder="${esc(ph||'Escribe el nombre')}" style="flex:1;min-width:0" data-k="${k}"><button class="btn sm" data-a="ne-save" data-v="${k}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
@@ -849,7 +858,7 @@ const transOnDay=(p,d)=>{const as=schedOf(d)||{};return slotsAt(d).some(s=>s.are
 let AS=null;
 function pdfCtl(kind,t){return `<div class="fich">${['de','en'].map(l=>{const f=t[LANGF[l]],k=t.id+'|'+l,L=LANGN[l][0].toUpperCase()+LANGN[l].slice(1);
   return `<span class="fl">${L}</span><div class="fc">${f?`<button class="pdfl dl" data-a="dlpdf" data-v="${kind}|${t.id}|${l}">${esc(f.name)}</button>${AS?`<button class="linkbtn" style="font-size:14px" data-a="pdfdel" data-v="${kind}|${t.id}|${l}">Quitar</button>`:''}`:ui.upl===k?'<span class="info" style="margin:0">Subiendo…</span>':AS?`<label class="btn ghost sm" style="cursor:pointer">Adjuntar<input type="file" accept="application/pdf" hidden id="pf-${t.id}-${l}" data-c="pdf" data-v="${kind}|${t.id}|${l}"></label>`:'<span class="info" style="margin:0">Sin ficha</span>'}</div>`}).join('')}</div>`}
-const pdfList=kind=>kind==='l'?state.leipzig:state.teachings;
+const pdfList=kind=>kind==='l'?state.leipzig:kind==='pd'?(state.privDocs=state.privDocs||[]):state.teachings;
 async function uploadPdf(kv,file){const[kind,id,l='de']=kv.split('|');const t=pdfList(kind).find(x=>x.id===id);if(!t||!file||!AS)return;
   if(file.type!=='application/pdf'){ui.uplMsg='La ficha debe ser un PDF.';render();return}
   ui.upl=id+'|'+l;ui.uplMsg='';render();
@@ -971,6 +980,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
   case'av-list':ui.avList=!ui.avList;break;
   case'av-all':ui.avAll=!ui.avAll;break;
+  case'pd-del':{const d=(state.privDocs||[]).find(x=>x.id===v);if(d){state.privDocs=state.privDocs.filter(x=>x.id!==v);if(AS&&d.pdf)AS.delete(d.pdf.id).catch(()=>{})}break}
   case'priv-open':ui.priv=true;ui.menu=false;break;
   case'priv-x':ui.priv=false;break;
   case'priv-lang':ui.privLang=v;break;
@@ -1032,6 +1042,8 @@ document.addEventListener('change',e=>{const t=e.target.closest('[data-c]');if(!
   case'cell':{const[d,k]=v.split('|');const ym=d.slice(0,7);const as=state.schedules[ym][d]=state.schedules[ym][d]||{};if(t.value)as[k]=t.value;else delete as[k];ui.edit=null;break}
   case'me-name':if(t.value.trim())p.name=t.value.trim();break;
   case'me-phone':p.phone=t.value.trim();break;
+  case'pd-up':{const f=t.files&&t.files[0];if(!f||!AS)return;if(f.type!=='application/pdf'){ui.uplMsg='Debe ser un PDF.';render();return}ui.upl='pd';ui.uplMsg='';render();
+    AS.upload(f).then(r=>{state.privDocs=state.privDocs||[];state.privDocs.push({id:uid(),name:f.name,ts:Date.now(),pdf:{id:r.id,name:f.name}});ui.upl=null;save();render()}).catch(e=>{ui.upl=null;ui.uplMsg=e&&e.code==='too_large'?'El PDF es muy grande (máximo 20 MB).':'No se pudo guardar. Intenta de nuevo.';render()});return}
   case'lz-name':{const l=state.leipzig.find(x=>x.id===v);if(l)l.teaching=t.value.trim();break}
   case't-name':{const x=state.teachings.find(z=>z.id===v);if(x&&t.value.trim())x.title=t.value.trim();break}
   case'pred-pref':{p.predPref=p.predPref||{};if(t.value)p.predPref[v]=t.value;else delete p.predPref[v];break}
