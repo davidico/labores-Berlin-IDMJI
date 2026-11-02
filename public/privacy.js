@@ -11,7 +11,7 @@ es: `
 <p>David Ismael Cueva Ortiz<br>Pistoriusstraße 62, 13086 Berlín, Alemania<br>Correo: davidcueva.dico@gmail.com<br>Teléfono: +49 176 31503225</p>
 
 <h3>2. Para qué sirve esta app</h3>
-<p>«Labores Berlín» se usa solo para la <b>organización interna de las labores</b> (púlpito, puerta, sonido, traducción, ofrendas, micrófonos y otras) del grupo de la Iglesia de Dios Ministerial de Jesucristo Internacional (IDMJI) en Berlín: armar el horario, avisar a cada persona qué le toca, pedir reemplazos y coordinar reuniones del equipo. Los datos no se usan para publicidad ni se venden ni se ceden a terceros.</p>
+<p>«Labores Berlín» se usa solo para la <b>organización interna de las labores</b> (púlpito, puerta, sonido, traducción, ofrendas, micrófonos y otras) de nuestro grupo de la congregación en Berlín (Pistoriusstraße 114): armar el horario, avisar a cada persona qué le toca, pedir reemplazos y coordinar reuniones del equipo. Los datos no se usan para publicidad ni se venden ni se ceden a terceros.</p>
 
 <h3>3. Qué datos se guardan</h3>
 <ul>
@@ -58,7 +58,7 @@ de: `
 <p>David Ismael Cueva Ortiz<br>Pistoriusstraße 62, 13086 Berlin, Deutschland<br>E-Mail: davidcueva.dico@gmail.com<br>Telefon: +49 176 31503225</p>
 
 <h3>2. Zweck der App</h3>
-<p>„Labores Berlín“ dient ausschließlich der <b>internen Organisation der Dienste</b> (Kanzel, Tür, Ton, Übersetzung, Opfergaben, Mikrofone u. a.) der Berliner Gruppe der Iglesia de Dios Ministerial de Jesucristo Internacional (IDMJI): Dienstpläne erstellen, jede Person über ihre Dienste informieren, Vertretungen anfragen und Teamtreffen koordinieren. Die Daten werden nicht für Werbung genutzt, nicht verkauft und nicht an Dritte weitergegeben.</p>
+<p>„Labores Berlín“ dient ausschließlich der <b>internen Organisation der Dienste</b> (Kanzel, Tür, Ton, Übersetzung, Opfergaben, Mikrofone u. a.) unserer Gemeindegruppe in Berlin (Pistoriusstraße 114): Dienstpläne erstellen, jede Person über ihre Dienste informieren, Vertretungen anfragen und Teamtreffen koordinieren. Die Daten werden nicht für Werbung genutzt, nicht verkauft und nicht an Dritte weitergegeben.</p>
 
 <h3>3. Welche Daten gespeichert werden</h3>
 <ul>

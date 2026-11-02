@@ -1,7 +1,7 @@
 {
   "name": "Labores Berlín",
   "short_name": "Labores",
-  "description": "Labores y horarios de la iglesia en Berlín",
+  "description": "Labores y horarios del grupo en Berlín",
   "lang": "es",
   "start_url": "./",
   "scope": "./",

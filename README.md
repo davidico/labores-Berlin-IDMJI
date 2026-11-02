@@ -1,6 +1,6 @@
 # Labores Berlín
 
-App instalable (PWA) para organizar las labores de la iglesia en Berlín: horarios por equipo,
+App instalable (PWA) para organizar las labores del grupo en Berlín: horarios por equipo,
 disponibilidad, reemplazos, mensajes de púlpito, reuniones y fichas de interpretación.
 
 ## Cómo está armada

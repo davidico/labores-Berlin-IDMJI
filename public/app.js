@@ -305,7 +305,7 @@ function tabsFor(p){const t=[['mis','Labores'],['cal','Calendario'],['disp','Mis
   if(p.admin)t.push(['per','Personas']);return t}
 
 function authView(){const m=ui.authMode||'login';const msg=ui.authMsg?`<div class="banner ${ui.authOk?'ok':'warnbn'}">${esc(ui.authMsg)}</div>`:'';
-  const head=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Iglesia de Dios Ministerial · Berlín</small></div></div>`;
+  const head=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div>`;
   if(m==='newpass')return head+`<h2>Nueva contraseña</h2>${msg}<div class="card"><label class="field">Contraseña nueva${pwIn('new-password',false)}</label><button class="btn" data-a="auth-newpass">Guardar contraseña</button></div></div>`;
   const em=`<label class="field">Correo<input id="au-email" type="email" autocomplete="email" required value="${esc(ui.authEmail||'')}"></label>`;
   if(m==='signup')return head+`<div class="authbox">
@@ -337,8 +337,8 @@ document.addEventListener('submit',async e=>{if(e.target.id!=='auth-form')return
 function render(){
   const p=me();
   if(!SESSION||ui.authMode==='newpass'){$('app').innerHTML=authView()+(ui.priv?privSheet():'');return}
-  if(!READY){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Iglesia de Dios Ministerial · Berlín</small></div></div><div class="card empty-state">Cargando tus labores…</div></div>`;return}
-  if(!p){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Iglesia de Dios Ministerial · Berlín</small></div><button class="who" data-a="logout">Salir</button></div>
+  if(!READY){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div><div class="card empty-state">Cargando tus labores…</div></div>`;return}
+  if(!p){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div><button class="who" data-a="logout">Salir</button></div>
     <h2>Tu correo aún no está registrado</h2><p class="lead">Entraste como <b>${esc(SESSION.user.email)}</b>, pero ese correo no está asignado a ningún hermano. Pide al administrador que lo agregue en Personas y vuelve a entrar.</p></div>`;return}
   const tabs=tabsFor(p);if(ui.tab!=='aj'&&!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
   {const r=realMe();if(r&&!privOk(r)){let pend='';try{pend=localStorage.getItem('lb-priv')||''}catch(e){}if(pend.split('|')[0]===window.PRIV_V){r.privacy={v:window.PRIV_V,ts:+pend.split('|')[1]||Date.now()};try{localStorage.removeItem('lb-priv')}catch(e){}save()}}}
@@ -432,7 +432,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='3.7';
+const APPV='3.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}

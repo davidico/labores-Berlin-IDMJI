@@ -298,7 +298,7 @@ async function calendar(pid: string, t: string) {
     `X-WR-CALNAME:${all ? 'Labores Berlín · todos' : 'Mis labores · Berlín'}`, 'X-WR-TIMEZONE:Europe/Berlin', 'REFRESH-INTERVAL;VALUE=DURATION:PT6H', 'X-PUBLISHED-TTL:PT6H', ...VTZ];
   const ev = (uid: string, date: string, hm: string, mins: number, sum: string, desc: string) => {
     L.push('BEGIN:VEVENT', `UID:${uid}@labores-berlin`, `DTSTAMP:${stamp}`, `DTSTART;TZID=Europe/Berlin:${lt(date, hm)}`, `DTEND;TZID=Europe/Berlin:${lt(date, plus(hm, mins))}`,
-      `SUMMARY:${icsTxt(sum)}`, `LOCATION:${icsTxt('IDMJI Berlín, Pistoriusstraße 114, Berlin')}`);
+      `SUMMARY:${icsTxt(sum)}`, `LOCATION:${icsTxt('Pistoriusstraße 114, Berlin')}`);
     if (desc) L.push(`DESCRIPTION:${icsTxt(desc)}`);
     L.push('END:VEVENT');
   };
@@ -313,7 +313,7 @@ async function calendar(pid: string, t: string) {
         ev(`${date}-todos`, date, hr, 120, `${sn} · labores`, ks.map((k) => `${LBL[k] || k}: ${nm(as[k])}`).join('\n'));
       } else {
         const mine = [...new Set(ks.filter((k) => as[k] === pid).map((k) => LBL[k] || k))];
-        if (mine.length) ev(`${date}-${pid}`, date, hr, 120, `Labor: ${mine.join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.\nVer en la app: https://labores-berlin-idmji.pages.dev`);
+        if (mine.length) ev(`${date}-${pid}`, date, hr, 120, `Labor: ${mine.join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.\nVer en la app: https://labores-berlin.pages.dev`);
         // Gabriela: los días de alabanza en que David no tiene labor, va ella a la alabanza (sin labor).
         if (pid === 'gabriela' && !mine.length && [1, 3, 5].includes(dow) && !Object.values(as).includes('david'))
           ev(`${date}-alab-${pid}`, date, hr, 120, 'Alabanza (vas tú)', 'Ese día vas tú a la alabanza. No tienes labor.');
