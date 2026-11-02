@@ -312,6 +312,9 @@ async function calendar(pid: string, t: string) {
       } else {
         const mine = [...new Set(ks.filter((k) => as[k] === pid).map((k) => LBL[k] || k))];
         if (mine.length) ev(`${date}-${pid}`, date, hr, 120, `Labor: ${mine.join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.\nVer en la app: https://labores-berlin-idmji.pages.dev`);
+        // Gabriela: los días de alabanza en que David no tiene labor, va ella a la alabanza (sin labor).
+        if (pid === 'gabriela' && !mine.length && [1, 3, 5].includes(dow) && !Object.values(as).includes('david'))
+          ev(`${date}-alab-${pid}`, date, hr, 120, 'Alabanza (vas tú)', 'Ese día vas tú a la alabanza. No tienes labor.');
       }
     }
   }
