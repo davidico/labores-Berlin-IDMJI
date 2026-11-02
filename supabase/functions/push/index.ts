@@ -204,6 +204,31 @@ async function pastorReminders() {
   return { sent, lines };
 }
 
+// ---- recordatorio del mismo día, a las 8:00 ----
+async function todayReminder() {
+  const p = berlin(new Date());
+  if (Number(p.hour) !== 8) return { skipped: true };
+  const date = `${p.year}-${p.month}-${p.day}`;
+  const { error: dup } = await SB.from('push_log').insert({ day: `hoy-${date}` });
+  if (dup) return { skipped: true, already: date };
+  const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
+  if (!data) return { error: 'sin datos' };
+  const st = JSON.parse(data.json);
+  if (!(st.published && st.published[date.slice(0, 7)])) return { skipped: true, unpublished: true };
+  const as: Record<string, string> = (st.schedules?.[date.slice(0, 7)] || {})[date] || {};
+  const dow = new Date(date + 'T12:00:00Z').getUTCDay();
+  const [sn, hr] = SVC[dow];
+  const by: Record<string, Set<string>> = {};
+  for (const [k, pid] of Object.entries(as)) if (pid) (by[pid] ??= new Set()).add(LBL[k] || k);
+  let sent = 0;
+  for (const [pid, set] of Object.entries(by)) sent += await sendTo([pid], `Hoy te toca: ${[...set].join(', ')}`, `${sn} a las ${hr}.`);
+  // deno-lint-ignore no-explicit-any
+  for (const m of (st.meets || []).filter((m: any) => m.date === date)) {
+    sent += await sendTo(invitees(st, m), `Hoy: ${m.title}`, `${m.time ? 'A las ' + m.time + '. ' : ''}${m.place || ''}`.trim() || 'Reunión convocada.');
+  }
+  return { date, sent };
+}
+
 async function daily() {
   const now = new Date();
   const p = berlin(now);
@@ -308,7 +333,7 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') { const q = new URL(req.url).searchParams; return calendar(q.get('p') || '', q.get('t') || ''); }
   // deno-lint-ignore no-explicit-any
   const b: any = await req.json().catch(() => ({}));
-  if (b.mode === 'daily') return json({ monthly: await monthly(), pastor: await pastorReminders(), daily: await daily() });
+  if (b.mode === 'daily') return json({ monthly: await monthly(), pastor: await pastorReminders(), today: await todayReminder(), daily: await daily() });
   if (b.mode === 'ping') {
     // Prueba: envía un aviso solo a los administradores.
     const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
