@@ -179,9 +179,12 @@ function why(p,s,date,as,slots){
 
 function generate(ym){let best=null,bs=1e9;
   for(let i=0;i<40;i++){const r=genOnce(ym);let e=0;for(const d in r)e+=slotsAt(d).filter(s=>!r[d][s.k]).length;if(e<bs){bs=e;best=r}if(!e)break}
-  alabSwap(best,ym,'');state.schedules[ym]=best;save()}
-/* El día de alabanza (lun/mié/vie) que David no tiene labor, Gabriela hace sonido. Una vez por semana. */
+  state.schedules[ym]=best;save()}
+/* Los días de alabanza (lun/mié/vie) en que David no tiene labor, a Gabriela le aparece «Alabanza»: ella va, sin labor. */
 const ALABSWAP={free:'david',give:'gabriela',k:'sonido'};
+function freeAlabDays(){const F=person(ALABSWAP.free);if(!F)return[];const out=[];
+  for(const ym in state.schedules)for(const d in state.schedules[ym]){const w=pd(d).getDay();if((w===1||w===3||w===5)&&!Object.values(state.schedules[ym][d]||{}).includes(F.id))out.push(d)}
+  return out.sort()}
 function alabSwap(sched,ym,from){const out=[],F=person(ALABSWAP.free),G=person(ALABSWAP.give);if(!F||!G||!sched)return out;
   const weeks={};for(const d of monthDates(ym)){const w=pd(d).getDay();if((w===1||w===3||w===5)&&(!from||d>=from))(weeks[mondayOf(d)]=weeks[mondayOf(d)]||[]).push(d)}
   for(const ds_ of Object.values(weeks)){
@@ -269,9 +272,12 @@ function migrate(){let ch=false;
   if(!state.lateFix){for(const x of state.people)delete x.late;state.lateFix=1;ch=true}
   if(!state.grdFix){const t=person('tomasa');if(t&&t.name==='Tomasa')t.name='Tomasa P.';const mr=person('marion');if(mr&&mr.name==='Marion')mr.name='Marion D.';for(const id of ['gabriela','denisse']){const x=person(id);if(x&&!x.roles.includes('guardar_sup'))x.roles.push('guardar_sup')}
     for(const ym in state.schedules)for(const d of Object.keys(state.schedules[ym]).sort())if([0,4].includes(pd(d).getDay()))fixDate(d);state.grdFix=1;ch=true}
-  if(!state.gabyAlab){let r=null;try{r=SESSION&&realMe()}catch(e){}if(r&&r.admin){const nextMon=ds(new Date(pd(mondayOf(today)).getTime()+7*864e5));for(const ym of [...new Set([today.slice(0,7),defaultMonth()])]){const sc=state.schedules[ym];if(!sc)continue;
-      for(const {d,prev} of alabSwap(sc,ym,nextMon)){const sl=slotOf(d,'sonido');notify(['gabriela'],`Te toca ${sl.l.toLowerCase()} el ${fmt(d)} (alabanza).`);if(prev&&prev!=='gabriela')notify([prev],`Ya no te toca ${sl.l.toLowerCase()} el ${fmt(d)}: lo hace Gabriela.`)}}
-    state.gabyAlab=1;ch=true}}
+  if(!state.gabyAlabUndo){let r=null;try{r=SESSION&&realMe()}catch(e){}if(r&&r.admin){
+      if(state.gabyAlab){const re=/^Ya no te toca sonido el \S+ (\d+) (\w+): lo hace Gabriela\.$/;
+        for(const n of state.notifs.slice()){const m=re.exec(n.text||'');if(!m||!n.to||!n.to[0])continue;const mi=MESS.indexOf(m[2]);if(mi<0)continue;
+          const d=`${pd(today).getFullYear()}-${pad(mi+1)}-${pad(+m[1])}`,as=(state.schedules[d.slice(0,7)]||{})[d];
+          if(as&&as.sonido==='gabriela'){as.sonido=n.to[0];notify([n.to[0]],`Corrección: el sonido del ${fmt(d)} sigue siendo tuyo. Disculpa el aviso anterior.`);notify(['gabriela'],`Corrección: el ${fmt(d)} no te toca sonido. Ese día solo vas a la alabanza.`)}}}
+      state.gabyAlab=1;state.gabyAlabUndo=1;ch=true}}
   if(!state.ruleFix3){const a=person('aicardo');if(a)a.days=[0];const g=person('gabriela');if(g){g.noSlots=[...new Set([...(g.noSlots||[]),'en_test','de_test'])];g.maxOne=true;g.introNotWith='david'}
     for(const ym in state.schedules)for(const d of Object.keys(state.schedules[ym]).sort())fixDate(d);state.ruleFix3=1;ch=true}
   if(!state.roxFix){const r=person('roxana');if(r){r.avoidSlots=['de_intro'];r.avoidDays=[4];r.favorSlots=['de_pred','de_test']}state.roxFix=1;ch=true}
@@ -353,6 +359,7 @@ function myItems(p){
     for(const s of slotsAt(date))if(as[s.k]===p.id)add(date).slots.push(s);
   }
   for(const t of state.trans)if(isPul)add(t.date).notes.push(`<b>Transmisión internacional.</b> ${t.link?`<div class="pre" style="margin-top:4px">${linkify(t.link)}</div>`:'La información aún no está.'}`);
+  if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))){const it=add(d);it.attend=true;it.notes.unshift('Ese día vas tú a la alabanza. No tienes labor.')}}
   for(const m of myMeets(p))add(m.date).notes.push(`<b>Reunión:</b> ${esc(m.title)}${m.time?' · '+esc(m.time):''}`);
   for(const l of state.leipzig)add(l.date).notes.push(`<b>Visita a Leipzig.</b> Predicación: ${esc(l.teaching||'por definir')}${p.leipzig?' · Viajas este día':''}${pdfLink('l',l)}`);
   return items;
@@ -362,7 +369,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo ${preamb(d)+1}:</b> ${PREAMB[preamb(d)]}`);
   if((w===4||w===0)&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d])notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}${pdfLink('t',tm[d],it.slots.some(s=>s.area==='pulpito')?['de','en']:[...new Set(it.slots.filter(s=>s.area==='trad').map(s=>s.k.slice(0,2)))])}`);
   return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
-    <div class="svc">${DOW[w]} · ${it.slots.length?sn:'Aviso'} <small>${it.slots.length?st:''}</small></div>
+    <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
     ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}
     ${notes.map(n=>`<div class="note">${n}</div>`).join('')}
     ${it.slots.length&&d>=today?actions(d,it):''}</div></div>`}
@@ -421,7 +428,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='2.4';
+const APPV='2.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
