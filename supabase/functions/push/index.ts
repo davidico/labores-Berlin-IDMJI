@@ -140,7 +140,7 @@ async function monthly() {
   return { skipped: true, day };
 }
 
-// ---- recordatorios al pastor: fichas de la semana (lun–mié) y transmisión del domingo (vie–sáb), a las 9:00 ----
+// ---- recordatorios al pastor: fichas de la semana (lun–mié) y transmisión del domingo (vie–sáb), a las 8:00 ----
 // deno-lint-ignore no-explicit-any
 function teachMapS(st: any): Record<string, any> {
   // deno-lint-ignore no-explicit-any
@@ -158,7 +158,7 @@ const plusDays = (iso: string, n: number) => { const d = new Date(iso + 'T12:00:
 const fmtD = (iso: string) => { const d = new Date(iso + 'T12:00:00Z'); return `${DOW[d.getUTCDay()]} ${d.getUTCDate()}`; };
 async function pastorReminders() {
   const p = berlin(new Date());
-  if (Number(p.hour) !== 9) return { skipped: true };
+  if (Number(p.hour) !== 8) return { skipped: true };
   const today = `${p.year}-${p.month}-${p.day}`;
   const dow = new Date(today + 'T12:00:00Z').getUTCDay();
   if (![1, 2, 3, 5, 6].includes(dow)) return { skipped: true, dow };
