@@ -428,7 +428,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='2.7';
+const APPV='2.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -577,12 +577,13 @@ function calBody(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userA
   let h=`<div class="info" style="margin:0">Tus labores y reuniones aparecen solas en tu calendario${ios?'':' de Google'} y se actualizan si cambia el horario (puede tardar unas horas).</div>`;
   if(!c)h+=`<button class="btn sm" data-a="cal-get" style="margin-top:10px">Conectar con mi calendario</button>${ui.calErr?`<div class="info" style="color:var(--warn)">${esc(ui.calErr)}</div>`:''}`;
   else{const w=c.me.replace(/^https:/,'webcal:');
-    h+=ios?`<a class="btn sm" href="${esc(w)}" style="margin-top:10px">Agregar a mi calendario</a>
-      <ol class="steps" style="margin-top:12px"><li>Toca <b>Agregar a mi calendario</b>.</li><li>Toca <b>Suscribirse</b> <i>(Abonnieren)</i> y luego <b>OK</b>.</li><li>Tus labores aparecen en la app <b>Calendario</b> <i>(Kalender)</i>.</li></ol>`
-      :`<button class="btn sm" data-a="cal-copy" data-v="${esc(c.me)}" style="margin-top:10px">${ui.calCopied===c.me?'¡Enlace copiado!':'Copiar mi enlace'}</button>
-      <div class="info" style="margin-top:10px">En Android, Google solo deja agregarlo <b>desde una computadora</b>. Se hace <b>una sola vez</b>: después se actualiza solo cada mes y aparece en tu celular.</div>
+    const goog=`<button class="btn sm" data-a="cal-copy" data-v="${esc(c.me)}" style="margin-top:10px">${ui.calCopied===c.me?'¡Enlace copiado!':'Copiar mi enlace'}</button>
+      <div class="info" style="margin-top:10px">Google solo deja agregarlo <b>desde una computadora</b>. Se hace <b>una sola vez</b>: después se actualiza solo cada mes y aparece en tu celular.</div>
       <ol class="steps" style="margin-top:8px"><li>Toca <b>Copiar mi enlace</b> y mándatelo (por WhatsApp o correo) para abrirlo en la computadora.</li><li>En la computadora entra a <b>calendar.google.com</b> con la misma cuenta de Google de tu celular.</li><li>A la izquierda, junto a <b>Otros calendarios</b> <i>(Weitere Kalender)</i>, toca <b>+</b> → <b>Desde URL</b> <i>(Per URL)</i>.</li><li>Pega el enlace y toca <b>Agregar calendario</b> <i>(Kalender hinzufügen)</i>.</li><li>En tu celular, en Google Calendar: ☰ → <b>Ajustes</b> <i>(Einstellungen)</i> → «Mis labores · Berlín» → activa <b>Sincronizar</b> <i>(Synchronisieren)</i>.</li></ol>`;
-    if(ios)h+=`<div class="info" style="margin-top:4px">¿Usas otro calendario? <button class="linkbtn" data-a="cal-copy" data-v="${esc(c.me)}" style="font-size:15px">${ui.calCopied===c.me?'¡Enlace copiado!':'Copiar enlace'}</button></div>`}
+    h+=ios?`<a class="btn sm" href="${esc(w)}" style="margin-top:10px">Agregar al Calendario del iPhone</a>
+      <ol class="steps" style="margin-top:12px"><li>Toca <b>Agregar al Calendario del iPhone</b>.</li><li>Toca <b>Suscribirse</b> <i>(Abonnieren)</i> y luego <b>OK</b>.</li><li>Tus labores aparecen en la app <b>Calendario</b> <i>(Kalender)</i>.</li></ol>
+     <div class="info" style="margin-top:6px">Así queda en la app <b>Calendario</b> del iPhone.</div>
+      <button class="linkbtn" data-a="cal-g" style="font-size:15px;margin-top:4px;display:block">${ui.calG?'Ocultar los pasos de Google Calendar':'¿Usas Google Calendar? Ver cómo agregarlo'}</button>${ui.calG?`<div style="margin-top:6px;padding-top:4px;border-top:1px dashed var(--line)">${goog}</div>`:''}`:goog;}
   return h}
 function predPick(p,ym,dates){const ok=dates.filter(d=>!p.blocked.includes(d)&&slotsAt(d).some(z=>/_pred$/.test(z.k)&&p.roles.includes(z.role)));if(!ok.length)return'';
   const cur=(p.predPref||{})[ym]||'';
@@ -945,6 +946,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     notify(servers(),`Marca los días que no puedes servir en ${mes}, antes del ${fmt(dl)}. Está arriba en Labores.`,{push:{title:`Disponibilidad de ${mes}`,body:`Marca los días que no puedes antes del ${fmt(dl)}.`}});break}
   case'av-list':ui.avList=!ui.avList;break;
   case'av-all':ui.avAll=!ui.avAll;break;
+  case'cal-g':ui.calG=!ui.calG;break;
   case'ne-edit':ui.edName=v;render();setTimeout(()=>{const i=$('ne-in');if(i){i.focus();i.select()}},30);return;
   case'ne-x':ui.edName=null;break;
   case'ne-save':{const[kd,iv]=v.split('|'),val=(($('ne-in')||{}).value||'').trim();if(!val){const i=$('ne-in');if(i){i.placeholder='El título no puede quedar vacío';i.classList.add('bad');i.focus()}return}if(kd==='lz'){const l=state.leipzig.find(x=>x.id===iv);if(l)l.teaching=val}else{const x=state.teachings.find(z=>z.id===iv);if(x&&val)x.title=val}ui.edName=null;break}
