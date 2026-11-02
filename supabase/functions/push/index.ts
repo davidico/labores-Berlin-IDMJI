@@ -180,7 +180,7 @@ async function pastorReminders() {
       const t = tm[d];
       if (!t) { lines.push(`${fmtD(d)}: falta cargar la enseñanza`); continue; }
       const davidPreaches = Object.keys((st.schedules?.[d.slice(0, 7)] || {})[d] || {}).includes('predica');
-      const need = new Date(d + 'T12:00:00Z').getUTCDay() === 0 ? ['alemán', 'inglés'] : ['alemán'];
+      const need = ['alemán', 'inglés'];
       const miss = need.filter((l) => !(l === 'alemán' ? t.linkDe : t.linkEn));
       if (miss.length && !davidPreaches) lines.push(`${fmtD(d)} («${t.title}»): falta el enlace de la ficha en ${miss.join(' y ')}`);
     }
