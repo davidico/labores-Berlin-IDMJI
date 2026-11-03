@@ -302,6 +302,8 @@ const ICON={
  ens:'<svg viewBox="0 0 24 24"><path d="M4 5.5C6.5 4 9.5 4 12 6c2.5-2 5.5-2 8-.5V19c-2.5-1.5-5.5-1.5-8 .5-2.5-2-5.5-2-8-.5z"/><path d="M12 6v13.5"/></svg>',
  per:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9.5" r="2.4"/><path d="M3 19c.9-3 3.2-4.5 6-4.5s5.1 1.5 6 4.5M15.5 14.6c2.6-.3 4.6.9 5.5 3.9"/></svg>'
 };
+ICON.aj='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>';
+const CALI=ICON.cal;
 const canSeeAll=p=>p.admin||p.pastor||p.roles.includes('pulpito');
 function tabsFor(p){const t=[['mis','Labores'],['cal','Calendario'],['disp','Mis días']];
   if(canSeeAll(p))t.push(['hor','Horario']);
@@ -347,11 +349,12 @@ function render(){if(window.__MOVED)return;
   const tabs=tabsFor(p);if(ui.tab!=='aj'&&!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
   {const r=realMe();if(r&&!privOk(r)){let pend='';try{pend=localStorage.getItem('lb-priv')||''}catch(e){}if(pend.split('|')[0]===window.PRIV_V){r.privacy={v:window.PRIV_V,ts:+pend.split('|')[1]||Date.now()};try{localStorage.removeItem('lb-priv')}catch(e){}save()}}}
   const gate=!ui.viewAs&&!privOk(realMe());
-  let body;try{body=gate?privGate(p):{mis:vMis,cal:vCal,disp:vDisp,hor:vHor,ens:vEns,per:vPer,aj:vAj}[ui.tab](p)}catch(e){console.error(e);body=`<div class="card" style="margin-top:10px"><b>Algo falló al mostrar esta pantalla.</b><div class="info" style="margin:6px 0 10px">Avísale al administrador. Detalle: ${esc(String(e&&e.message||e))}</div><button class="btn sm" data-a="upd">Recargar</button></div>`}
-  $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
+  let body;try{body=gate?privGate(p):{mis:DESK()?vDash:vMis,cal:vCal,disp:vDisp,hor:vHor,ens:vEns,per:vPer,aj:vAj}[ui.tab](p)}catch(e){console.error(e);body=`<div class="card" style="margin-top:10px"><b>Algo falló al mostrar esta pantalla.</b><div class="info" style="margin:6px 0 10px">Avísale al administrador. Detalle: ${esc(String(e&&e.message||e))}</div><button class="btn sm" data-a="upd">Recargar</button></div>`}
+  const dash=DESK()&&ui.tab==='mis'&&!gate;
+  $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''} ${dash?'dash':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
     ${hdr(p)}</div>${ui.viewAs?`<div class="viewas">Viendo como <b>${esc(p.name)}</b><button class="linkbtn" data-a="logout">Volver a mi cuenta</button></div>`:''}
-    ${ui.upd?`<div class="banner ok" style="display:flex;align-items:center;justify-content:space-between;gap:10px">Hay una versión nueva (${esc(ui.upd)}).<button class="btn sm" data-a="upd">Actualizar</button></div>`:''}${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div>${body}</div>
-    <nav class="tabs" ${gate?'hidden':''}>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}</nav>${ui.priv?privSheet():''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.bell?bellSheet(p):''}`;
+    ${ui.upd?`<div class="banner ok" style="display:flex;align-items:center;justify-content:space-between;gap:10px">Hay una versión nueva (${esc(ui.upd)}).<button class="btn sm" data-a="upd">Actualizar</button></div>`:''}${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div><div class="pg">${body}</div></div>
+    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.bell?bellSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
 const chip=(area,label)=>`<span class="chip" style="--c:var(${AREAC[area]})">${esc(label)}</span>`;
@@ -440,7 +443,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '4.9';
+const APPV = '5.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -518,12 +521,12 @@ function privGate(p){return `<div class="card" style="margin-top:8px"><h2 style=
 function delBox(){return `<div class="confirm" style="display:block;margin-top:10px"><b>¿Borrar tu cuenta?</b><div style="margin:6px 0 10px">Se eliminan tu correo, teléfono, foto y disponibilidad, y se te quita de las labores que vienen. No se puede deshacer.</div>
   ${ui.delErr?`<div class="info" style="color:var(--warn);margin-bottom:8px">${esc(ui.delErr)}</div>`:''}
   <div class="inline"><button class="btn warnb sm" data-a="del-yes" ${ui.delBusy?'disabled':''}>${ui.delBusy?'Borrando…':'Sí, borrar mi cuenta'}</button><button class="btn ghost sm" data-a="del-no">Cancelar</button></div></div>`}
-function avisos(p){let h='';
+function avisos(p,noN){let h='';
   if(ui.flash){h+=`<div class="banner ok">${esc(ui.flash)}</div>`;ui.flash=null}
   const rq=pendingFor(p);
   if(rq.length)h+=`<div class="list" style="margin-bottom:14px">${rq.map(r=>{const f=person(r.from),s=slotOf(r.date,r.k);return `<div class="card ask" style="display:flex;gap:12px;align-items:flex-start">${f?avatar(f,44):''}<div style="flex:1;min-width:0"><div class="info" style="margin:0 0 4px">Piden reemplazo</div><b>${esc(f?f.name:'Un hermano')}</b> no puede ir el <b>${fmt(r.date)}</b> · ${esc(s.l)}. ¿Puedes ir tú?
     <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="acc" data-v="${r.id}">Sí, yo voy</button><button class="btn ghost sm" data-a="dec" data-v="${r.id}">No puedo</button></div></div></div>`}).join('')}</div>`;
-  const ns=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).slice(0,8);
+  const ns=noN?[]:state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).slice(0,8);
   if(ns.length){const un=ns.filter(n=>!n.read.includes(p.id)).length;
     h+=`<h3 style="margin-top:4px">Avisos${un?` <span class="tag">${un} ${un===1?'nuevo':'nuevos'}</span>`:''}</h3><div class="card">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}
     ${un?`<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>`:''}</div>`}
@@ -654,6 +657,65 @@ function misAv(p){if(!p.roles||!p.roles.length)return'';let h='';
       <button class="btn sm" data-a="av-open" data-v="${ym}" style="margin-top:8px">Marcar mis días</button></div>`}
   return h}
 function vMis(p){const top=misAv(p)+avisos(p)+misMeets(p)+misMsgs(p);return `<h2>Hola, ${esc(p.name.split(' ')[0])}</h2>`+installHint()+pushCard()+top+(top?'<h3>Tus labores</h3>':'')+misList(p)}
+/* ---- vista de escritorio (PC): panel de inicio ---- */
+const DESK=()=>!!(window.matchMedia&&matchMedia('(min-width:1024px)').matches);
+if(window.matchMedia){const mq=matchMedia('(min-width:1024px)');const f=()=>{try{if(quiet())render()}catch(e){}};mq.addEventListener?mq.addEventListener('change',f):mq.addListener(f)}
+const DOWL=d=>{const x=pd(d);return `${DOW[x.getDay()]}, ${x.getDate()} de ${MES[x.getMonth()]}`};
+const ARROW='<svg viewBox="0 0 24 24" class="arw"><path d="M9 6l6 6-6 6"/></svg>';
+function dkNextTeach(){const tm=teachMap();const d=Object.keys(tm).sort().find(x=>x>=today&&!svcGone(x)&&!transOn(x));return d?{d,t:tm[d]}:null}
+function dkAgenda(p){const off=ui.dkWeek||0;const mon=pd(mondayOf(today));mon.setDate(mon.getDate()+off*7);
+  const days=[...Array(7)].map((_,i)=>{const x=new Date(mon);x.setDate(x.getDate()+i);return ds(x)});
+  const sel=ui.dkDay&&days.includes(ui.dkDay)?ui.dkDay:(days.includes(today)?today:days[0]);
+  const items=myItems(p);const tm=teachMap();
+  const strip=days.map(d=>{const x=pd(d),it=items[d],mine=it&&it.slots.length,ev=it&&!mine&&(it.notes.length||it.attend);
+    return `<button class="dkday ${d===today?'today':''}" data-a="dk-day" data-v="${d}" aria-pressed="${d===sel}"><span>${DOWS[x.getDay()]}</span><b>${x.getDate()}</b><i class="${mine?'on':ev?'ev':''}"></i></button>`}).join('');
+  const it=items[sel];const w=pd(sel).getDay(),[sn,st]=SVC[w];
+  let det=`<div class="dkdet-h"><b>${DOWL(sel)}</b><span>${esc(sn)} · ${st}${transOn(sel)?' · Transmisión':''}${leipOn(sel)?' · Visita a Leipzig':''}</span></div>`;
+  if(it&&(it.slots.length||it.notes.length||it.attend))det+=`<div class="dkmine">${itemCard(sel,it,tm)}</div>`;
+  else det+=`<div class="info" style="margin:6px 0 0">No tienes labores este día.</div>`;
+  const as=schedOf(sel);
+  if(as&&canSeeMonth(p,sel.slice(0,7))){const rows=slotsAt(sel).filter(s=>as[s.k]).map(s=>{const x=person(as[s.k]);return `<div class="dkrow"><span class="lbl"><i class="dot" style="--c:var(${AREAC[s.area]})"></i>${esc(s.l)}</span><b ${as[s.k]===p.id?'class="me"':''}>${esc(x?x.name:'—')}</b></div>`}).join('');
+    if(rows)det+=`<div class="dkteam"><div class="dksub">Quién sirve ese día</div><div class="dkrows">${rows}</div></div>`}
+  const first=pd(days[0]),last=pd(days[6]);
+  return `<section class="card dkcard"><div class="dkhead"><div><h4>Agenda de la semana</h4><small>${first.getDate()} de ${MES[first.getMonth()]} — ${last.getDate()} de ${MES[last.getMonth()]}</small></div>
+    <div class="mnav"><button class="ib" data-a="dk-week" data-v="-1" aria-label="Semana anterior">‹</button>${off?`<button class="btn ghost sm" data-a="dk-week" data-v="0">Hoy</button>`:''}<button class="ib" data-a="dk-week" data-v="1" aria-label="Semana siguiente">›</button></div></div>
+    <div class="dkstrip">${strip}</div><div class="dkdet">${det}</div>
+    <div class="dklegend"><span><i class="on"></i>Tienes labor</span><span><i class="ev"></i>Aviso o evento</span><button class="linkbtn" data-a="tab" data-v="cal">Calendario completo</button></div></section>`}
+function dkAvAdmin(p){if(!p.admin)return'';const ks=Object.keys(state.avReqs||{}).filter(k=>k>=today.slice(0,7)).sort();const ym=ks.find(k=>today<=avOf(k).deadline)||ks[ks.length-1];if(!ym)return'';
+  const av=avOf(ym),all=servers(),done=all.filter(i=>av.done&&av.done[i]),pend=all.filter(i=>!(av.done&&av.done[i])),mes=MES[+ym.slice(5,7)-1];
+  return `<section class="card dkcard ${pend.length&&today<=av.deadline?'dkwarn':''}"><h4>Disponibilidad de ${mes}</h4>
+    <div class="dkbig"><b>${done.length} de ${all.length}</b> ya la enviaron</div><div class="info">${today<=av.deadline?'Responden hasta el '+fmt(av.deadline):'El plazo terminó el '+fmt(av.deadline)}</div>
+    ${pend.length?`<div class="note"><b>Faltan:</b> ${pend.map(i=>esc((person(i)||{}).name||'')).join(', ')}</div>`:''}
+    <div class="inline" style="margin-top:10px">${pend.length&&today<=av.deadline?`<button class="btn sm" data-a="av-remind" data-v="${ym}">Recordar a los que faltan</button>`:''}<button class="btn ghost sm" data-a="dk-hor" data-v="${ym}">Ver horario</button></div></section>`}
+function dkTeach(p){const n=dkNextTeach();if(!n)return'';const as=schedOf(n.d)||{},pr=davidDay(n.d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul);
+  const langs=p.admin||p.pastor?['de','en']:tradLangs(p);
+  return `<section class="card dkcard dkteach"><div class="dkeye">Próxima enseñanza · ${fmt(n.d)}</div><h4 class="dkt">${esc(n.t.title)}</h4>
+    <div class="dkrows"><div class="dkrow"><span class="lbl">Predica</span><b>${pr?esc(pr.name):'—'}</b></div><div class="dkrow"><span class="lbl">Introducción</span><b>${ip?esc(ip.name):'sin asignar'}</b></div></div>
+    <div class="info" style="margin-top:8px"><b>Tema de la introducción:</b> ${esc(INTROT[introTema(n.d)])}</div>${pdfLink('t',n.t,langs)}
+    ${tabsFor(p).some(t=>t[0]==='ens')?`<button class="linkbtn" data-a="tab" data-v="ens" style="margin-top:6px">Ver todas las enseñanzas</button>`:''}</section>`}
+function dkNotifs(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice(0,4);
+  return `<section class="card dkcard"><div class="dkhead"><h4>Avisos</h4><button class="linkbtn" data-a="bell">Ver todos</button></div>
+    ${ns.length?`<div class="dknot">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}</div>${ns.some(n=>!n.read.includes(p.id))?'<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>':''}`:'<div class="info">Sin avisos.</div>'}</section>`}
+function dkQuick(p){const L={cal:'Ver calendario',disp:'Mis días para servir',hor:'Horario del mes',ens:p.admin||p.pastor?'Enseñanzas (pastor)':'Predicaciones',per:'Personas'};
+  const it=tabsFor(p).filter(t=>t[0]!=='mis').map(([k])=>`<button class="dkq" data-a="tab" data-v="${k}">${ICON[k]}<span>${L[k]}</span>${ARROW}</button>`).join('');
+  return `<section class="card dkcard"><h4>Accesos rápidos</h4><div class="dkql">${it}<button class="dkq" data-a="tab" data-v="aj">${ICON.aj}<span>Ajustes y mi calendario</span>${ARROW}</button></div></section>`}
+function vDash(p){const items=myItems(p);for(const d in items)if(svcGone(d))delete items[d];
+  const fut=Object.keys(items).sort().filter(d=>items[d].slots.length);
+  const un=unreadFor(p),ask=pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length+Object.keys(state.avReqs||{}).filter(ym=>{const av=avOf(ym);return ym>=today.slice(0,7)&&today<=av.deadline&&!(av.done&&av.done[p.id])&&p.roles&&p.roles.length}).length;
+  const h=new Date().getHours(),hi=h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';const td=pd(today);
+  const areas=myAreas(p);
+  const top=misAv(p)+avisos(p,true)+misMeets(p)+misMsgs(p);
+  const stat=(n,t,s,a,v)=>`<button class="card dkstat" data-a="${a}" data-v="${v||''}"><div class="dkst-n">${n}</div><div><b>${t}</b><small>${s}</small></div>${ARROW}</button>`;
+  return `<div class="dkgrid"><div class="dkmain">
+    <section class="card dkhero"><div><div class="dkeye">Mi espacio · Labores Berlín</div><h1>${hi}, ${esc(p.name.split(' ')[0])}</h1>
+      <p>Tus labores, avisos y fechas de servicio en un mismo lugar.</p>
+      <div class="chips">${p.admin?'<span class="chip" style="--c:var(--navy)">Administración</span>':''}${p.pastor?'<span class="chip" style="--c:var(--gold)">Pastor</span>':''}${areas.map(a=>chip(a,AREAN[a])).join('')}</div></div>
+      <div class="dkdate">${CALI}<span>${DOW[td.getDay()]}, ${td.getDate()} de ${MES[td.getMonth()]}<br>de ${td.getFullYear()}</span></div></section>
+    <div class="dkstats">${stat(fut.length,'Próximas labores',fut.length?'La próxima: '+fmt(fut[0]):'Aún no tienes asignadas','dk-go','dk-lab')}${stat(un,'Avisos sin leer',un?'Toca para leerlos':'Estás al día','bell')}${stat(ask,'Por responder',ask?'Reemplazos, reuniones o disponibilidad':'Nada pendiente','dk-go','dk-ask')}</div>
+    ${dkAgenda(p)}
+    ${top?`<section id="dk-ask" class="dkblock"><h4 class="dksec">Necesita tu atención</h4>${top}</section>`:''}
+    <section id="dk-lab" class="dkblock"><h4 class="dksec">Mis próximas labores</h4>${misList(p)}</section>
+  </div><aside class="dkside">${dkNotifs(p)}${dkTeach(p)}${dkAvAdmin(p)}${dkQuick(p)}</aside></div>`}
 /* ---- mensajes por equipo ---- */
 function teamIds(area){return state.people.filter(x=>area==='all'||x.roles.some(r=>ROLEAREA[r]===area)||(area==='pulpito'&&x.pastor)).map(x=>x.id)}
 function msgsFor(p,ym){const a=myAreas(p);return state.msgs.filter(m=>m.month===ym&&(m.area==='all'||a.includes(m.area)||m.from===p.id))}
@@ -1022,13 +1084,17 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'upd':location.reload();return;
   case'cal-hide':ui.calHide=true;try{localStorage.setItem('lb-calhide','1')}catch(e){}break;
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
+  case'dk-day':ui.dkDay=v;render();return;
+  case'dk-week':ui.dkWeek=v==='0'?0:(ui.dkWeek||0)+(+v);ui.dkDay=null;render();return;
+  case'dk-go':{const el=$(v);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
+  case'dk-hor':ui.month=v;ui.tab='hor';scrollTo(0,0);render();return;
   case'bell':ui.menu=false;ui.bell=true;ui.bellNew=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).map(n=>n.id);for(const n of state.notifs)if(ui.bellNew.includes(n.id))n.read.push(p.id);break;
   case'sheet-x':ui.menu=false;ui.bell=false;ui.bellNew=[];break;
   case'photo-del':delete p.photo;break;
   case'cal-get':ui.calErr='';SB.functions.invoke('push',{body:{mode:'caltoken'}}).then(r=>{if(r.error||!r.data||!r.data.me)ui.calErr='No se pudo crear el enlace. Inténtalo de nuevo.';else ui.cal=r.data;render()}).catch(()=>{ui.calErr='No se pudo crear el enlace. Revisa tu conexión.';render()});return;
   case'cal-copy':try{navigator.clipboard.writeText(v).then(()=>{ui.calCopied=v;render()})}catch(e){prompt('Copia este enlace:',v)}return;
   case'av-mode':ui.avMode=v;break;
-  case'av-remind':{const av=avOf(ui.month);if(!av)break;const mes=MES[+ui.month.slice(5,7)-1];const pend=servers().filter(i=>!(av.done&&av.done[i]));
+  case'av-remind':{if(v)ui.month=v;const av=avOf(ui.month);if(!av)break;const mes=MES[+ui.month.slice(5,7)-1];const pend=servers().filter(i=>!(av.done&&av.done[i]));
     notify(pend,`Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmt(av.deadline)}.`,{push:{title:`Falta tu disponibilidad de ${mes}`,body:`Márcala antes del ${fmt(av.deadline)}.`}});ui.toast=`Recordatorio enviado a ${pend.length} ${pend.length===1?'persona':'personas'}.`;break}
   case'av-open':ui.avOpen=v;break;
   case'av-close':ui.avOpen=null;break;
