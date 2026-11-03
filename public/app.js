@@ -440,7 +440,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '4.7';
+const APPV = '4.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -908,7 +908,7 @@ function vEns(p){
      const last=fut.length?dateOf[fut[fut.length-1].id]:'';
      let h=past.length?`<button class="mfold" data-a="t-past" aria-expanded="${!!ui.tPast}"><span><b>Ya pasaron</b> · ${past.length}</span><span class="chev">${ui.tPast?'▾':'▸'}</span></button>${ui.tPast?past.map(t=>`<div class="li"><div class="main" style="opacity:.6"><b>${esc(t.title)}</b><small>${fmt(dateOf[t.id])}</small></div></div>`).join(''):''}`:'';
      h+=fut.map((t,i)=>`<div class="li"><div class="main">${nameEd('t',t.id,t.title,'',true)}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b></small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
-     ${davidDay(dateOf[t.id])?'':linkPair('tl',t,dateOf[t.id]?needLangs(dateOf[t.id]):['de','en'])}</div>
+     ${linkPair('tl',t,dateOf[t.id]?needLangs(dateOf[t.id]):['de','en'])}</div>
      <button class="x" data-a="t-up" data-v="${t.id}" aria-label="Subir" ${i?'':'disabled'}>↑</button><button class="x" data-a="t-down" data-v="${t.id}" aria-label="Bajar" ${i<fut.length-1?'':'disabled'}>↓</button><button class="x" data-a="t-del" data-v="${t.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info" style="padding:8px 0">No hay enseñanzas por venir. Agrega las siguientes abajo.</div>';
      if(last)h+=`<div class="info" style="margin-top:8px">Hay enseñanzas cargadas hasta el <b>${fmt(last)}</b>. Para seguir después, agrega más abajo y se acomodan solas en los siguientes jueves y domingos.</div>`;
      return h})()}
