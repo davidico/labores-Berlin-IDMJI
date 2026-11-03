@@ -370,7 +370,7 @@ function myItems(p){
   if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
   if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))){const it=add(d);it.attend=true;it.notes.unshift('Ese día vas tú a la alabanza. No tienes labor.')}}
   for(const m of myMeets(p))add(m.date).notes.push(`<b>Reunión:</b> ${esc(m.title)}${m.time?' · '+esc(m.time):''}`);
-  for(const l of state.leipzig)add(l.date).notes.push(`<b>Visita a Leipzig.</b> Predicación: ${esc(l.teaching||'por definir')}${p.leipzig?' · Viajas este día':''}${pdfLink('l',l,tradLangs(p))}`);
+  for(const l of state.leipzig)add(l.date).notes.push(`<b>Visita a Leipzig.</b> Predicación: ${esc(l.teaching||'por definir')}${p.leipzig?' · Viajas este día':''}${pdfLink('l',l,lzLangs(p))}`);
   return items;
 }
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
@@ -440,7 +440,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '4.6';
+const APPV = '4.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -868,6 +868,8 @@ const LANGF={de:'pdf',en:'pdfEn'},LINKF={de:'linkDe',en:'linkEn'},LANGN={de:'ale
 const pdfLink=(kind,t,langs=['de','en'])=>{const ls=t?langs.filter(l=>t[LINKF[l]]):[];if(!ls.length)return'';
   return `<div class="inline" style="margin-top:6px;flex-wrap:wrap">${ls.map(l=>`<a class="pdfl lnk" href="${esc(t[LINKF[l]])}" target="_blank" rel="noopener">Ficha en ${LANGN[l]}</a>`).join('')}</div>`};
 const tradLangs=p=>p?['de','en'].filter(l=>(p.roles||[]).includes('trad_'+l)):[];
+// Leipzig: los que viajan ven las dos fichas (alemán e inglés); el resto del equipo de traducción, la de su idioma.
+const lzLangs=p=>p&&p.leipzig?['de','en']:tradLangs(p);
 const predLangs=(slots)=>[...new Set(slots.filter(s=>/_pred$/.test(s.k)).map(s=>s.k.slice(0,2)))];
 const needLangs=d=>['de','en'];
 const myLangs=(p,d)=>{const as=schedOf(d)||{};return[...new Set(slotsAt(d).filter(s=>s.area==='trad'&&as[s.k]===p.id).map(s=>s.k.slice(0,2)))]};
@@ -887,7 +889,7 @@ async function uploadPdf(kv,file){const[kind,id,l='de']=kv.split('|');const t=pd
 function cronograma(p){const tm=teachMap(),it=[];const allT=p.admin||p.pastor||p.roles.includes('pulpito');const pastor=state.people.find(x=>x.pastor);
   for(const d in tm)if(!svcGone(d)){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<b>${esc(tm[d].title)}</b>${pdfLink('t',tm[d],tradLangs(p))}`,s:`Predica: ${esc(pr?pr.name:'—')}`})}
   for(const t of state.trans)if(!svcGone(t.date))it.push({d:t.date,h:'<b>Transmisión internacional</b>',s:t.link?`<div class="pre">${linkify(t.link)}</div>`:'La información aún no está.'});
-  for(const l of state.leipzig)if(!svcGone(l.date))it.push({d:l.date,h:'<b>Visita a Leipzig</b>',s:`Predicación: ${esc(l.teaching||'por definir')}${pdfLink('l',l,tradLangs(p))}`});
+  for(const l of state.leipzig)if(!svcGone(l.date))it.push({d:l.date,h:'<b>Visita a Leipzig</b>',s:`Predicación: ${esc(l.teaching||'por definir')}${pdfLink('l',l,lzLangs(p))}`});
   it.sort((a,b)=>a.d<b.d?-1:1);
   if(!it.length)return'<div class="card empty-state">Todavía no hay predicaciones programadas.</div>';
   return `<div class="list">${it.map(x=>{const dd=pd(x.d),w=dd.getDay();return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0"><div class="svc">${DOW[w]} <small>${SVC[w][1]}</small></div><div style="margin-top:4px">${x.h}</div><div class="info" style="margin-top:2px">${x.s}</div></div></div>`}).join('')}</div>`}
