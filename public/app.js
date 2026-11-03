@@ -338,7 +338,7 @@ document.addEventListener('submit',async e=>{if(e.target.id!=='auth-form')return
   else if(m==='signup'){try{localStorage.setItem('lb-priv',window.PRIV_V+'|'+Date.now())}catch(e){}r=await SB.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}});if(!r.error){ui.authOk=true;ui.authMsg='Te enviamos un correo. Ábrelo y toca el enlace para confirmar tu cuenta.'}}
   else{r=await SB.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(!r.error){ui.authOk=true;ui.authMsg='Listo. Revisa tu correo para crear una contraseña nueva.'}}
   if(r&&r.error){ui.authMsg=AUTHERR(r.error)}render()});
-function render(){
+function render(){if(window.__MOVED)return;
   const p=me();
   if(!SESSION||ui.authMode==='newpass'){$('app').innerHTML=authView()+(ui.priv?privSheet():'');return}
   if(!READY){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div><div class="card empty-state">Cargando tus labores…</div></div>`;return}
@@ -440,7 +440,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='4.4';
+const APPV='4.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
