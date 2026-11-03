@@ -148,8 +148,9 @@ const ui={tab:'mis',month:defaultMonth(),area:'all',view:'grid',mv:'cal',cm:defa
 
 function monthDates(ym){const[y,m]=ym.split('-').map(Number);const out=[];const d=new Date(y,m-1,1,12);while(d.getMonth()===m-1){out.push(ds(d));d.setDate(d.getDate()+1)}return out}
 function mondayOf(s){const d=pd(s);d.setDate(d.getDate()-((d.getDay()+6)%7));return ds(d)}
-/* Tema sugerido para la introducción de jueves y domingo: rota en bucle, empezando el jueves 5 nov 2026. */
-function introTema(date){const a=pd('2026-11-05'),d=pd(date);const wk=Math.floor((Math.round((d-a)/864e5)+3)/7);const pos=d.getDay()===4?0:1;return(((wk*2+pos)%INTROT.length)+INTROT.length)%INTROT.length}
+/* Tema sugerido para la introducción de jueves y domingo: rota en bucle desde el jueves 5 nov 2026; los domingos con transmisión no cuentan, así el tema pasa al siguiente culto. */
+function introTema(date){const tr=new Set((state.trans||[]).map(t=>t.date));const d=new Date(pd('2026-11-05'));let n=0;
+  while(ds(d)<date){const w=d.getDay();if((w===4||w===0)&&!tr.has(ds(d)))n++;d.setDate(d.getDate()+1)}return n%INTROT.length}
 function preamb(date){const a=pd('2026-11-02'),d=pd(date);const days=Math.round((d-a)/864e5);const wk=Math.floor(days/7);const pos={1:0,3:1,5:2}[d.getDay()];return(((wk*3+pos)%6)+6)%6}
 function teachMap(){const m={};let i=0;const d=pd(state.teachStart);let g=0;
   while(i<state.teachings.length&&g<2000){const s=ds(d),w=d.getDay();
@@ -436,7 +437,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='4.0';
+const APPV='4.1';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
