@@ -26,7 +26,7 @@ async function sendTo(ids: string[], title: string, body: string, url = '/') {
   let sent = 0;
   for (const r of data ?? []) {
     try {
-      await webpush.sendNotification(r.sub, JSON.stringify({ title, body, url }), { TTL: 60 * 60 * 12 });
+      await webpush.sendNotification(r.sub, JSON.stringify({ title, body, url }), { TTL: 60 * 60 * 12, urgency: 'high' });
       sent++;
     } catch (e) {
       const code = (e as { statusCode?: number }).statusCode;
