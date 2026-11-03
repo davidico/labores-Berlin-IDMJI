@@ -1,5 +1,5 @@
 // Guarda la app para que abra rápido y funcione con mala conexión.
-const CACHE = 'labores-v49';
+const CACHE = 'labores-v50';
 const SHELL = ['./', './index.html', './app.js', './go.js', './config.js', './privacy.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './badge.png'];
 const CDN = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
@@ -33,8 +33,8 @@ self.addEventListener('push', e => {
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data && e.data.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || 'Labores Berlín', {
     body: d.body || '', icon: 'icon-192.png', badge: 'badge.png', data: { url: d.url || './' },
-    // Que suene y vibre como cualquier mensaje (Android). En iPhone el sonido depende de Ajustes > Notificaciones > Labores > Sonidos.
-    silent: false, vibrate: [200, 100, 200], tag: 'lb-' + Date.now(), renotify: true, timestamp: Date.now()
+    // Android: que vibre y suene. En iPhone se usan solo las opciones básicas (el sonido se activa en Ajustes > Notificaciones > Labores > Sonidos).
+    ...(/iPhone|iPad|iPod|Macintosh/.test(self.navigator.userAgent) ? {} : { vibrate: [200, 100, 200], tag: 'lb-' + Date.now(), renotify: true })
   }));
 });
 self.addEventListener('notificationclick', e => {
