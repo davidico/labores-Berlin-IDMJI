@@ -14,6 +14,7 @@ const ROLES={pulpito:'Púlpito',puerta:'Puerta',sonido:'Sonido',trad_de:'Traducc
 const ROLEAREA={pulpito:'pulpito',puerta:'puerta',sonido:'sonido',trad_de:'trad',trad_en:'trad',ofrendas:'ofr',guardar:'ofr',guardar_sup:'ofr',microfonos:'mic',entrega:'ofr'};
 const AREAC={pulpito:'--a-pul',puerta:'--a-puer',sonido:'--a-son',trad:'--a-trad',ofr:'--a-ofr',mic:'--a-mic'};
 const AREAN={pulpito:'Púlpito',puerta:'Puerta',sonido:'Sonido',trad:'Traducción',ofr:'Ofrendas',mic:'Micrófonos'};
+const INTROT=['Llamamiento de Dios a nuestra Hna. María Luisa cuando ella tenía 8 años','Somos cristianos practicantes de la Biblia y guiados por el Espíritu','Promesa: «De este pequeño redil levantaré mi Iglesia en medio de las naciones»','Destacar el libro «Vivencias»','Promesa: «Dios le enseñaría la doctrina a nuestra Hna. María Luisa y viajaría para llevar su palabra»'];
 const PREAMB=['Prepararnos para alabar a Dios','Darle gracias a Dios','Buscar los dones espirituales','Concentrarnos y dejar la timidez','¿Cómo recibir el Bautismo con el Espíritu Santo?','La reverencia'];
 const SVC={1:['Alabanza','18:30'],2:['Estudio bíblico','18:30'],3:['Alabanza','18:30'],4:['Enseñanza','18:30'],5:['Alabanza','18:30'],6:['Estudio bíblico','18:00'],0:['Enseñanza','10:00']};
 // Combinaciones permitidas en el mismo culto. El sonido nunca combina.
@@ -147,6 +148,8 @@ const ui={tab:'mis',month:defaultMonth(),area:'all',view:'grid',mv:'cal',cm:defa
 
 function monthDates(ym){const[y,m]=ym.split('-').map(Number);const out=[];const d=new Date(y,m-1,1,12);while(d.getMonth()===m-1){out.push(ds(d));d.setDate(d.getDate()+1)}return out}
 function mondayOf(s){const d=pd(s);d.setDate(d.getDate()-((d.getDay()+6)%7));return ds(d)}
+/* Tema sugerido para la introducción de jueves y domingo: rota en bucle, empezando el jueves 5 nov 2026. */
+function introTema(date){const a=pd('2026-11-05'),d=pd(date);const wk=Math.floor((Math.round((d-a)/864e5)+3)/7);const pos=d.getDay()===4?0:1;return(((wk*2+pos)%INTROT.length)+INTROT.length)%INTROT.length}
 function preamb(date){const a=pd('2026-11-02'),d=pd(date);const days=Math.round((d-a)/864e5);const wk=Math.floor(days/7);const pos={1:0,3:1,5:2}[d.getDay()];return(((wk*3+pos)%6)+6)%6}
 function teachMap(){const m={};let i=0;const d=pd(state.teachStart);let g=0;
   while(i<state.teachings.length&&g<2000){const s=ds(d),w=d.getDay();
@@ -370,6 +373,7 @@ function myItems(p){
 }
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const notes=[...it.notes];
+  if((w===4||w===0)&&it.slots.some(s=>s.k==='pul'))notes.unshift(`<b>Tema sugerido para la introducción:</b> ${esc(INTROT[introTema(d)])}`);
   if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo ${preamb(d)+1}:</b> ${PREAMB[preamb(d)]}`);
   if((w===4||w===0)&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d])notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}${pdfLink('t',tm[d],tradLangs(me()))}`);
   return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
@@ -432,7 +436,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV='3.9';
+const APPV='4.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
