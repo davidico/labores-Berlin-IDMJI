@@ -45,7 +45,7 @@ function slotsFor(dow){
 const ORDER=['predica','pul','pul_ini','pul_fin','sonido','grd1','grd2','grd3','puerta','de_pred','de_test','en_pred','en_test','ofr1','ofr3','de_intro','en_intro','mic1','mic2','ent'];
 function leipThu(date){const d=pd(date);if(d.getDay()!==4)return false;const sat=ds(new Date(d.getTime()+2*864e5));return state.leipzig.some(l=>l.date===sat)}
 function slotsAt(date){const a=slotsFor(pd(date).getDay());if(!state.leipThuRule||!leipThu(date))return a;
-  return [S('predica','Púlpito · predicación','pulpito','pred','pulpito',{only:['david']}),...a.map(s=>s.k==='pul'?{...s,noPastor:0,only:['oswaldo','javier'],prefer:['oswaldo','javier']}:s)]}
+  return [S('predica','Púlpito · predicación','pulpito','pred','pulpito',{only:['david','javier'],prefer:['david']}),...a.map(s=>s.k==='pul'?{...s,noPastor:0,only:['oswaldo','javier','david'],prefer:['oswaldo','javier']}:s)]}
 function pen(p,s,dow){let v=0;if(s.altRole&&!p.roles.includes(s.role))v+=800;if(p.avoidSlots&&p.avoidSlots.includes(s.k))v+=300;if(p.avoidDays&&p.avoidDays.includes(dow))v+=300;if(p.favorSlots&&p.favorSlots.includes(s.k))v-=100;return v}
 function combo(a,b){
   if(a.tag==='son'||b.tag==='son') return false;
@@ -444,7 +444,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '5.1';
+const APPV = '5.2';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -832,7 +832,7 @@ function dayCard(d,as,tm){
 
 const DCOLS=[1,2,3,4,5,6,0];
 const GRIDS=[
- {area:'pulpito',title:'Púlpito',cols:DCOLS.map(w=>[w,[1,3,5].includes(w)?['pul_ini','pul_fin']:['pul'],[1,3,5].includes(w)?'Inicia / finaliza':(w===2||w===6)?'Inicia y finaliza':'Introducción'])},
+ {area:'pulpito',title:'Púlpito',cols:DCOLS.map(w=>[w,[1,3,5].includes(w)?['pul_ini','pul_fin']:w===4?['pul','predica']:['pul'],[1,3,5].includes(w)?'Inicia / finaliza':(w===2||w===6)?'Inicia y finaliza':'Introducción'])},
  {area:'puerta',title:'Puerta',cols:DCOLS.map(w=>[w,['puerta']])},
  {area:'sonido',title:'Equipo de sonido',cols:DCOLS.map(w=>[w,['sonido']])},
  {area:'trad',role:'trad_de',title:'Interpretación alemán',cols:[4,0].flatMap(w=>[['de_intro','Introducción'],['de_pred','Predicación'],['de_test','Testimonios']].map(([k,l])=>[w,[k],l]))},
@@ -853,7 +853,7 @@ function gridView(weeks,sched,opt={}){
       for(const[w,keys]of g.cols){const d=list.find(x=>pd(x).getDay()===w);
         if(!d){h+='<td class="na">—</td>';continue}
         const as=sched[d]||{},slots=slotsAt(d);
-        h+=`<td>${leipOn(d)?'<small class="lz">Visita Leipzig</small>':''}<div class="cn ${keys.length===4?'two':''}">${keys.map(k=>{const s=slots.find(z=>z.k===k);return s?(k==='predica'?'<small class="info" style="margin:2px 0 0">Predica (Leipzig)</small>':'')+gcell(d,s,as,slots,opt):''}).join('')}</div></td>`}
+        h+=`<td>${leipOn(d)?'<small class="lz">Visita Leipzig</small>':''}<div class="cn ${keys.length===4?'two':''}">${keys.map(k=>{const s=slots.find(z=>z.k===k);return s?(k==='predica'?'<small class="info" style="margin:2px 0 0">Predi.</small>':k==='pul'&&slots.some(z=>z.k==='predica')?'<small class="info" style="margin:2px 0 0">Intro.</small>':'')+gcell(d,s,as,slots,opt):''}).join('')}</div></td>`}
       h+='</tr>'}
     h+='</tbody></table></div></section>'}
   h=`<div class="grids">${h}</div>`;
