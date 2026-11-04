@@ -34,8 +34,8 @@ function slotsFor(dow){
   if(dow===0) a.push(S('en_intro','Inglés · introducción','trad_en','trI','trad',{lang:'en'}),
     S('en_pred','Inglés · predicación','trad_en','trP','trad',{lang:'en'}),
     S('en_test','Inglés · testimonios','trad_en','trT','trad',{lang:'en'}));
-  a.push(S('ofr1','Ofrendas · recoge (pareja 1)','ofrendas','ofr','ofr',{pair:'ofr2'}),S('ofr2','Ofrendas · recoge (pareja 1)','ofrendas','ofr','ofr',{pairOf:'ofr1'}));
-  if(dow===0) a.push(S('ofr3','Ofrendas · recoge (pareja 2)','ofrendas','ofr','ofr',{pair:'ofr4'}),S('ofr4','Ofrendas · recoge (pareja 2)','ofrendas','ofr','ofr',{pairOf:'ofr3'}));
+  a.push(S('ofr1','Ofrendas · pareja 1','ofrendas','ofr','ofr',{pair:'ofr2'}),S('ofr2','Ofrendas · pareja 1','ofrendas','ofr','ofr',{pairOf:'ofr1'}));
+  if(dow===0) a.push(S('ofr3','Ofrendas · pareja 2','ofrendas','ofr','ofr',{pair:'ofr4'}),S('ofr4','Ofrendas · pareja 2','ofrendas','ofr','ofr',{pairOf:'ofr3'}));
   for(const i of [1,2,3])a.push(S('grd'+i,'Ofrendas · guardan','guardar','grd','ofr',{altRole:'guardar_sup'}));
   a.push(S('mic1','Micrófonos','microfonos','mic','mic'));
   if(dow===0) a.push(S('mic2','Micrófonos','microfonos','mic','mic'));
@@ -379,6 +379,7 @@ function myItems(p){
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const notes=[...it.notes];
   if((w===4||w===0)&&it.slots.some(s=>s.k==='pul'))notes.unshift(`<b>Tema sugerido para la introducción:</b> ${esc(INTROT[introTema(d)])}`);
+  {const as=schedOf(d)||{};for(const s of it.slots)if(s.pair||s.pairOf){const o=person(as[s.pair||s.pairOf]),n=(s.l.match(/pareja \d/)||['pareja'])[0];notes.unshift(`<b>Tu pareja (${n}):</b> ${o?`<b>${esc(o.name)}</b>`:'sin asignar todavía'}`)}}
   if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo ${preamb(d)+1}:</b> ${PREAMB[preamb(d)]}`);
   {const preaching=it.preach||it.slots.some(s=>s.k==='predica');
    if(preaching&&tm[d]){const as=schedOf(d)||{},ip=person(as.pul);notes.unshift(`<b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema sugerido:</b> ${esc(INTROT[introTema(d)])}`);notes.unshift(`<b>Predicas:</b> ${esc(tm[d].title)}`)}}
@@ -443,7 +444,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '5.0';
+const APPV = '5.1';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
