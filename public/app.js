@@ -354,7 +354,7 @@ function render(){if(window.__MOVED)return;
   $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''} ${dash?'dash':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
     ${hdr(p)}</div>${ui.viewAs?`<div class="viewas">Viendo como <b>${esc(p.name)}</b><button class="linkbtn" data-a="logout">Volver a mi cuenta</button></div>`:''}
     ${ui.upd?`<div class="banner ok" style="display:flex;align-items:center;justify-content:space-between;gap:10px">Hay una versión nueva (${esc(ui.upd)}).<button class="btn sm" data-a="upd">Actualizar</button></div>`:''}${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div><div class="pg">${body}</div></div>
-    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.bell?bellSheet(p):''}`;
+    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
 const chip=(area,label)=>`<span class="chip" style="--c:var(${AREAC[area]})">${esc(label)}</span>`;
@@ -444,7 +444,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '5.3';
+const APPV = '5.4';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -787,14 +787,45 @@ function vDisp(p){
    <div style="margin-top:8px">${Object.entries(byM).map(([ym,ds_])=>{const o=!!(ui.blkOpen||{})[ym],mes=MES[+ym.slice(5,7)-1];return `<button class="mfold" data-a="blk-fold" data-v="${ym}" aria-expanded="${o}"><span><b>${mes[0].toUpperCase()+mes.slice(1)}</b> · ${ds_.length} ${ds_.length===1?'fecha':'fechas'}</span><span class="chev">${o?'▾':'▸'}</span></button>`+(o?ds_.map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${d}" aria-label="Quitar">✕</button></div>`).join(''):'')}).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
 }
 
+/* ---- panel del mes (filas) y menú ⋯ del horario ---- */
+function monthPanel(p,m,RO){const ym=ui.month,mes=MES[m-1];
+  const row=(k,ic,t,v)=>`<button class="mrow" data-a="mrow" data-v="${k}"><span class="mic">${ic}</span><span class="mt">${t}</span><span class="mv">${v}</span>${ARROW}</button>`;
+  const ms=state.msgs.filter(x=>x.month===ym).length,mt=state.meets.filter(x=>x.date>=today).length;
+  let r='';
+  if(!RO){const av=avOf(ym),all=servers();const done=av?all.filter(i=>av.done&&av.done[i]).length:0;
+    const no=state.people.filter(x=>x.roles&&x.roles.length&&x.blocked.some(d=>d.slice(0,7)===ym)).length;
+    r+=row('av',MI.av,'Disponibilidad',av?`<b>${done} de ${all.length}</b> enviaron`:'Sin pedir');
+    r+=row('no',MI.no,'Quién no puede',no?`<b>${no}</b> ${no===1?'persona':'personas'}`:'Nadie');}
+  r+=row('msg',MI.msg,'Mensajes a equipos',ms?`<b>${ms}</b> ${ms===1?'enviado':'enviados'}`:'Ninguno');
+  r+=row('meet',MI.meet,'Reuniones',mt?`<b>${mt}</b> ${mt===1?'próxima':'próximas'}`:'Ninguna');
+  return `<div class="card mpanel"><div class="mph">${RO?'Del equipo':'Organización de '+mes}</div>${r}</div>`}
+const MI={av:'<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M9 15l2 2 4-4"/></svg>',
+  no:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M6.5 6.5l11 11"/></svg>',
+  msg:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+  meet:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9.5" r="2.4"/><path d="M3 19c.9-3 3.2-4.5 6-4.5s5.1 1.5 6 4.5M15.5 14.6c2.6-.3 4.6.9 5.5 3.9"/></svg>'};
+function mrowSheet(p){const m=+ui.month.slice(5,7),mes=MES[m-1],k=ui.mrow;
+  const T={av:'Disponibilidad de '+mes,no:'Quién no puede en '+mes,msg:'Mensajes a equipos · '+mes,meet:'Reuniones'};
+  let c='';
+  if(k==='av'){ui.avList=true;c=avAdmin(m).replace(/<b>Disponibilidad de [^<]*<\/b>/,'').replace(/<button class="btn ghost sm" data-a="av-list">[^<]*<\/button>/,'').replace('class="card" style="margin-top:10px"','class="mrin"')}
+  else if(k==='no'){ui.avAll=true;c=avAll(m).replace(/<button class="x" data-a="av-all"[^>]*>✕<\/button>/,'').replace(/<div class="dayhead"><b>Quién no puede en [^<]*<\/b><\/div>/,'').replace('class="card" style="margin-top:10px"','class="mrin"')}
+  else if(k==='msg')c=msgBlock(p);
+  else if(k==='meet')c=meetBlock(p);
+  return `<div class="scrim" data-a="mrow-x"></div><div class="sheet mrsheet" role="dialog" aria-label="${esc(T[k]||'')}"><div class="dayhead"><b style="font-size:18px">${esc(T[k]||'')}</b><button class="x" data-a="mrow-x" aria-label="Cerrar">✕</button></div><div class="mrbody">${c}</div></div>`}
+function hmenuSheet(){const pubd=isPub(ui.month),hasS=!!state.schedules[ui.month],mes=MES[+ui.month.slice(5,7)-1];
+  const it=(a,t,sub,cls)=>`<button class="pk ${cls||''}" data-a="${a}"><span>${t}${sub?`<small style="display:block;color:var(--muted)">${sub}</small>`:''}</span></button>`;
+  return `<div class="scrim" data-a="hmenu-x"></div><div class="sheet" role="dialog" aria-label="Opciones del horario"><div class="dayhead"><b style="font-size:18px">Horario de ${mes}</b><button class="x" data-a="hmenu-x" aria-label="Cerrar">✕</button></div><div class="pklist">
+    ${hasS?(pubd?it('unpublish','Volver a borrador','Los hermanos dejan de ver el horario hasta que lo publiques de nuevo.'):it('publish','Publicar horario','Todos lo ven y les llega un aviso.')):''}
+    ${hasS&&DL?it('pdf','Descargar PDF','El horario del mes para imprimir o enviar.'):''}
+    ${hasS?it('regen','Volver a generar','Arma el horario de nuevo y reemplaza los cambios.','clear'):it('gen','Generar horario','')}</div></div>`}
 function vHor(p){const RO=!p.admin;
   const[y,m]=ui.month.split('-').map(Number);const sched=canSeeMonth(p,ui.month)?state.schedules[ui.month]:null;
-  let h=`<div class="bar"><div class="mnav"><button class="ib" data-a="month" data-v="-1" aria-label="Mes anterior">‹</button><b>${MES[m-1]} ${y}</b><button class="ib" data-a="month" data-v="1" aria-label="Mes siguiente">›</button></div>
-    <div class="inline">${sched&&DL?`<button class="btn sm" data-a="pdf">Descargar PDF</button>`:''}${RO?'':sched?`<button class="btn ghost sm" data-a="regen">Volver a generar</button>`:`<button class="btn sm" data-a="gen">Generar horario</button>`}</div></div>${ui.pdfMsg?`<div class="info" style="margin-top:8px">${esc(ui.pdfMsg)}</div>`:''}`;
+  const pubd=isPub(ui.month),hasS=!!state.schedules[ui.month];
+  const pill=!RO&&hasS?`<button class="stpill ${pubd?'ok':'draft'}" data-a="hmenu" aria-label="Estado del horario: ${pubd?'publicado':'borrador'}"><i></i>${pubd?'Publicado':'Borrador'}</button>`:'';
+  let h=`<div class="bar"><div class="hbar-l"><div class="mnav"><button class="ib" data-a="month" data-v="-1" aria-label="Mes anterior">‹</button><b>${MES[m-1]} ${y}</b><button class="ib" data-a="month" data-v="1" aria-label="Mes siguiente">›</button></div><span class="dkonly">${pill}</span></div>
+    <div class="inline">${!RO&&hasS&&!pubd?'<button class="btn sm" data-a="publish">Publicar</button>':''}${sched&&DL?`<button class="btn ghost sm ${RO?'':'dkonly'}" data-a="pdf">Descargar PDF</button>`:''}${RO?'':!hasS?`<button class="btn sm" data-a="gen">Generar horario</button>`:''}${RO?'':`<button class="ib more" data-a="hmenu" aria-label="Más opciones">⋯</button>`}</div></div>${ui.pdfMsg?`<div class="info" style="margin-top:8px">${esc(ui.pdfMsg)}</div>`:''}
+    ${pill?`<div class="stline"><span class="mbonly">${pill}</span><span class="info" style="margin:0">${pubd?'Todos ven el horario de '+MES[m-1]+'.':'Los hermanos todavía no lo ven. Ajusta y publícalo.'}</span></div>`:''}`;
   if(ui.regen)h+=`<div class="confirm">Se reemplazan todos los cambios de ${MES[m-1]}. <button class="btn warnb sm" data-a="gen">Sí, generar de nuevo</button><button class="btn ghost sm" data-a="regen-no">Cancelar</button></div>`;
-  if(!RO)h+=pubBar(m)+avAdmin(m)+avAll(m);
-  h+=msgBlock(p);
-  h+=`<h3>Reuniones</h3>`+meetBlock(p);
+  h+=monthPanel(p,m,RO);
   h+=`<div class="filters"><button class="f" data-a="view" data-v="grid" aria-pressed="${ui.view==='grid'}">Tabla</button><button class="f" data-a="view" data-v="cards" aria-pressed="${ui.view==='cards'}">Por día</button><span style="width:1px;background:var(--line);flex:none"></span>${[['all','Todo'],...Object.entries(AREAN)].map(([k,l])=>`<button class="f" data-a="area" data-v="${k}" aria-pressed="${ui.area===k}">${l}</button>`).join('')}</div>`;
   if(!sched)return h+`<div class="card empty-state" style="margin-top:12px">Todavía no hay horario para ${MES[m-1]}. ${RO?'El administrador lo publica pronto.':'Revisa que las enseñanzas, transmisiones y viajes a Leipzig estén cargados, y luego genera el horario.'}</div>`;
   let empties=0,conf=0;const tm=teachMap();const weeks={};
@@ -1010,6 +1041,8 @@ function vPer(){
 
 /* ---------- acciones ---------- */
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
+  if(ui.hmenu&&!['hmenu','hmenu-x'].includes(a))ui.hmenu=false;
+  if(a==='tab'||a==='month'){ui.mrow=null}
   switch(a){
   case'logout':if(ui.viewAs){ui.viewAs=null;resolveMe();ui.tab='per';break}SB.auth.signOut();return;
   case'viewas':ui.viewAs=v;resolveMe();ui.tab='mis';scrollTo(0,0);break;
@@ -1085,6 +1118,10 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'upd':location.reload();return;
   case'cal-hide':ui.calHide=true;try{localStorage.setItem('lb-calhide','1')}catch(e){}break;
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
+  case'mrow':ui.mrow=v;if(v==='av'&&!avOf(ui.month))ui.avAsk=true;render();return;
+  case'mrow-x':ui.mrow=null;ui.avAsk=false;ui.compose=false;ui.meet=false;render();return;
+  case'hmenu':ui.hmenu=true;render();return;
+  case'hmenu-x':ui.hmenu=false;render();return;
   case'dk-day':ui.dkDay=v;render();return;
   case'dk-week':ui.dkWeek=v==='0'?0:(ui.dkWeek||0)+(+v);ui.dkDay=null;render();return;
   case'dk-go':{const el=$(v);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}

@@ -331,6 +331,31 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   .dkq:hover{color:var(--navy)}
 }
 @media (min-width:1024px) and (max-width:1279px){.dkgrid{grid-template-columns:minmax(0,1fr)}.dkside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* ---- Horario: estado como etiqueta, panel del mes en filas, menú ⋯ ---- */
+.hbar-l{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.stline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.dkonly{display:none!important}
+@media (min-width:1024px){.dkonly{display:inline-flex!important;align-items:center}.mbonly{display:none}}
+.stpill{display:inline-flex;align-items:center;gap:7px;font:inherit;font-size:14px;font-weight:700;border-radius:999px;padding:6px 12px;min-height:34px;cursor:pointer;border:1px solid transparent}
+.stpill i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.stpill.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.stpill.draft{background:var(--warn-soft);color:var(--warn)}
+.ib.more{font-size:20px;line-height:1;width:42px;height:42px}
+.mpanel{margin-top:14px;padding:4px 0;overflow:hidden}
+.mph{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 16px 6px}
+.mrow{display:flex;align-items:center;gap:12px;width:100%;font:inherit;font-size:16px;color:var(--ink);background:none;border:0;border-top:1px solid var(--line);padding:12px 16px;min-height:56px;cursor:pointer;text-align:left}
+.mph+.mrow{border-top:0}
+.mrow:hover{background:var(--soft)}
+.mrow .mic{width:36px;height:36px;border-radius:10px;background:var(--sky);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.mrow .mic svg{width:20px;height:20px;stroke:var(--navy);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mrow .mt{flex:1;font-weight:600;min-width:0}
+.mrow .mv{color:var(--muted);font-size:15px;white-space:nowrap}.mrow .mv b{color:var(--ink)}
+.mrow .arw{color:var(--muted)}
+.mrsheet{width:min(640px,100%)}
+.mrbody{overflow:auto;margin-top:6px;padding-bottom:6px}
+.mrbody>div:first-child,.mrbody>button:first-child{margin-top:4px!important}
+.mrin{margin-top:4px}
+@media (min-width:1024px){.mpanel{max-width:620px}}
 </style>
 <script src="go.js"></script>
 </head>
