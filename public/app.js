@@ -444,7 +444,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '5.4';
+const APPV = '5.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -832,9 +832,11 @@ function vHor(p){const RO=!p.admin;
   for(const d of monthDates(ui.month))(weeks[mondayOf(d)]=weeks[mondayOf(d)]||[]).push(d);
   let body='';let n=0;
   for(const wk in weeks){n++;const ds_=weeks[wk];const a=pd(ds_[0]),b=pd(ds_[ds_.length-1]);
+    const fut=ds_.filter(d=>!svcGone(d));if(!fut.length)continue;
     body+=`<div class="week">Semana ${n}<span>${a.getDate()} – ${b.getDate()} ${MESS[b.getMonth()]}</span></div><div class="list">`;
-    for(const d of ds_){const r=dayCard(d,sched[d]||{},tm);empties+=r.e;conf+=r.c;body+=r.h}
+    for(const d of fut){const r=dayCard(d,sched[d]||{},tm);empties+=r.e;conf+=r.c;body+=r.h}
     body+='</div>'}
+  if(!body)body=`<div class="card empty-state" style="margin-top:12px">Ya pasaron todos los cultos de ${MES[m-1]}.</div>`;
   if(ui.view==='grid')body=gridView(weeks,sched,RO?{ro:true,me:p.id}:{});
   const sum=empties||conf?`<div class="confirm" style="background:var(--warn-soft)">${empties?`${empties} ${empties===1?'puesto vacío':'puestos vacíos'}`:''}${empties&&conf?' · ':''}${conf?`${conf} con conflicto`:''}. Toca un nombre para cambiarlo.</div>`:`<div class="info" style="margin-top:10px">Todo cubierto y sin conflictos. Toca un nombre para cambiarlo.</div>`;
   return h+(RO?`<div class="info" style="margin-top:6px">Solo lectura. Los cambios los hace el administrador.</div>`:sum)+body;
