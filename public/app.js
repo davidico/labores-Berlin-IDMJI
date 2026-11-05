@@ -378,12 +378,12 @@ function myItems(p){
 }
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const notes=[...it.notes];
-  if((w===4||w===0)&&it.slots.some(s=>s.k==='pul'))notes.unshift(`<b>Tema sugerido para la introducción:</b> ${esc(INTROT[introTema(d)])}`);
+  if((w===4||w===0)&&it.slots.some(s=>s.k==='pul')&&!transOn(d))notes.unshift(`<b>Tema sugerido para la introducción:</b> ${esc(INTROT[introTema(d)])}${introEdit(d)}`);
   {const as=schedOf(d)||{};for(const s of it.slots)if(s.pair||s.pairOf){const o=person(as[s.pair||s.pairOf]),n=(s.l.match(/pareja \d/)||['pareja'])[0];notes.unshift(`<b>Tu pareja (${n}):</b> ${o?`<b>${esc(o.name)}</b>`:'sin asignar todavía'}`)}}
   if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo ${preamb(d)+1}:</b> ${PREAMB[preamb(d)]}`);
   {const preaching=it.preach||it.slots.some(s=>s.k==='predica');
-   if(preaching&&tm[d]){const as=schedOf(d)||{},ip=person(as.pul);notes.unshift(`<b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema sugerido:</b> ${esc(INTROT[introTema(d)])}`);notes.unshift(`<b>Predicas:</b> ${esc(tm[d].title)}`)}}
-  if((w===4||w===0)&&!it.preach&&!it.slots.some(s=>s.k==='predica')&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d]){const as=schedOf(d)||{},pr=davidDay(d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul),tr=it.slots.some(s=>s.area==='trad');notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}<br><b>Predica:</b> ${pr?esc(pr.name):'sin asignar'}`+(tr&&!transOn(d)?`<br><b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema de la introducción:</b> ${esc(INTROT[introTema(d)])}`:'')+pdfLink('t',tm[d],tradLangs(me())))}
+   if(preaching&&tm[d]){const as=schedOf(d)||{},ip=person(as.pul);notes.unshift(`<b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema sugerido:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`);notes.unshift(`<b>Predicas:</b> ${esc(tm[d].title)}`)}}
+  if((w===4||w===0)&&!it.preach&&!it.slots.some(s=>s.k==='predica')&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d]){const as=schedOf(d)||{},pr=davidDay(d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul),tr=it.slots.some(s=>s.area==='trad');notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}<br><b>Predica:</b> ${pr?esc(pr.name):'sin asignar'}`+(tr&&!transOn(d)?`<br><b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema de la introducción:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`:'')+pdfLink('t',tm[d],tradLangs(me())))}
   return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
     ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}
@@ -444,7 +444,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '5.5';
+const APPV = '5.6';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -499,9 +499,16 @@ function fichasCard(){const F=state.fichas||{};
   return `<h3>Carpetas de fichas (Drive)</h3><div class="card"><div class="info" style="margin:0 0 6px">Cada intérprete ve el enlace de su idioma en la enseñanza que le toca.</div>
    <div class="fich"><span class="fl">Alemán</span><div class="fc" style="display:block">${linkEd('fx','de',F.de)}</div><span class="fl">Inglés</span><div class="fc" style="display:block">${linkEd('fx','en',F.en)}</div></div></div>`}
 const davidDay=d=>!!(d&&slotsAt(d).some(z=>z.k==='predica'));
-function linkEd(kind,id,val){const k=kind+'|'+id;
-  if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:6px 0;flex-wrap:nowrap"><input id="ne-in" type="url" inputmode="url" value="${esc(val||'')}" placeholder="Pega aquí el enlace de Drive" style="flex:1;min-width:0"><button class="btn sm" data-a="ne-save" data-v="${k}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
-  return `<div class="nrow" style="margin-top:4px">${val?`<a class="pdfl lnk" href="${esc(val)}" target="_blank" rel="noopener">Abrir</a>`:'<small style="color:var(--warn)">Sin enlace</small>'}<button class="pen" data-a="ne-edit" data-v="${k}" aria-label="${val?'Editar enlace':'Agregar enlace'}">${PENCIL}</button></div>`}
+/* ---- Introducción: cita bíblica y testimonio (los pone quien da la introducción; los ven los intérpretes) ---- */
+const introOf=d=>(state.intro||{})[d]||{};
+function introView(d){const x=introOf(d);return (x.cita?`<br><b>Cita bíblica:</b> ${esc(x.cita)}`:'')+(x.link?`<br><b>Testimonio:</b> <a class="pdfl lnk" href="${esc(x.link)}" target="_blank" rel="noopener">Abrir</a>`:'')}
+function introEdit(d){const x=introOf(d);
+  return `<div class="introed"><div class="fl">Cita bíblica que leerás</div>${nameEd('ic',d,x.cita||'','Agrega la cita, por ejemplo: Juan 3:16')}
+    <div class="fl">Enlace del testimonio <span>(si tienes)</span></div>${linkEd('it',d,x.link,'Pega aquí el enlace del testimonio','<small>Sin enlace</small>')}
+    <div class="fl-help">Los intérpretes lo ven para prepararse.</div></div>`}
+function linkEd(kind,id,val,ph,empty){const k=kind+'|'+id;
+  if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:6px 0;flex-wrap:nowrap"><input id="ne-in" type="url" inputmode="url" value="${esc(val||'')}" placeholder="${esc(ph||'Pega aquí el enlace de Drive')}" style="flex:1;min-width:0"><button class="btn sm" data-a="ne-save" data-v="${k}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
+  return `<div class="nrow" style="margin-top:4px">${val?`<a class="pdfl lnk" href="${esc(val)}" target="_blank" rel="noopener">Abrir</a>`:(empty||'<small style="color:var(--warn)">Sin enlace</small>')}<button class="pen" data-a="ne-edit" data-v="${k}" aria-label="${val?'Editar enlace':'Agregar enlace'}">${PENCIL}</button></div>`}
 function nameEd(kind,id,val,ph,bold){const k=kind+'|'+id;
   if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:4px 0;flex-wrap:nowrap"><input id="ne-in" type="text" value="${esc(val)}" placeholder="${esc(ph||'Escribe el nombre')}" style="flex:1;min-width:0" data-k="${k}"><button class="btn sm" data-a="ne-save" data-v="${k}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
   return `<div class="nrow">${bold?`<b>${esc(val||ph)}</b>`:`<small>${esc(val||ph)}</small>`}<button class="pen" data-a="ne-edit" data-v="${k}" aria-label="Editar nombre">${PENCIL}</button></div>`}
@@ -692,7 +699,7 @@ function dkTeach(p){const n=dkNextTeach();if(!n)return'';const as=schedOf(n.d)||
   const langs=p.admin||p.pastor?['de','en']:tradLangs(p);
   return `<section class="card dkcard dkteach"><div class="dkeye">Próxima enseñanza · ${fmt(n.d)}</div><h4 class="dkt">${esc(n.t.title)}</h4>
     <div class="dkrows"><div class="dkrow"><span class="lbl">Predica</span><b>${pr?esc(pr.name):'—'}</b></div><div class="dkrow"><span class="lbl">Introducción</span><b>${ip?esc(ip.name):'sin asignar'}</b></div></div>
-    <div class="info" style="margin-top:8px"><b>Tema de la introducción:</b> ${esc(INTROT[introTema(n.d)])}</div>${pdfLink('t',n.t,langs)}
+    <div class="info" style="margin-top:8px"><b>Tema de la introducción:</b> ${esc(INTROT[introTema(n.d)])}${introView(n.d)}</div>${pdfLink('t',n.t,langs)}
     ${tabsFor(p).some(t=>t[0]==='ens')?`<button class="linkbtn" data-a="tab" data-v="ens" style="margin-top:6px">Ver todas las enseñanzas</button>`:''}</section>`}
 function dkNotifs(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice(0,4);
   return `<section class="card dkcard"><div class="dkhead"><h4>Avisos</h4><button class="linkbtn" data-a="bell">Ver todos</button></div>
@@ -1003,7 +1010,7 @@ function vEns(p){
    ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id])));
      const last=fut.length?dateOf[fut[fut.length-1].id]:'';
      let h=past.length?`<button class="mfold" data-a="t-past" aria-expanded="${!!ui.tPast}"><span><b>Ya pasaron</b> · ${past.length}</span><span class="chev">${ui.tPast?'▾':'▸'}</span></button>${ui.tPast?past.map(t=>`<div class="li"><div class="main" style="opacity:.6"><b>${esc(t.title)}</b><small>${fmt(dateOf[t.id])}</small></div></div>`).join(''):''}`:'';
-     h+=fut.map((t,i)=>`<div class="li"><div class="main">${nameEd('t',t.id,t.title,'',true)}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b></small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
+     h+=fut.map((t,i)=>`<div class="li"><div class="main">${nameEd('t',t.id,t.title,'',true)}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
      ${linkPair('tl',t,dateOf[t.id]?needLangs(dateOf[t.id]):['de','en'])}</div>
      <button class="x" data-a="t-up" data-v="${t.id}" aria-label="Subir" ${i?'':'disabled'}>↑</button><button class="x" data-a="t-down" data-v="${t.id}" aria-label="Bajar" ${i<fut.length-1?'':'disabled'}>↓</button><button class="x" data-a="t-del" data-v="${t.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info" style="padding:8px 0">No hay enseñanzas por venir. Agrega las siguientes abajo.</div>';
      if(last)h+=`<div class="info" style="margin-top:8px">Hay enseñanzas cargadas hasta el <b>${fmt(last)}</b>. Para seguir después, agrega más abajo y se acomodan solas en los siguientes jueves y domingos.</div>`;
@@ -1113,6 +1120,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'ne-edit':ui.edName=v;render();setTimeout(()=>{const i=$('ne-in');if(i){i.focus();i.select()}},30);return;
   case'ne-x':ui.edName=null;break;
   case'ne-save':{const[kd,iv,lg]=v.split('|');let val=(($('ne-in')||{}).value||'').trim();
+    if(kd==='ic'||kd==='it'){if(kd==='it'&&val&&!/^https?:\/\//i.test(val))val='https://'+val;state.intro=state.intro||{};const x=state.intro[iv]=state.intro[iv]||{};const f=kd==='ic'?'cita':'link';if(val)x[f]=val;else delete x[f];if(!x.cita&&!x.link)delete state.intro[iv];ui.edName=null;break}
     if(kd==='fx'){if(val&&!/^https?:\/\//i.test(val))val='https://'+val;state.fichas=state.fichas||{};if(val)state.fichas[iv]=val;else delete state.fichas[iv];ui.edName=null;break}
     if(kd==='tl'||kd==='ll'){if(val&&!/^https?:\/\//i.test(val))val='https://'+val;const x=(kd==='tl'?state.teachings:state.leipzig).find(z=>z.id===iv),f=LINKF[lg||'de'];if(x){if(val)x[f]=val;else delete x[f]}ui.edName=null;break}
     if(!val){const i=$('ne-in');if(i){i.placeholder='El título no puede quedar vacío';i.classList.add('bad');i.focus()}return}if(kd==='lz'){const l=state.leipzig.find(x=>x.id===iv);if(l)l.teaching=val}else{const x=state.teachings.find(z=>z.id===iv);if(x&&val)x.title=val}ui.edName=null;break}

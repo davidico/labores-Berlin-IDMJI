@@ -206,6 +206,36 @@ async function pastorReminders() {
   return { sent, lines };
 }
 
+// ---- recordatorio a quien da la introducción: que ponga la cita bíblica ----
+// Jueves: el miércoles a las 10:00 y, si aún no la puso, el jueves a las 16:00.
+// Domingo: el viernes a las 10:00 y, si aún no la puso, el sábado a las 16:00.
+async function introReminders() {
+  const p = berlin(new Date());
+  const hour = Number(p.hour);
+  const today = `${p.year}-${p.month}-${p.day}`;
+  const dow = new Date(today + 'T12:00:00Z').getUTCDay();
+  const plan: Record<number, [number, number]> = { 3: [10, 1], 4: [16, 0], 5: [10, 2], 6: [16, 1] };
+  const pl = plan[dow];
+  if (!pl || hour !== pl[0]) return { skipped: true };
+  const d = plusDays(today, pl[1]);
+  const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
+  if (!data) return { error: 'sin datos' };
+  const st = JSON.parse(data.json);
+  if (!(st.published && st.published[d.slice(0, 7)])) return { skipped: true, unpublished: true };
+  // deno-lint-ignore no-explicit-any
+  if ((st.trans || []).some((t: any) => t.date === d)) return { skipped: true, trans: d };
+  const pid: string | undefined = ((st.schedules?.[d.slice(0, 7)] || {})[d] || {}).pul;
+  if (!pid) return { skipped: true, noIntro: d };
+  if (st.intro?.[d]?.cita) return { ok: 'ya puso la cita', d };
+  if (!(await once(`intro-${d}-${today}`))) return { skipped: true, already: today };
+  const when = d === today ? 'hoy' : `el ${fmtD(d)}`;
+  const title = `Tu introducción ${d === today ? 'de hoy' : 'del ' + fmtD(d)}`;
+  const body = `Pon la cita bíblica que leerás (y el enlace del testimonio, si tienes) en Labores, para que los intérpretes se preparen.`;
+  await editState((s2) => addNotif(s2, [pid], `Das la introducción ${when}: pon la cita bíblica que leerás (y el enlace del testimonio, si tienes) para que los intérpretes se preparen.`));
+  const sent = await sendTo([pid], title, body);
+  return { sent, d, pid };
+}
+
 // ---- recordatorio del mismo día, a las 8:00 ----
 async function todayReminder() {
   const p = berlin(new Date());
@@ -338,7 +368,7 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') { const q = new URL(req.url).searchParams; return calendar(q.get('p') || '', q.get('t') || ''); }
   // deno-lint-ignore no-explicit-any
   const b: any = await req.json().catch(() => ({}));
-  if (b.mode === 'daily') return json({ monthly: await monthly(), pastor: await pastorReminders(), today: await todayReminder(), daily: await daily() });
+  if (b.mode === 'daily') return json({ monthly: await monthly(), pastor: await pastorReminders(), today: await todayReminder(), intro: await introReminders(), daily: await daily() });
   if (b.mode === 'ping') {
     // Prueba: envía un aviso solo a los administradores.
     const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
