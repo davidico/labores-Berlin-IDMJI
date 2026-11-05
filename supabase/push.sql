@@ -26,7 +26,7 @@ create extension if not exists pg_net;
 select cron.unschedule('labores-recordatorios') where exists (select 1 from cron.job where jobname = 'labores-recordatorios');
 select cron.schedule(
   'labores-recordatorios',
-  '0 * * * *',
+  '*/30 * * * *',  -- cada 30 minutos (el aviso de mañana sale a las 20:30)
   $$ select net.http_post(
        url := 'https://hooqurezzjbzcgjtuqnn.supabase.co/functions/v1/push',
        headers := '{"Content-Type":"application/json"}'::jsonb,

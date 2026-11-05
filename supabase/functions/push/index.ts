@@ -1,6 +1,6 @@
 // Función "push" de Supabase: envía notificaciones al celular.
 // - mode "send": la app avisa a ciertas personas (solo miembros registrados pueden usarla).
-// - mode "daily": recordatorio de la noche antes (lo llama la tarea programada cada hora; envía una sola vez por día, a las 20:00 de Berlín).
+// - mode "daily": recordatorio de la noche antes (lo llama la tarea programada cada 30 minutos; envía una sola vez por día, a las 20:30 de Berlín).
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 
@@ -59,7 +59,7 @@ const ROLEAREA: Record<string, string> = {
   ofrendas: 'ofr', guardar: 'ofr', guardar_sup: 'ofr', microfonos: 'mic', entrega: 'ofr',
 };
 function berlin(d: Date) {
-  const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' });
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   return Object.fromEntries(f.formatToParts(d).map((x) => [x.type, x.value])) as Record<string, string>;
 }
 // deno-lint-ignore no-explicit-any
@@ -264,7 +264,8 @@ async function todayReminder() {
 async function daily() {
   const now = new Date();
   const p = berlin(now);
-  if (Number(p.hour) !== 20) return { skipped: true, hour: p.hour };
+  // Aviso de lo que toca mañana: a las 20:30 (la tarea programada corre cada 30 minutos).
+  if (Number(p.hour) !== 20 || Number(p.minute) < 30) return { skipped: true, hour: p.hour, minute: p.minute };
   const q = berlin(new Date(now.getTime() + 24 * 3600e3));
   const date = `${q.year}-${q.month}-${q.day}`;
   // Solo una vez por día, aunque alguien llame a la función más veces.
