@@ -444,7 +444,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '5.6';
+const APPV = '5.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1152,7 +1152,12 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'regen-no':ui.regen=false;break;
   case'edit':if(!p.admin)return;ui.edit=v;break;
   case'pick-x':ui.edit=null;break;
-  case'assign':{const[d,k,id]=v.split('|');const ym=d.slice(0,7);state.schedules[ym]=state.schedules[ym]||{};const as=state.schedules[ym][d]=state.schedules[ym][d]||{};if(id)as[k]=id;else delete as[k];ui.edit=null;break}
+  case'assign':{const[d,k,id]=v.split('|');const ym=d.slice(0,7);state.schedules[ym]=state.schedules[ym]||{};const as=state.schedules[ym][d]=state.schedules[ym][d]||{};const prev=as[k];if(id)as[k]=id;else delete as[k];ui.edit=null;
+    // Avisar del cambio a la persona nueva y a la que salió (solo en meses publicados y fechas que no pasaron)
+    if(prev!==id&&isPub(ym)&&d>=today){const s=slotOf(d,k),lbl=s?s.l:k,np=person(id),op=person(prev),W=DOW[pd(d).getDay()].toLowerCase(),when=`el ${W} ${fmt(d).replace(/^\S+\s/,'')}`;
+      if(np)notify([id],`Cambio en el horario: ahora te toca ${lbl} ${when}${op?` (en lugar de ${op.name})`:''}.`,{push:{title:'Te pusieron en una labor',body:`${lbl} ${when}${op?` · en lugar de ${op.name}`:''}`}});
+      if(op)notify([prev],`Cambio en el horario: ya no te toca ${lbl} ${when}${np?`, ahora va ${np.name}`:''}.`,{push:{title:'Cambio en tu horario',body:`Ya no te toca ${lbl} ${when}${np?` · ahora va ${np.name}`:''}`}})}
+    break}
   case'day':{const w=+v;p.days=p.days.includes(w)?p.days.filter(x=>x!==w):[...p.days,w];break}
   case'dayset':{const[w,on]=v.split('|').map(Number);p.days=p.days.filter(x=>x!==w);if(on)p.days.push(w);break}
   case'block':{const d=$('blk').value;if(d&&!p.blocked.includes(d))p.blocked.push(d);if(d)(ui.blkOpen=ui.blkOpen||{})[d.slice(0,7)]=true;break}
