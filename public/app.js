@@ -386,7 +386,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if((w===4||w===0)&&!it.preach&&!it.slots.some(s=>s.k==='predica')&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d]){const as=schedOf(d)||{},pr=davidDay(d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul),tr=it.slots.some(s=>s.area==='trad');notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}<br><b>Predica:</b> ${pr?esc(pr.name):'sin asignar'}`+(tr&&!transOn(d)?`<br><b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema de la introducción:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`:'')+pdfLink('t',tm[d],tradLangs(me())))}
   return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
-    ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}
+    ${it.slots.length?`<div class="chips">${(it.slots.some(s=>s.k==='pul_ini')&&it.slots.some(s=>s.k==='pul_fin')?[...it.slots.filter(s=>s.k!=='pul_ini'&&s.k!=='pul_fin'),{area:'pulpito',l:'Púlpito · inicia y finaliza (2 veces)'}]:it.slots).map(s=>chip(s.area,s.l)).join('')}</div>`:''}
     ${notes.map(n=>`<div class="note">${n}</div>`).join('')}
     ${it.slots.length&&d>=today?actions(d,it):''}</div></div>`}
 /* ---- avisos y reemplazos ---- */
@@ -397,6 +397,8 @@ function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state
 function candFor(d,k,from,asIn){const slots=slotsAt(d),s=slots.find(z=>z.k===k),as={...(asIn||schedOf(d)||{})};delete as[k];
   const partner=(s.pair||s.pairOf)?person(as[s.pair||s.pairOf]):null;
   return state.people.filter(x=>x.id!==from&&!why(x,s,d,as,slots)&&(!partner||partner.sex===x.sex))}
+const twice=(as,k)=>k==='pul_fin'&&!!as.pul_ini&&as.pul_ini===as.pul_fin;
+const TWICE='<span class="twice">2 veces</span>';
 const slotOf=(d,k)=>slotsAt(d).find(z=>z.k===k);
 function emptyLbl(d,k,def){return state.reqs.some(r=>r.date===d&&r.k===k&&r.status==='open')?'Buscando reemplazo':def}
 function actions(d,it){const real=it.slots.filter(s=>s.k);
@@ -444,7 +446,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '5.7';
+const APPV = '5.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -864,6 +866,7 @@ function dayCard(d,as,tm){
     const key=d+'|'+s.k;let right;
     if(!me().admin)right=`<span class="fixedn ${p&&p.id===state.me?'gn meh':''}">${p?esc(p.name):'—'}</span>`;
     else right=`<div style="min-width:0"><button class="pick ${p?'':'empty'}" data-a="edit" data-v="${key}">${p?esc(p.name):emptyLbl(d,s.k,'Sin asignar')}</button>${warn?`<span class="warn">${esc(warn)}</span>`:''}</div>`;
+    if(twice(as,s.k))right+=TWICE;
     rows+=`<div class="row"><span class="lbl"><i class="dot" style="--c:var(${AREAC[s.area]})"></i>${esc(s.l)}</span>${right}</div>`}
   if(!rows)return{h:'',e,c};
   return{e,c,h:`<div class="card"><div class="dayhead"><span class="t">${DOW[w]} ${pd(d).getDate()}</span><span class="s">${sn} · ${st}${lz?'<span class="tag gold">Leipzig</span>':''}</span></div>
@@ -877,7 +880,9 @@ const GRIDS=[
  {area:'sonido',title:'Equipo de sonido',cols:DCOLS.map(w=>[w,['sonido']])},
  {area:'trad',role:'trad_de',title:'Interpretación alemán',cols:[4,0].flatMap(w=>[['de_intro','Introducción'],['de_pred','Predicación'],['de_test','Testimonios']].map(([k,l])=>[w,[k],l]))},
  {area:'trad',role:'trad_en',title:'Interpretación inglés',cols:[['en_intro','Introducción'],['en_pred','Predicación'],['en_test','Testimonios']].map(([k,l])=>[0,[k],l])},
- {area:'ofr',areas:['ofr','mic'],wide:true,title:'Ofrendas / Micrófonos',cols:[[4,['ofr1','ofr2'],'Ofrendas'],[4,['ent'],'Entrega'],[4,['mic1'],'Micrófonos'],[4,['grd1','grd2','grd3'],'Guardan'],[0,['ofr1','ofr2','ofr3','ofr4'],'Ofrendas'],[0,['ent'],'Entrega'],[0,['mic1','mic2'],'Micrófonos'],[0,['grd1','grd2','grd3'],'Guardan']]}
+ // En pantalla, ofrendas y micrófonos van por separado (en el PDF siguen juntos)
+ {area:'ofr',wide:true,title:'Ofrendas',cols:[[4,['ofr1','ofr2'],'Recogen'],[4,['ent'],'Entrega'],[4,['grd1','grd2','grd3'],'Guardan'],[0,['ofr1','ofr2','ofr3','ofr4'],'Recogen'],[0,['ent'],'Entrega'],[0,['grd1','grd2','grd3'],'Guardan']]},
+ {area:'mic',title:'Micrófonos',cols:[[4,['mic1']],[0,['mic1','mic2']]]}
 ];
 function gridHead(g){const rep=g.cols.some((c,i)=>i&&c[0]===g.cols[i-1][0]);
   if(!rep)return `<thead><tr><th>Semana</th>${g.cols.map(([w,,sub])=>`<th>${DOW[w]}${sub?`<small>${sub}</small>`:''}</th>`).join('')}</tr></thead>`;
@@ -900,10 +905,10 @@ function gridView(weeks,sched,opt={}){
   return h;
 }
 function gcell(d,s,as,slots,opt={}){const key=d+'|'+s.k,p=person(as[s.k]);
-  if(opt.ro)return `<span class="gn ${p&&p.id===opt.me?'meh':''}">${p?esc(p.name):'—'}</span>`;
+  if(opt.ro)return `<span class="gn ${p&&p.id===opt.me?'meh':''}">${p?esc(p.name):'—'}</span>${twice(as,s.k)?TWICE:''}`;
   let warn=p?why(p,s,d,as,slots):'';
   if(p&&!warn&&(s.pair||s.pairOf)){const o=person(as[s.pair||s.pairOf]);if(o&&o.sex!==p.sex)warn='pareja mixta'}
-  return `<button class="pick g ${p?'':'empty'} ${warn?'bad':''}" data-a="edit" data-v="${key}" ${warn?`title="${esc(warn)}"`:''}>${p?esc(p.name):emptyLbl(d,s.k,'Vacío')}${warn?' · '+esc(warn):''}</button>`}
+  return `<button class="pick g ${p?'':'empty'} ${warn?'bad':''}" data-a="edit" data-v="${key}" ${warn?`title="${esc(warn)}"`:''}>${p?esc(p.name):emptyLbl(d,s.k,'Vacío')}${warn?' · '+esc(warn):''}</button>${twice(as,s.k)?TWICE:''}`}
 function pickSheet(){const[d,k]=ui.edit.split('|');const slots=slotsAt(d),s=slots.find(z=>z.k===k);if(!s)return'';
   const as=(state.schedules[d.slice(0,7)]||{})[d]||{},pid=as[k],others={...as};delete others[k];const ok=[],no=[];
   for(const x of state.people)if(x.roles.includes(s.role)||(s.altRole&&x.roles.includes(s.altRole))){const r=why(x,s,d,others,slots);(r?no:ok).push([x,r])}
