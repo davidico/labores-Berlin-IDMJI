@@ -20,13 +20,14 @@ const cors = {
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 const ERRORS: string[] = [];
-async function sendTo(ids: string[], title: string, body: string, url = '/') {
+// deno-lint-ignore no-explicit-any
+async function sendTo(ids: string[], title: string, body: string, url = '/', actions?: any[]) {
   if (!ids.length) return 0;
   const { data } = await SB.from('push_subs').select('endpoint,sub').in('person_id', ids);
   let sent = 0;
   for (const r of data ?? []) {
     try {
-      await webpush.sendNotification(r.sub, JSON.stringify({ title, body, url }), { TTL: 60 * 60 * 12, urgency: 'high' });
+      await webpush.sendNotification(r.sub, JSON.stringify(actions ? { title, body, url, actions } : { title, body, url }), { TTL: 60 * 60 * 12, urgency: 'high' });
       sent++;
     } catch (e) {
       const code = (e as { statusCode?: number }).statusCode;
@@ -193,9 +194,15 @@ async function pastorReminders() {
     title = 'Fichas de esta semana';
   } else {
     const sun = plusDays(today, 7 - dow);
+    // Pregunta con respuesta Sí / No (botones en Android; en iPhone se toca y responde en la app)
     // deno-lint-ignore no-explicit-any
-    if (!(st.trans || []).some((t: any) => t.date === sun)) lines.push(`¿Hay transmisión internacional el ${fmtD(sun)}? Si la hay, agrégala en la pestaña Pastor.`);
-    title = 'Transmisión del domingo';
+    if ((st.trans || []).some((t: any) => t.date === sun) || (st.transNo || []).includes(sun)) return { ok: 'ya respondió', sun };
+    if (!(await once(`pastor-${today}`))) return { skipped: true, already: today };
+    const q = `¿Hay transmisión internacional el ${fmtD(sun)}?`;
+    await editState((s2) => addNotif(s2, pastors, `${q} Responde Sí o No en Labores.`));
+    const sent = await sendTo(pastors, 'Transmisión del domingo', `${q} Toca para responder Sí o No.`, `/?tr=${sun}`,
+      [{ action: 'tr-si', title: 'Sí, hay' }, { action: 'tr-no', title: 'No hay' }]);
+    return { sent, sun };
   }
   if (!lines.length) return { ok: 'nada pendiente' };
   if (!(await once(`pastor-${today}`))) return { skipped: true, already: today };

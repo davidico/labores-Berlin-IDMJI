@@ -1,5 +1,5 @@
 // Guarda la app para que abra rápido y funcione con mala conexión.
-const CACHE = 'labores-v66';
+const CACHE = 'labores-v67';
 const SHELL = ['./', './index.html', './app.js', './go.js', './config.js', './privacy.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './badge.png'];
 const CDN = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
@@ -34,14 +34,22 @@ self.addEventListener('push', e => {
   e.waitUntil(self.registration.showNotification(d.title || 'Labores Berlín', {
     body: d.body || '', icon: 'icon-192.png', badge: 'badge.png', data: { url: d.url || './' },
     // Android: que vibre y suene. En iPhone se usan solo las opciones básicas (el sonido se activa en Ajustes > Notificaciones > Labores > Sonidos).
-    ...(/iPhone|iPad|iPod|Macintosh/.test(self.navigator.userAgent) ? {} : { vibrate: [200, 100, 200], tag: 'lb-' + Date.now(), renotify: true })
+    ...(/iPhone|iPad|iPod|Macintosh/.test(self.navigator.userAgent) ? {} : { vibrate: [200, 100, 200], tag: 'lb-' + Date.now(), renotify: true, ...(d.actions ? { actions: d.actions } : {}) })
   }));
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const url = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
+  const u = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope);
+  // Botones de la notificación (Android): «Sí, hay» / «No hay» transmisión
+  if (e.action === 'tr-si' || e.action === 'tr-no') u.searchParams.set('a', e.action.slice(3));
+  const url = u.href, withQuery = !!u.search;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
-    for (const c of cs) { if (c.url.startsWith(self.registration.scope)) { c.focus(); return; } }
+    for (const c of cs) {
+      if (c.url.startsWith(self.registration.scope)) {
+        if (withQuery && c.navigate) return c.navigate(url).then(x => x && x.focus());
+        return c.focus();
+      }
+    }
     return self.clients.openWindow(url);
   }));
 });
