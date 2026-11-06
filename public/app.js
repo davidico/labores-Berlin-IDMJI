@@ -447,7 +447,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '6.1';
+const APPV = '6.2';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -668,6 +668,8 @@ function misAv(p){if(!p.roles||!p.roles.length)return'';let h='';
       <button class="btn sm" data-a="av-open" data-v="${ym}" style="margin-top:8px">Marcar mis días</button></div>`}
   return h}
 /* ---- ¿Hay transmisión el domingo? (lo responde el pastor desde la notificación o aquí) ---- */
+// Las transmisiones siempre son en domingo: se agrega al próximo domingo que no tenga una
+function trFree(){const x=pd(nextSun());let d=ds(x);while(svcGone(d)||state.trans.some(t=>t.date===d)){x.setDate(x.getDate()+7);d=ds(x)}return d}
 const nextSun=()=>{const x=pd(today);x.setDate(x.getDate()+((7-x.getDay())%7));return ds(x)};
 function trAnswer(d,a){state.transNo=(state.transNo||[]).filter(x=>x!==d);
   if(a==='si'){if(!state.trans.some(t=>t.date===d))state.trans.push({id:uid(),date:d,link:'',note:''});ui.flash=`Anotado: hay transmisión el ${fmt(d)}. Cuando tengas el enlace, agrégalo en la pestaña Pastor.`}
@@ -1033,7 +1035,7 @@ function vEns(p){
    <div class="inline" style="margin-top:10px"><input id="t-new" type="text" placeholder="Título de la enseñanza"><button class="btn sm" data-a="t-add">Agregar</button></div></div>
   <h3>Transmisiones internacionales</h3><div class="card">
    ${state.trans.slice().sort((a,b)=>a.date<b.date?-1:1).map(t=>ui.trEdit===t.id?`<div class="li" style="display:block"><b>${fmt(t.date)}</b><textarea id="tre-${t.id}" rows="5" style="margin-top:6px" data-c="tr-text" data-v="${t.id}">${esc(t.link)}</textarea><button class="btn sm" data-a="tr-done" style="margin-top:6px">Listo</button></div>`:`<div class="li"><div class="main"><b>${fmt(t.date)}</b><small class="pre">${t.link?linkify(t.link):'Sin información todavía'}${t.note?'\n'+esc(t.note):''}</small></div><button class="x" data-a="tr-edit" data-v="${t.id}">Editar</button><button class="x" data-a="tr-del" data-v="${t.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}
-   <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><input id="tr-date" type="date" style="align-self:flex-start"><textarea id="tr-link" rows="4" placeholder="Escribe la información de la transmisión. Puedes pegar el link aquí."></textarea><button class="btn sm" data-a="tr-add" style="align-self:flex-start">Agregar</button></div>
+   <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><textarea id="tr-link" rows="4" placeholder="Información de la transmisión (opcional, la puedes poner después). Puedes pegar el link aquí."></textarea><button class="btn sm" data-a="tr-add" data-v="${trFree()}" style="align-self:flex-start">Agregar transmisión del ${fmt(trFree())}</button></div>
    <div class="info" style="margin-top:6px">Este texto lo ven el pastor y los de púlpito en sus labores. Los links se pueden tocar.</div></div>
   <h3>Visitas a Leipzig</h3><div class="card">
    ${state.leipzig.slice().sort((a,b)=>a.date<b.date?-1:1).map(l=>`<div class="li"><div class="main"><b>${fmt(l.date)}</b>${nameEd('lz',l.id,l.teaching||'','Predicación por definir',false)}${linkPair('ll',l,['de','en'])}</div><button class="x" data-a="lz-del" data-v="${l.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}
@@ -1190,7 +1192,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'pdfdel':{const[kd,iv,l='de']=v.split('|');const x=pdfList(kd).find(z=>z.id===iv),fk=LANGF[l];if(x&&x[fk]){const aid=x[fk].id;delete x[fk];if(AS)AS.delete(aid).catch(()=>{})}break}
   case't-del':state.teachings=state.teachings.filter(t=>t.id!==v);break;
   case't-up':case't-down':{const i=state.teachings.findIndex(t=>t.id===v),j=a==='t-up'?i-1:i+1;if(j<0||j>=state.teachings.length)return;const arr=state.teachings;[arr[i],arr[j]]=[arr[j],arr[i]];break}
-  case'tr-add':{const d=$('tr-date').value;if(!d)return;state.transNo=(state.transNo||[]).filter(x=>x!==d);state.trans.push({id:uid(),date:d,link:$('tr-link').value.trim(),note:''});break}
+  case'tr-add':{const d=v;if(!d)return;state.transNo=(state.transNo||[]).filter(x=>x!==d);state.trans.push({id:uid(),date:d,link:$('tr-link').value.trim(),note:''});break}
   case'tr-edit':ui.trEdit=v;break;
   case'tr-done':ui.trEdit=null;break;
   case'tr-del':state.trans=state.trans.filter(t=>t.id!==v);break;
