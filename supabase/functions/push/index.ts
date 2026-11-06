@@ -141,7 +141,7 @@ async function monthly() {
   return { skipped: true, day };
 }
 
-// ---- recordatorios al pastor: fichas de la semana (lun–mié) y transmisión del domingo (vie–sáb), a las 8:00 ----
+// ---- recordatorios al pastor: fichas de la semana (lun–mié, 8:00) y transmisión del domingo (vie, 15:00; sáb 15:00 si no respondió) ----
 // deno-lint-ignore no-explicit-any
 function teachMapS(st: any): Record<string, any> {
   // deno-lint-ignore no-explicit-any
@@ -159,10 +159,11 @@ const plusDays = (iso: string, n: number) => { const d = new Date(iso + 'T12:00:
 const fmtD = (iso: string) => { const d = new Date(iso + 'T12:00:00Z'); return `${DOW[d.getUTCDay()]} ${d.getUTCDate()}`; };
 async function pastorReminders() {
   const p = berlin(new Date());
-  if (Number(p.hour) !== 8) return { skipped: true };
   const today = `${p.year}-${p.month}-${p.day}`;
   const dow = new Date(today + 'T12:00:00Z').getUTCDay();
   if (![1, 2, 3, 5, 6].includes(dow)) return { skipped: true, dow };
+  // Fichas: lun–mié a las 8:00. Transmisión: viernes a las 15:00 (y sábado a las 15:00 si aún no respondió).
+  if (Number(p.hour) !== (dow >= 5 ? 15 : 8)) return { skipped: true };
   const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
   if (!data) return { error: 'sin datos' };
   const st = JSON.parse(data.json);
