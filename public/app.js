@@ -153,6 +153,12 @@ function mondayOf(s){const d=pd(s);d.setDate(d.getDate()-((d.getDay()+6)%7));ret
 /* Tema sugerido para la introducción de jueves y domingo: rota en bucle desde el jueves 5 nov 2026; los domingos con transmisión no cuentan, así el tema pasa al siguiente culto. */
 function introTema(date){const tr=new Set((state.trans||[]).map(t=>t.date));const d=new Date(pd('2026-11-05'));let n=0;
   while(ds(d)<date){const w=d.getDay();if((w===4||w===0)&&!tr.has(ds(d)))n++;d.setDate(d.getDate()+1)}return n%INTROT.length}
+// Preámbulos sugeridos: estudio bíblico (el martes y el sábado de la misma semana llevan el mismo) y culto de transmisión
+const PRE_EB=[['El pan de vida','alimento espiritual y banquete suculento'],['La fuente de agua viva','limpia, liberta'],['La vid verdadera','permanecer y dar frutos'],['Camino de la vida eterna','conduce a la salvación'],['Luz del mundo','ilumina, alumbra, buen testimonio']];
+const PRE_TR=[['La Biblia','Instituto bíblico para todos'],['La universidad más importante','enseñados por Dios'],['Verdadero cambio de vida','leer y valorar con el corazón'],['Raíces de la doctrina','fundamentos del Antiguo y Nuevo Testamento'],['Maestra de Dios','perfección de los santos']];
+function preEB(date){const wk=Math.floor(Math.round((pd(mondayOf(date))-pd('2026-11-09'))/864e5)/7);return PRE_EB[((wk%5)+5)%5]}
+function preTR(date){const ts=[...new Set((state.trans||[]).map(t=>t.date).filter(x=>x>='2026-11-01'))].sort();const i=Math.max(0,ts.indexOf(date));return PRE_TR[i%5]}
+const preTxt=x=>`<b>${esc(x[0])}</b> — ${esc(x[1])}`;
 function preamb(date){const a=pd('2026-11-02'),d=pd(date);const days=Math.round((d-a)/864e5);const wk=Math.floor(days/7);const pos={1:0,3:1,5:2}[d.getDay()];return(((wk*3+pos)%6)+6)%6}
 function teachMap(){const m={};let i=0;const d=pd(state.teachStart);let g=0;
   while(i<state.teachings.length&&g<2000){const s=ds(d),w=d.getDay();
@@ -381,6 +387,8 @@ function myItems(p){
 }
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const notes=[...it.notes];
+  if((w===2||w===6)&&it.slots.some(s=>s.k==='pul'))notes.unshift(`<b>Preámbulo sugerido para el estudio bíblico:</b> ${preTxt(preEB(d))}`);
+  if(w===0&&transOn(d)&&it.slots.some(s=>s.k==='pul'))notes.unshift(`<b>Preámbulo sugerido para la transmisión:</b> ${preTxt(preTR(d))}`);
   if((w===4||w===0)&&it.slots.some(s=>s.k==='pul')&&!transOn(d))notes.unshift(`<b>Tema sugerido para la introducción:</b> ${esc(INTROT[introTema(d)])}${introEdit(d)}`);
   {const as=schedOf(d)||{};for(const s of it.slots)if(s.pair||s.pairOf){const o=person(as[s.pair||s.pairOf]),n=(s.l.match(/pareja \d/)||['pareja'])[0];notes.unshift(`<b>Tu pareja (${n}):</b> ${o?`<b>${esc(o.name)}</b>`:'sin asignar todavía'}`)}}
   if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo ${preamb(d)+1}:</b> ${PREAMB[preamb(d)]}`);
@@ -447,7 +455,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '6.4';
+const APPV = '6.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
