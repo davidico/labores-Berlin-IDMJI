@@ -455,7 +455,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '6.5';
+const APPV = '6.6';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -919,13 +919,15 @@ function gridHead(g){const rep=g.cols.some((c,i)=>i&&c[0]===g.cols[i-1][0]);
   if(!rep)return `<thead><tr><th>Semana</th>${g.cols.map(([w,,sub])=>`<th>${DOW[w]}${sub?`<small>${sub}</small>`:''}</th>`).join('')}</tr></thead>`;
   const grp=[];for(const c of g.cols){const l=grp[grp.length-1];if(l&&l.w===c[0])l.n++;else grp.push({w:c[0],n:1})}
   return `<thead><tr><th rowspan="2">Semana</th>${grp.map(x=>`<th colspan="${x.n}" style="text-align:center">${DOW[x.w]}</th>`).join('')}</tr><tr>${g.cols.map(c=>`<th style="font-weight:600">${c[2]||''}</th>`).join('')}</tr></thead>`}
+// Una semana ya terminó cuando pasa el domingo a las 13:00 (si la fila no llega a domingo, cuando pasó su último culto)
+function weekPast(list){const last=list[list.length-1],e=pd(last);if(e.getDay()===0){e.setHours(13,0,0,0);return Date.now()>=e.getTime()}return list.every(d=>svcGone(d))}
 function gridView(weeks,sched,opt={}){
   let h='';
   for(const g of (opt.grids||GRIDS)){if(!opt.grids&&ui.area!=='all'&&!(g.areas||[g.area]).includes(ui.area))continue;
     h+=`<section class="gblock ${g.wide?'full':''}"><h3>${g.title}</h3><div class="gwrap"><table>${gridHead(g)}<tbody>`;
     let n=0;
     for(const wk in weeks){n++;const list=weeks[wk];const a=pd(list[0]),b=pd(list[list.length-1]);
-      h+=`<tr><th class="wk">Semana ${n}<small>${a.getDate()} – ${b.getDate()} ${MESS[b.getMonth()]}</small></th>`;
+      h+=`<tr class="${weekPast(list)?'past':''}"><th class="wk">Semana ${n}<small>${a.getDate()} – ${b.getDate()} ${MESS[b.getMonth()]}</small></th>`;
       for(const[w,keys]of g.cols){const d=list.find(x=>pd(x).getDay()===w);
         if(!d){h+='<td class="na">—</td>';continue}
         const as=sched[d]||{},slots=slotsAt(d);
