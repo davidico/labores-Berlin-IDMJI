@@ -447,7 +447,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '6.2';
+const APPV = '6.3';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1043,11 +1043,17 @@ function vEns(p){
    <div class="info" style="margin-top:6px">Viajan: ${esc(state.people.filter(x=>x.leipzig).map(x=>x.name).join(' y ')||'nadie marcado')}. Ese día no se les asigna nada en Berlín. Lo ven púlpito y traducción.</div></div>`;
 }
 
+// Búsqueda por nombre en Personas (sin tildes ni mayúsculas)
+const normQ=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+function perFilter(){const q=normQ(ui.perQ||'');let n=0;document.querySelectorAll('.prow').forEach(r=>{const ok=!q||r.dataset.n.includes(q);r.hidden=!ok;if(ok)n++});const e=$('per-none');if(e)e.hidden=n>0}
+document.addEventListener('input',e=>{if(e.target&&e.target.id==='per-q'){ui.perQ=e.target.value;perFilter()}});
 function vPer(){
   let h=`<h2>Personas</h2><p class="lead">${state.people.filter(z=>!z.deleted).length} colaboradores. Toca un nombre para editar sus labores.</p>`;
+  const q=normQ(ui.perQ||'');
+  h+=`<div class="psearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="per-q" type="search" placeholder="Buscar por nombre" value="${esc(ui.perQ||'')}" aria-label="Buscar por nombre" autocomplete="off"></div>`;
   h+='<div class="card">';
   for(const x of state.people.filter(z=>!z.deleted)){
-    h+=`<div class="li" style="display:block"><button class="pbtn" data-a="open" data-v="${x.id}" style="display:flex;gap:12px;align-items:flex-start;width:100%">${avatar(x,44)}<div style="flex:1;min-width:0;text-align:left"><b>${esc(x.name)}</b>${x.admin?'<span class="tag gold">Admin</span>':''}${x.pastor?'<span class="tag gold">Pastor</span>':''}${x.phone?`<small class="info" style="display:block;margin-top:2px">${esc(x.phone)}</small>`:''}${x.deleted?'':`<small class="info" style="display:block">${x.privacy?'Privacidad aceptada el '+fmt(ds(new Date(x.privacy.ts))):'Privacidad: pendiente'}</small>`}
+    h+=`<div class="li prow" style="display:block" data-n="${esc(normQ(x.name))}" ${q&&!normQ(x.name).includes(q)?'hidden':''}><button class="pbtn" data-a="open" data-v="${x.id}" style="display:flex;gap:12px;align-items:flex-start;width:100%">${avatar(x,44)}<div style="flex:1;min-width:0;text-align:left"><b>${esc(x.name)}</b>${x.admin?'<span class="tag gold">Admin</span>':''}${x.pastor?'<span class="tag gold">Pastor</span>':''}${x.phone?`<small class="info" style="display:block;margin-top:2px">${esc(x.phone)}</small>`:''}${x.deleted?'':`<small class="info" style="display:block">${x.privacy?'Privacidad aceptada el '+fmt(ds(new Date(x.privacy.ts))):'Privacidad: pendiente'}</small>`}
       <div class="chips" style="margin-top:4px">${x.roles.map(r=>chip(ROLEAREA[r],ROLES[r])).join('')||'<span class="info">Sin labores</span>'}</div></div></button>`;
     if(ui.open===x.id){h+=`<div style="margin-top:10px">
       <label class="field">Nombre<input id="pn-${x.id}" type="text" value="${esc(x.name)}" data-c="p-name" data-v="${x.id}"></label>
@@ -1060,6 +1066,8 @@ function vPer(){
       ${ui.delp===x.id?`<div class="confirm">¿Quitar a ${esc(x.name)} del gestor? <button class="btn warnb sm" data-a="delp-yes" data-v="${x.id}">Sí, quitar</button><button class="btn ghost sm" data-a="delp-no">Cancelar</button></div>`:`<button class="btn ghost sm" data-a="delp" data-v="${x.id}" ${x.id===state.me?'disabled':''}>Quitar persona</button>`}
       </div>`}
     h+='</div>'}
+  const nm=q?state.people.filter(z=>!z.deleted&&normQ(z.name).includes(q)).length:1;
+  h+=`<div id="per-none" class="info" style="padding:12px 4px" ${nm?'hidden':''}>Nadie con ese nombre.</div>`;
   h+=`</div><h3>Invitar a una persona nueva</h3><div class="card"><div class="inline"><input id="np-name" type="text" placeholder="Nombre y apellido"><select id="np-sex"><option value="M">Hombre</option><option value="F">Mujer</option></select><button class="btn sm" data-a="addp">Agregar</button></div>
     <div class="info" style="margin-top:6px">En la versión final le llega una invitación para crear su usuario y completar sus datos.</div></div>`;
   return h;
