@@ -214,6 +214,31 @@ async function pastorReminders() {
   return { sent, lines };
 }
 
+// ---- invitación a Leipzig: miércoles y viernes antes de la visita, a las 17:00 ----
+// Llega a todos menos a los que viajan y a los que ya marcaron «Yo iré».
+async function leipzigInvite() {
+  const p = berlin(new Date());
+  const today = `${p.year}-${p.month}-${p.day}`;
+  const dow = new Date(today + 'T12:00:00Z').getUTCDay();
+  if (Number(p.hour) !== 17 || (dow !== 3 && dow !== 5)) return { skipped: true };
+  const sat = plusDays(today, 6 - dow);
+  const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
+  if (!data) return { error: 'sin datos' };
+  const st = JSON.parse(data.json);
+  // deno-lint-ignore no-explicit-any
+  const l = (st.leipzig || []).find((x: any) => x.date === sat);
+  if (!l) return { skipped: true, noVisit: sat };
+  const going: string[] = l.going || [];
+  // deno-lint-ignore no-explicit-any
+  const to: string[] = (st.people || []).filter((x: any) => !x.deleted && !x.leipzig && !going.includes(x.id)).map((x: any) => x.id);
+  if (!to.length) return { skipped: true, nobody: true };
+  if (!(await once(`lz-${sat}-${today}`))) return { skipped: true, already: today };
+  const pred = l.teaching ? ` Predicación: ${l.teaching}.` : '';
+  await editState((s2) => addNotif(s2, to, `Invitación: visita a Leipzig el sábado ${fmtD(sat).split(' ')[1]}.${pred} Si vas, toca «Yo iré» en Labores.`));
+  const sent = await sendTo(to, 'Invitación a Leipzig', `Visita el sábado ${fmtD(sat).split(' ')[1]}.${pred} Si vas, toca «Yo iré» en la app.`);
+  return { sent, sat };
+}
+
 // ---- recordatorio a quien da la introducción: que ponga la cita bíblica ----
 // Jueves: el miércoles a las 10:00 y, si aún no la puso, el jueves a las 16:00.
 // Domingo: el viernes a las 10:00 y, si aún no la puso, el sábado a las 16:00.
@@ -377,7 +402,7 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') { const q = new URL(req.url).searchParams; return calendar(q.get('p') || '', q.get('t') || ''); }
   // deno-lint-ignore no-explicit-any
   const b: any = await req.json().catch(() => ({}));
-  if (b.mode === 'daily') return json({ monthly: await monthly(), pastor: await pastorReminders(), today: await todayReminder(), intro: await introReminders(), daily: await daily() });
+  if (b.mode === 'daily') return json({ monthly: await monthly(), pastor: await pastorReminders(), today: await todayReminder(), intro: await introReminders(), leipzig: await leipzigInvite(), daily: await daily() });
   if (b.mode === 'ping') {
     // Prueba: envía un aviso solo a los administradores.
     const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
