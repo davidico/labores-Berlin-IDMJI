@@ -455,7 +455,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '6.6';
+const APPV = '6.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -931,7 +931,7 @@ function gridView(weeks,sched,opt={}){
       for(const[w,keys]of g.cols){const d=list.find(x=>pd(x).getDay()===w);
         if(!d){h+='<td class="na">—</td>';continue}
         const as=sched[d]||{},slots=slotsAt(d);
-        h+=`<td>${leipOn(d)?'<small class="lz">Visita Leipzig</small>':''}<div class="cn ${keys.length===4?'two':''}">${keys.map(k=>{const s=slots.find(z=>z.k===k);return s?(k==='predica'?'<small class="info" style="margin:2px 0 0">Predi.</small>':k==='pul'&&slots.some(z=>z.k==='predica')?'<small class="info" style="margin:2px 0 0">Intro.</small>':'')+gcell(d,s,as,slots,opt):''}).join('')}</div></td>`}
+        h+=`<td class="${svcGone(d)?'pastd':''}">${leipOn(d)?'<small class="lz">Visita Leipzig</small>':''}<div class="cn ${keys.length===4?'two':''}">${keys.map(k=>{const s=slots.find(z=>z.k===k);return s?(k==='predica'?'<small class="info" style="margin:2px 0 0">Predi.</small>':k==='pul'&&slots.some(z=>z.k==='predica')?'<small class="info" style="margin:2px 0 0">Intro.</small>':'')+gcell(d,s,as,slots,opt):''}).join('')}</div></td>`}
       h+='</tr>'}
     h+='</tbody></table></div></section>'}
   h=`<div class="grids">${h}</div>`;
@@ -1198,7 +1198,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'av-done':{const av=avOf(v);if(av){av.done=av.done||{};av.done[p.id]=Date.now()}ui.avOpen=null;ui.flash='Gracias. Tu disponibilidad quedó guardada.';break}
   case'regen':ui.regen=true;break;
   case'regen-no':ui.regen=false;break;
-  case'edit':if(!p.admin)return;ui.edit=v;break;
+  case'edit':if(v&&/^\d{4}-\d\d-\d\d/.test(v)&&svcGone(v.slice(0,10)))return;if(!p.admin)return;ui.edit=v;break;
   case'pick-x':ui.edit=null;break;
   case'assign':{const[d,k,id]=v.split('|');const ym=d.slice(0,7);state.schedules[ym]=state.schedules[ym]||{};const as=state.schedules[ym][d]=state.schedules[ym][d]||{};const prev=as[k];if(id)as[k]=id;else delete as[k];ui.edit=null;
     // Avisar del cambio a la persona nueva y a la que salió (solo en meses publicados y fechas que no pasaron)
