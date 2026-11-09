@@ -378,7 +378,7 @@ function myItems(p){
     const as=state.schedules[ym][date],w=pd(date).getDay();
     for(const s of slotsAt(date))if(as[s.k]===p.id)add(date).slots.push(s);
   }
-  for(const t of state.trans)if(isPul)add(t.date).notes.push(`<b>Transmisión internacional.</b> ${t.link?`<div class="pre" style="margin-top:4px">${linkify(t.link)}</div>`:'La información aún no está.'}`);
+  for(const t of state.trans)if(isPul)add(t.date).notes.push(`<b>Transmisión internacional.</b> ${svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre" style="margin-top:4px">${linkify(t.link)}</div>`:'La información aún no está.'}`);
   if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
   if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))){const it=add(d);it.attend=true;it.notes.unshift('Ese día vas tú a la alabanza. No tienes labor.')}}
   for(const m of myMeets(p))add(m.date).notes.push(`<b>Reunión:</b> ${esc(m.title)}${m.time?' · '+esc(m.time):''}`);
@@ -455,7 +455,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '6.7';
+const APPV = '6.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1055,7 +1055,7 @@ function vEns(p){
      return h})()}
    <div class="inline" style="margin-top:10px"><input id="t-new" type="text" placeholder="Título de la enseñanza"><button class="btn sm" data-a="t-add">Agregar</button></div></div>
   <h3>Transmisiones internacionales</h3><div class="card">
-   ${state.trans.slice().sort((a,b)=>a.date<b.date?-1:1).map(t=>ui.trEdit===t.id?`<div class="li" style="display:block"><b>${fmt(t.date)}</b><textarea id="tre-${t.id}" rows="5" style="margin-top:6px" data-c="tr-text" data-v="${t.id}">${esc(t.link)}</textarea><button class="btn sm" data-a="tr-done" style="margin-top:6px">Listo</button></div>`:`<div class="li"><div class="main"><b>${fmt(t.date)}</b><small class="pre">${t.link?linkify(t.link):'Sin información todavía'}${t.note?'\n'+esc(t.note):''}</small></div><button class="x" data-a="tr-edit" data-v="${t.id}">Editar</button><button class="x" data-a="tr-del" data-v="${t.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}
+   ${state.trans.filter(t=>!svcGone(t.date)).sort((a,b)=>a.date<b.date?-1:1).map(t=>ui.trEdit===t.id?`<div class="li" style="display:block"><b>${fmt(t.date)}</b><textarea id="tre-${t.id}" rows="5" style="margin-top:6px" data-c="tr-text" data-v="${t.id}">${esc(t.link)}</textarea><button class="btn sm" data-a="tr-done" style="margin-top:6px">Listo</button></div>`:`<div class="li"><div class="main"><b>${fmt(t.date)}</b><small class="pre">${t.link?linkify(t.link):'Sin información todavía'}${t.note?'\n'+esc(t.note):''}</small></div><button class="x" data-a="tr-edit" data-v="${t.id}">Editar</button><button class="x" data-a="tr-del" data-v="${t.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}${(()=>{const past=state.trans.filter(t=>svcGone(t.date)).sort((a,b)=>a.date<b.date?1:-1);return past.length?`<details class="trpast"><summary>Transmisiones pasadas (${past.length})</summary><div class="info" style="margin:6px 0 0">${past.map(t=>fmt(t.date)).join(' · ')}</div></details>`:''})()}
    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><textarea id="tr-link" rows="4" placeholder="Información de la transmisión (opcional, la puedes poner después). Puedes pegar el link aquí."></textarea><button class="btn sm" data-a="tr-add" data-v="${trFree()}" style="align-self:flex-start">Agregar transmisión del ${fmt(trFree())}</button></div>
    <div class="info" style="margin-top:6px">Este texto lo ven el pastor y los de púlpito en sus labores. Los links se pueden tocar.</div></div>
   <h3>Visitas a Leipzig</h3><div class="card">
