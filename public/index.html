@@ -377,6 +377,17 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .gwrap td.pastd button{pointer-events:none}
 .trpast{margin-top:10px;color:var(--muted)}
 .trpast summary{cursor:pointer;font-weight:600;min-height:40px;display:flex;align-items:center}
+.trow .main{width:100%}
+.thead{display:flex;align-items:flex-start;gap:8px}
+.thead .nrow{flex:1;min-width:0}
+.tacts{display:flex;gap:8px;flex:none;margin-left:auto}
+.tseg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.ta{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;background:none;border:0;color:var(--navy);cursor:pointer;padding:0}
+.ta svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tseg .ta+.ta{border-left:1px solid var(--line)}
+.ta:disabled{color:var(--line);cursor:default}
+.ta.del{border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));border-radius:10px;color:var(--warn)}
+.ta:not(:disabled):hover{background:var(--soft)}
 </style>
 <script src="go.js"></script>
 </head>
