@@ -382,7 +382,7 @@ function myItems(p){
   if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
   if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))){const it=add(d);it.attend=true;it.notes.unshift('Ese día vas tú a la alabanza. No tienes labor.')}}
   for(const m of myMeets(p))add(m.date).notes.push(`<b>Reunión:</b> ${esc(m.title)}${m.time?' · '+esc(m.time):''}`);
-  for(const l of state.leipzig)add(l.date).notes.push(`<b>Visita a Leipzig.</b> Predicación: ${esc(l.teaching||'por definir')}${p.leipzig?' · Viajas este día':(l.going||[]).includes(p.id)?' · Vas a ir':''}${seesLzGoing(p)?'<br>'+lzGoingLine(l):''}${pdfLink('l',l,lzLangs(p))}`);
+  for(const l of state.leipzig)add(l.date).notes.push(`<b>Visita a Leipzig.</b> Predicación: ${esc(l.teaching||'por definir')}${p.leipzig?' · Viajas este día':(l.going||[]).includes(p.id)?' · Vas a ir':''}${seesLzGoing(p)?'<br>'+lzGoingLine(l):''}${pdfLink('l',l,lzLangs(p))}${lzLangs(p).length&&l.date>=today?linkRep('l',l,l.date,lzLangs(p),null):''}`);
   return items;
 }
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
@@ -394,7 +394,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo ${preamb(d)+1}:</b> ${PREAMB[preamb(d)]}`);
   {const preaching=it.preach||it.slots.some(s=>s.k==='predica');
    if(preaching&&tm[d]){const as=schedOf(d)||{},ip=person(as.pul);notes.unshift(`<b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema sugerido:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`);notes.unshift(`<b>Predicas:</b> ${esc(tm[d].title)}`)}}
-  if((w===4||w===0)&&!it.preach&&!it.slots.some(s=>s.k==='predica')&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d]){const as=schedOf(d)||{},pr=davidDay(d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul),tr=it.slots.some(s=>s.area==='trad');notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}<br><b>Predica:</b> ${pr?esc(pr.name):'sin asignar'}`+(tr&&!transOn(d)?`<br><b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema de la introducción:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`:'')+pdfLink('t',tm[d],tradLangs(me())))}
+  if((w===4||w===0)&&!it.preach&&!it.slots.some(s=>s.k==='predica')&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d]){const as=schedOf(d)||{},pr=davidDay(d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul),tr=it.slots.some(s=>s.area==='trad');notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}<br><b>Predica:</b> ${pr?esc(pr.name):'sin asignar'}`+(tr&&!transOn(d)?`<br><b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema de la introducción:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`:'')+pdfLink('t',tm[d],tradLangs(me()))+(tr?linkRep('t',tm[d],d,tradLangs(me()),davidDay(d)?pr:null):''))}
   return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
     ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}
@@ -455,7 +455,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '6.9';
+const APPV = '7.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1009,6 +1009,15 @@ async function savePdf(ym){
 
 /* Fichas de interpretación: una en alemán (campo pdf) y otra en inglés (campo pdfEn). */
 const LANGF={de:'pdf',en:'pdfEn'},LINKF={de:'linkDe',en:'linkEn'},LANGN={de:'alemán',en:'inglés'};
+/* ---- Intérpretes: avisar que falta la ficha o que el enlace no funciona (le llega al pastor, o a quien predica si no es el pastor) ---- */
+const repKey=(kind,t,l)=>`${kind}|${t.id}|${l}|${t[LINKF[l]]||''}`;
+function linkRep(kind,t,d,langs,owner){if(!t||!langs.length)return'';const R=state.linkRep||{};const k=kind+'|'+t.id;
+  const done=langs.filter(l=>R[repKey(kind,t,l)]);const todo=langs.filter(l=>!R[repKey(kind,t,l)]);
+  let h='';
+  if(done.length)h+=`<div class="repok">✓ Avisaste que ${done.map(l=>t[LINKF[l]]?`la ficha en ${LANGN[l]} no abre`:`falta la ficha en ${LANGN[l]}`).join(' y ')}.</div>`;
+  if(!todo.length)return `<div class="rep">${h}</div>`;
+  if(ui.repOpen!==k)return `<div class="rep">${h}<button class="linkbtn" data-a="rep-open" data-v="${k}">¿Falta la ficha o no abre?</button></div>`;
+  return `<div class="rep">${h}<div class="repbox"><div class="info" style="margin:0 0 8px">Se le avisa ${owner?'a '+esc(owner.name):'al pastor'} para que la suba.</div><div class="inline">${todo.map(l=>`<button class="btn ghost sm" data-a="rep-send" data-v="${kind}|${t.id}|${l}|${d}|${owner?owner.id:''}">${t[LINKF[l]]?`El enlace en ${LANGN[l]} no abre`:`Falta la ficha en ${LANGN[l]}`}</button>`).join('')}<button class="btn ghost sm" data-a="rep-x">Cancelar</button></div></div></div>`}
 const pdfLink=(kind,t,langs=['de','en'])=>{const ls=t?langs.filter(l=>t[LINKF[l]]):[];if(!ls.length)return'';
   return `<div class="inline" style="margin-top:6px;flex-wrap:wrap">${ls.map(l=>`<a class="pdfl lnk" href="${esc(t[LINKF[l]])}" target="_blank" rel="noopener">Ficha en ${LANGN[l]}</a>`).join('')}</div>`};
 const tradLangs=p=>p?['de','en'].filter(l=>(p.roles||[]).includes('trad_'+l)):[];
@@ -1177,6 +1186,14 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'cal-hide':ui.calHide=true;try{localStorage.setItem('lb-calhide','1')}catch(e){}break;
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
   case'lz-go':{const[id,on]=v.split('|');const l=state.leipzig.find(x=>x.id===id);if(!l)break;l.going=(l.going||[]).filter(x=>x!==state.me);if(on==='1'){l.going.push(state.me);ui.flash=`Anotado: vas a Leipzig el ${fmt(l.date)}.`}else ui.flash='Anotado: ya no vas.';break}
+  case'rep-open':ui.repOpen=v;render();return;
+  case'rep-x':ui.repOpen=null;render();return;
+  case'rep-send':{const[kind,id,l,d,ow]=v.split('|');const t=kind==='l'?state.leipzig.find(x=>x.id===id):state.teachings.find(x=>x.id===id);if(!t)return;
+    state.linkRep=state.linkRep||{};state.linkRep[repKey(kind,t,l)]={by:state.me,ts:Date.now()};ui.repOpen=null;
+    const me_=me(),bad=!!t[LINKF[l]],what=kind==='l'?`la visita a Leipzig del ${fmt(d)}`:`«${t.title}» (${fmt(d)})`;
+    const to=ow?[ow]:state.people.filter(x=>x.pastor&&!x.deleted).map(x=>x.id);
+    const txt=bad?`${me_.name} avisa: el enlace de la ficha en ${LANGN[l]} de ${what} no abre. Revísalo en la pestaña Pastor.`:`${me_.name} avisa: falta la ficha en ${LANGN[l]} de ${what}. Súbela en la pestaña Pastor.`;
+    notify(to,txt,{push:{title:'Ficha de interpretación',body:txt}});ui.flash='Listo, se avisó para que suban la ficha.';break}
   case'tr-ans':{const[d,a]=v.split('|');trAnswer(d,a);break}
   case'mrow':ui.mrow=v;if(v==='av'&&!avOf(ui.month))ui.avAsk=true;render();return;
   case'mrow-x':ui.mrow=null;ui.avAsk=false;ui.compose=false;ui.meet=false;render();return;
