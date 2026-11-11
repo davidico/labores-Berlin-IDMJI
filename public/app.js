@@ -455,7 +455,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '7.0';
+const APPV = '7.1';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1054,13 +1054,13 @@ function vEns(p){
     for(const l of state.leipzig)if(l.date>=today&&l.date<=sun){const miss=[!l.teaching&&'el título',!l.linkDe&&'el enlace en alemán',!l.linkEn&&'el enlace en inglés'].filter(Boolean);if(miss.length)out.push(`Leipzig ${fmt(l.date)}: falta ${miss.join(', ')}`)}
     if(w>=5||w===0){if(!transOn(sun)&&w!==0)out.push(`¿Hay transmisión internacional el ${fmt(sun)}? Si la hay, agrégala abajo.`)}
     return out})();
-  return `<h2>Enseñanzas y viajes</h2>${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas.</p>
+  return `<h2>Enseñanzas y viajes</h2>${dupSummary()}${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas.</p>
   <h3>Enseñanzas en orden</h3>${ui.uplMsg?`<div class="banner warnbn">${esc(ui.uplMsg)}</div>`:''}<div class="card">
    <label class="field">Empiezan desde<input id="t-start" type="date" value="${state.teachStart}" data-c="t-start"></label>
    ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id])));
      const last=fut.length?dateOf[fut[fut.length-1].id]:'';
      let h=past.length?`<button class="mfold" data-a="t-past" aria-expanded="${!!ui.tPast}"><span><b>Ya pasaron</b> · ${past.length}</span><span class="chev">${ui.tPast?'▾':'▸'}</span></button>${ui.tPast?past.map(t=>`<div class="li"><div class="main" style="opacity:.6"><b>${esc(t.title)}</b><small>${fmt(dateOf[t.id])}</small></div></div>`).join(''):''}`:'';
-     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}${ui.edName==='t|'+t.id?'':tActs(t.id,i,fut.length)}</div>${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${t.id}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
+     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}${ui.edName==='t|'+t.id?'':tActs(t.id,i,fut.length)}</div>${dupWarn(t.id)}${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${t.id}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
      ${linkPair('tl',t,dateOf[t.id]?needLangs(dateOf[t.id]):['de','en'])}</div></div>`).join('')||'<div class="info" style="padding:8px 0">No hay enseñanzas por venir. Agrega las siguientes abajo.</div>';
      if(last)h+=`<div class="info" style="margin-top:8px">Hay enseñanzas cargadas hasta el <b>${fmt(last)}</b>. Para seguir después, agrega más abajo y se acomodan solas en los siguientes jueves y domingos.</div>`;
      return h})()}
@@ -1079,6 +1079,13 @@ function vEns(p){
 const normQ=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 function perFilter(){const q=normQ(ui.perQ||'');let n=0;document.querySelectorAll('.prow').forEach(r=>{const ok=!q||r.dataset.n.includes(q);r.hidden=!ok;if(ok)n++});const e=$('per-none');if(e)e.hidden=n>0}
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='per-q'){ui.perQ=e.target.value;perFilter()}});
+// Enseñanzas repetidas en el mismo mes (mismo título, sin importar tildes ni mayúsculas)
+function dupDates(tid){const tm=teachMap();let d0=null,t0=null;for(const d in tm)if(tm[d].id===tid){d0=d;t0=tm[d]}if(!d0)return[];
+  const k=normQ(t0.title);return Object.keys(tm).filter(d=>d!==d0&&d.slice(0,7)===d0.slice(0,7)&&normQ(tm[d].title)===k).sort()}
+function dupWarn(tid){const ds_=dupDates(tid);return ds_.length?`<div class="dupw">⚠ Repetida este mes: también el ${ds_.map(fmt).join(' y el ')}</div>`:''}
+function dupSummary(){const tm=teachMap(),seen=new Set(),out=[];for(const d of Object.keys(tm).sort()){if(d<today)continue;const t=tm[d],k=d.slice(0,7)+'|'+normQ(t.title);if(seen.has(k))continue;const ds_=dupDates(t.id);if(ds_.length){seen.add(k);out.push(`«${esc(t.title)}»: ${[d,...ds_].sort().map(fmt).join(' y ')}`)}}
+  return out.length?`<div class="dupw" style="margin:6px 0 12px">⚠ Enseñanzas repetidas en el mismo mes:<br>${out.join('<br>')}<br><span style="font-weight:400">Cambia el título con el lápiz o muévelas con las flechas.</span></div>`:''}
+function dupFlash(tid){const ds_=dupDates(tid);if(ds_.length){const t=state.teachings.find(x=>x.id===tid);ui.flash=`Ojo: «${t.title}» ya está el ${ds_.map(fmt).join(' y el ')}, en el mismo mes.`}}
 function vPer(){
   let h=`<h2>Personas</h2><p class="lead">${state.people.filter(z=>!z.deleted).length} colaboradores. Toca un nombre para editar sus labores.</p>`;
   const q=normQ(ui.perQ||'');
@@ -1180,7 +1187,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     if(kd==='ic'||kd==='it'){if(kd==='it'&&val&&!/^https?:\/\//i.test(val))val='https://'+val;state.intro=state.intro||{};const x=state.intro[iv]=state.intro[iv]||{};const f=kd==='ic'?'cita':'link';if(val)x[f]=val;else delete x[f];if(!x.cita&&!x.link)delete state.intro[iv];ui.edName=null;break}
     if(kd==='fx'){if(val&&!/^https?:\/\//i.test(val))val='https://'+val;state.fichas=state.fichas||{};if(val)state.fichas[iv]=val;else delete state.fichas[iv];ui.edName=null;break}
     if(kd==='tl'||kd==='ll'){if(val&&!/^https?:\/\//i.test(val))val='https://'+val;const x=(kd==='tl'?state.teachings:state.leipzig).find(z=>z.id===iv),f=LINKF[lg||'de'];if(x){if(val)x[f]=val;else delete x[f]}ui.edName=null;break}
-    if(!val){const i=$('ne-in');if(i){i.placeholder='El título no puede quedar vacío';i.classList.add('bad');i.focus()}return}if(kd==='lz'){const l=state.leipzig.find(x=>x.id===iv);if(l)l.teaching=val}else{const x=state.teachings.find(z=>z.id===iv);if(x&&val)x.title=val}ui.edName=null;break}
+    if(!val){const i=$('ne-in');if(i){i.placeholder='El título no puede quedar vacío';i.classList.add('bad');i.focus()}return}if(kd==='lz'){const l=state.leipzig.find(x=>x.id===iv);if(l)l.teaching=val}else{const x=state.teachings.find(z=>z.id===iv);if(x&&val){x.title=val;dupFlash(iv)}}ui.edName=null;break}
   case't-past':ui.tPast=!ui.tPast;break;
   case'upd':location.reload();return;
   case'cal-hide':ui.calHide=true;try{localStorage.setItem('lb-calhide','1')}catch(e){}break;
@@ -1237,7 +1244,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'delp-no':ui.delp=null;break;
   case'delp-yes':{const x=person(v);if(x&&x.email)SB.from('members').delete().eq('email',x.email.toLowerCase()).then(()=>{});}state.people=state.people.filter(x=>x.id!==v);ui.delp=null;ui.open=null;break;
   case'addp':{const n=$('np-name').value.trim();if(!n)return;const id=uid();state.people.push(P(id,n,$('np-sex').value,[]));ui.open=id;break}
-  case't-add':{const n=$('t-new').value.trim();if(!n)return;state.teachings.push({id:uid(),title:n});break}
+  case't-add':{const n=$('t-new').value.trim();if(!n)return;const id=uid();state.teachings.push({id,title:n});dupFlash(id);break}
   case'pdfdel':{const[kd,iv,l='de']=v.split('|');const x=pdfList(kd).find(z=>z.id===iv),fk=LANGF[l];if(x&&x[fk]){const aid=x[fk].id;delete x[fk];if(AS)AS.delete(aid).catch(()=>{})}break}
   case't-del':ui.tDel=v;render();return;
   case't-del-ok':state.teachings=state.teachings.filter(t=>t.id!==v);ui.tDel=null;break;
