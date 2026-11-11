@@ -147,10 +147,18 @@ function teachMapS(st: any): Record<string, any> {
   // deno-lint-ignore no-explicit-any
   const m: Record<string, any> = {}; const ts: any[] = st.teachings || []; const tr: any[] = st.trans || [];
   if (!st.teachStart) return m;
+  // Igual que en la app: las enseñanzas fijas (pin) se quedan en su fecha; las demás llenan las fechas libres en orden.
+  const fixed = new Set<string>();
+  for (const t of ts) {
+    if (!t.pin || t.pin < st.teachStart || m[t.pin] || tr.some((x) => x.date === t.pin)) continue;
+    const wd = new Date(t.pin + 'T12:00:00Z').getUTCDay();
+    if (wd === 4 || wd === 0) { m[t.pin] = t; fixed.add(t.id); }
+  }
+  const rest = ts.filter((t) => !fixed.has(t.id));
   const d = new Date(st.teachStart + 'T12:00:00Z'); let i = 0, g = 0;
-  while (i < ts.length && g < 2000) {
+  while (i < rest.length && g < 2000) {
     const s = d.toISOString().slice(0, 10), w = d.getUTCDay();
-    if ((w === 4 || w === 0) && !tr.some((t) => t.date === s)) { m[s] = ts[i]; i++; }
+    if ((w === 4 || w === 0) && !tr.some((t) => t.date === s) && !m[s]) { m[s] = rest[i]; i++; }
     d.setUTCDate(d.getUTCDate() + 1); g++;
   }
   return m;

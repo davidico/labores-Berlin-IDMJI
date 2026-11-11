@@ -160,11 +160,18 @@ function preEB(date){const wk=Math.floor(Math.round((pd(mondayOf(date))-pd('2026
 function preTR(date){const ts=[...new Set((state.trans||[]).map(t=>t.date).filter(x=>x>='2026-11-01'))].sort();const i=Math.max(0,ts.indexOf(date));return PRE_TR[i%5]}
 const preTxt=x=>`<b>${esc(x[0])}</b> — ${esc(x[1])}`;
 function preamb(date){const a=pd('2026-11-02'),d=pd(date);const days=Math.round((d-a)/864e5);const wk=Math.floor(days/7);const pos={1:0,3:1,5:2}[d.getDay()];return(((wk*3+pos)%6)+6)%6}
-function teachMap(){const m={};let i=0;const d=pd(state.teachStart);let g=0;
-  while(i<state.teachings.length&&g<2000){const s=ds(d),w=d.getDay();
-    if((w===4||w===0)&&!state.trans.some(t=>t.date===s)){m[s]=state.teachings[i];i++}
+// Enseñanzas en orden sobre jueves y domingos (sin domingos de transmisión).
+// Las «fijas» (pin) se quedan en su fecha y no se corren; las demás llenan las fechas libres en orden.
+function teachMap(){const m={},fixed=new Set();
+  for(const t of state.teachings)if(t.pin&&t.pin>=state.teachStart&&!m[t.pin]&&!state.trans.some(x=>x.date===t.pin)&&[4,0].includes(pd(t.pin).getDay())){m[t.pin]=t;fixed.add(t.id)}
+  const rest=state.teachings.filter(t=>!fixed.has(t.id));let i=0;const d=pd(state.teachStart);let g=0;
+  while(i<rest.length&&g<2000){const s=ds(d),w=d.getDay();
+    if((w===4||w===0)&&!state.trans.some(t=>t.date===s)&&!m[s]){m[s]=rest[i];i++}
     d.setDate(d.getDate()+1);g++}
   return m}
+const isPinned=t=>{if(!t.pin)return false;const tm=teachMap();return !!(tm[t.pin]&&tm[t.pin].id===t.id)};
+// Regla: la enseñanza del día que predica David queda fija en su fecha (no se corre si se agrega una transmisión)
+function autoPinDavid(){let ch=false;const tm=teachMap();for(const d in tm){if(d<today)continue;const t=tm[d];if(!t.pin&&!t.unpinned&&davidDay(d)){t.pin=d;t.pinAuto=1;ch=true}}return ch}
 const transOn=date=>state.trans.find(t=>t.date===date);
 const leipOn=date=>state.leipzig.find(l=>l.date===date);
 const fmt=s=>{const d=pd(s);return `${DOWS[d.getDay()]} ${d.getDate()} ${MESS[d.getMonth()]}`};
@@ -351,6 +358,7 @@ document.addEventListener('submit',async e=>{if(e.target.id!=='auth-form')return
 function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clearTimeout(ui.flashT);ui.flashT=setTimeout(()=>{ui.flash=null;ui.flashFor=null;try{render()}catch(e){}},5000)}if(window.__MOVED)return;
   const p=me();
   if((ui.goN||ui.goQ)&&READY&&p&&!ui.gating){const n=ui.goN&&state.notifs.find(x=>x.id===ui.goN),g=ui.goQ||(n?goFor(n,p):null);ui.goN=null;ui.goQ=null;if(n&&!n.read.includes(state.me)){n.read.push(state.me);save()}if(g){setTimeout(()=>nGo(g),0)}}
+  if(READY&&p&&(p.admin||p.pastor)&&!ui.viewAs&&autoPinDavid())save();
   if(ui.trA&&READY&&p&&(p.pastor||p.admin)){const a=ui.trA;ui.trA=null;trAnswer(ui.trQ,a);save()}
   if(!SESSION||ui.authMode==='newpass'){$('app').innerHTML=authView()+(ui.priv?privSheet():'');return}
   if(!READY){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div><div class="card empty-state">Cargando tus labores…</div></div>`;return}
@@ -471,7 +479,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${g.d}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${n.id}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '7.4';
+const APPV = '7.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -538,7 +546,8 @@ function linkEd(kind,id,val,ph,empty){const k=kind+'|'+id;
   return `<div class="nrow" style="margin-top:4px">${val?`<a class="pdfl lnk" href="${esc(val)}" target="_blank" rel="noopener">Abrir</a>`:(empty||'<small style="color:var(--warn)">Sin enlace</small>')}<button class="pen" data-a="ne-edit" data-v="${k}" aria-label="${val?'Editar enlace':'Agregar enlace'}">${PENCIL}</button></div>`}
 // Acciones de cada enseñanza, junto al lápiz: mover (grupo) y quitar (aparte, en rojo)
 const IC_UP='<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>',IC_DN='<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',IC_DEL='<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
-function tActs(id,i,n){return `<div class="tacts"><div class="tseg" role="group" aria-label="Mover"><button class="ta" data-a="t-up" data-v="${id}" aria-label="Subir" ${i?'':'disabled'}>${IC_UP}</button><button class="ta" data-a="t-down" data-v="${id}" aria-label="Bajar" ${i<n-1?'':'disabled'}>${IC_DN}</button></div><button class="ta del" data-a="t-del" data-v="${id}" aria-label="Quitar enseñanza">${IC_DEL}</button></div>`}
+const IC_PIN='<svg viewBox="0 0 24 24"><path d="M9 4h6l-1 5 3 3v2H7v-2l3-3-1-5zM12 14v6"/></svg>';
+function tActs(t,mov){const id=t.id,pin=isPinned(t),i=mov.indexOf(t),n=mov.length;return `<div class="tacts"><button class="ta pin ${pin?'on':''}" data-a="t-pin" data-v="${id}" aria-pressed="${pin}" aria-label="${pin?'Soltar: que se corra con las demás':'Fijar en esta fecha'}" title="${pin?'Fija en esta fecha':'Fijar en esta fecha'}">${IC_PIN}</button><div class="tseg" role="group" aria-label="Mover"><button class="ta" data-a="t-up" data-v="${id}" aria-label="Subir" ${!pin&&i>0?'':'disabled'}>${IC_UP}</button><button class="ta" data-a="t-down" data-v="${id}" aria-label="Bajar" ${!pin&&i>=0&&i<n-1?'':'disabled'}>${IC_DN}</button></div><button class="ta del" data-a="t-del" data-v="${id}" aria-label="Quitar enseñanza">${IC_DEL}</button></div>`}
 function nameEd(kind,id,val,ph,bold){const k=kind+'|'+id;
   if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:4px 0;flex-wrap:nowrap"><input id="ne-in" type="text" value="${esc(val)}" placeholder="${esc(ph||'Escribe el nombre')}" style="flex:1;min-width:0" data-k="${k}"><button class="btn sm" data-a="ne-save" data-v="${k}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
   return `<div class="nrow">${bold?`<b>${esc(val||ph)}</b>`:`<small>${esc(val||ph)}</small>`}<button class="pen" data-a="ne-edit" data-v="${k}" aria-label="Editar nombre">${PENCIL}</button></div>`}
@@ -1086,13 +1095,13 @@ function vEns(p){
     for(const l of state.leipzig)if(l.date>=today&&l.date<=sun){const miss=[!l.teaching&&'el título',!l.linkDe&&'el enlace en alemán',!l.linkEn&&'el enlace en inglés'].filter(Boolean);if(miss.length)out.push(`Leipzig ${fmt(l.date)}: falta ${miss.join(', ')}`)}
     if(w>=5||w===0){if(!transOn(sun)&&w!==0)out.push(`¿Hay transmisión internacional el ${fmt(sun)}? Si la hay, agrégala abajo.`)}
     return out})();
-  return `<h2>Enseñanzas y viajes</h2>${repsCard(me())}${dupSummary()}${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas.</p>
+  return `<h2>Enseñanzas y viajes</h2>${repsCard(me())}${dupSummary()}${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas, menos las fijas (con el alfiler azul). La del día que predica David queda fija sola.</p>
   <h3>Enseñanzas en orden</h3>${ui.uplMsg?`<div class="banner warnbn">${esc(ui.uplMsg)}</div>`:''}<div class="card">
    <label class="field">Empiezan desde<input id="t-start" type="date" value="${state.teachStart}" data-c="t-start"></label>
-   ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id])));
+   ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id]))).sort((a,b)=>(dateOf[a.id]||'9')<(dateOf[b.id]||'9')?-1:1);const mov=fut.filter(t=>!isPinned(t));
      const last=fut.length?dateOf[fut[fut.length-1].id]:'';
      let h=past.length?`<button class="mfold" data-a="t-past" aria-expanded="${!!ui.tPast}"><span><b>Ya pasaron</b> · ${past.length}</span><span class="chev">${ui.tPast?'▾':'▸'}</span></button>${ui.tPast?past.map(t=>`<div class="li"><div class="main" style="opacity:.6"><b>${esc(t.title)}</b><small>${fmt(dateOf[t.id])}</small></div></div>`).join(''):''}`:'';
-     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}${ui.edName==='t|'+t.id?'':tActs(t.id,i,fut.length)}</div>${dupWarn(t.id)}${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${t.id}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
+     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}${ui.edName==='t|'+t.id?'':tActs(t,mov)}</div>${isPinned(t)?`<div class="pinnote">Fija en esta fecha${davidDay(dateOf[t.id])?' (predica David)':''}: no se corre si se agrega una transmisión.</div>`:''}${dupWarn(t.id)}${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${t.id}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
      ${linkPair('tl',t,dateOf[t.id]?needLangs(dateOf[t.id]):['de','en'])}</div></div>`).join('')||'<div class="info" style="padding:8px 0">No hay enseñanzas por venir. Agrega las siguientes abajo.</div>';
      if(last)h+=`<div class="info" style="margin-top:8px">Hay enseñanzas cargadas hasta el <b>${fmt(last)}</b>. Para seguir después, agrega más abajo y se acomodan solas en los siguientes jueves y domingos.</div>`;
      return h})()}
@@ -1285,7 +1294,9 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case't-del':ui.tDel=v;render();return;
   case't-del-ok':state.teachings=state.teachings.filter(t=>t.id!==v);ui.tDel=null;break;
   case't-del-no':ui.tDel=null;render();return;
-  case't-up':case't-down':{const i=state.teachings.findIndex(t=>t.id===v),j=a==='t-up'?i-1:i+1;if(j<0||j>=state.teachings.length)return;const arr=state.teachings;[arr[i],arr[j]]=[arr[j],arr[i]];break}
+  case't-up':case't-down':{const tm=teachMap(),dOf={};for(const d in tm)dOf[tm[d].id]=d;const mv=state.teachings.filter(t=>!isPinned(t)).sort((x,y)=>(dOf[x.id]||'9')<(dOf[y.id]||'9')?-1:1);const i=mv.findIndex(t=>t.id===v),j=a==='t-up'?i-1:i+1;if(i<0||j<0||j>=mv.length)return;
+    const arr=state.teachings,ia=arr.indexOf(mv[i]),ib=arr.indexOf(mv[j]);[arr[ia],arr[ib]]=[arr[ib],arr[ia]];break}
+  case't-pin':{const t=state.teachings.find(x=>x.id===v);if(!t)return;if(isPinned(t)){delete t.pin;delete t.pinAuto;t.unpinned=1;ui.flash='Soltada: ahora se corre con las demás.'}else{const tm=teachMap();const d=Object.keys(tm).find(k=>tm[k].id===v);if(!d)return;t.pin=d;delete t.unpinned;ui.flash=`Fija el ${fmt(d)}: ya no se corre.`}break}
   case'tr-add':{const d=v;if(!d)return;state.transNo=(state.transNo||[]).filter(x=>x!==d);state.trans.push({id:uid(),date:d,link:$('tr-link').value.trim(),note:''});break}
   case'tr-edit':ui.trEdit=v;break;
   case'tr-done':ui.trEdit=null;break;

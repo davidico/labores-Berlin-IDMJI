@@ -379,7 +379,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .trpast summary{cursor:pointer;font-weight:600;min-height:40px;display:flex;align-items:center}
 .trow .main{width:100%}
 .thead{display:flex;align-items:flex-start;gap:8px}
-.thead .nrow{flex:1;min-width:0}
+.thead{flex-wrap:wrap}
+.thead .nrow{flex:1 1 55%;min-width:0}
 .tacts{display:flex;gap:8px;flex:none;margin-left:auto}
 .tseg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
 .ta{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;background:none;border:0;color:var(--navy);cursor:pointer;padding:0}
@@ -405,6 +406,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .ncta{display:inline-flex;align-items:center;min-height:36px;margin-top:4px;font-weight:700;color:var(--navy);font-size:15px}
 @keyframes flashc{0%,100%{box-shadow:0 0 0 0 transparent}30%{box-shadow:0 0 0 4px var(--gold)}}
 .flashc{animation:flashc 2s ease}
+.ta.pin{border:1px solid var(--line);border-radius:10px}
+.ta.pin.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.pinnote{margin:6px 0 4px;font-size:14px;color:var(--navy);font-weight:600}
 </style>
 <script src="go.js"></script>
 </head>
