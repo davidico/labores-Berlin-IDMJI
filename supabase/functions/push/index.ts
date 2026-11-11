@@ -110,7 +110,7 @@ async function monthly() {
       to = servers(st);
       addNotif(st, to, `Marca los días que no puedes servir en ${mes}, antes del ${fmtDl}. Está arriba en Labores.`);
     });
-    if (st && to.length) await sendTo(to, `Disponibilidad de ${mes}`, `Marca los días que no puedes antes del ${fmtDl}.`);
+    if (st && to.length) await sendTo(to, `Disponibilidad de ${mes}`, `Marca los días que no puedes antes del ${fmtDl}.`, '/?go=disp');
     return { sent: 'pedido', ym };
   }
   if (day === AV.remind && await once(`av-remind-${ym}`)) {
@@ -121,7 +121,7 @@ async function monthly() {
       pend = servers(st).filter((i) => !(av.done && av.done[i]));
       if (pend.length) addNotif(st, pend, `Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmtDl}.`);
     });
-    if (pend.length) await sendTo(pend, `Falta tu disponibilidad de ${mes}`, `Márcala antes del ${fmtDl}.`);
+    if (pend.length) await sendTo(pend, `Falta tu disponibilidad de ${mes}`, `Márcala antes del ${fmtDl}.`, '/?go=disp');
     return { sent: 'recordatorio', ym, n: pend.length };
   }
   if (day === AV.close && await once(`av-close-${ym}`)) {
@@ -135,7 +135,7 @@ async function monthly() {
       txt = `Cerró la disponibilidad de ${mes}: ${done} de ${all.length} respondieron. Abre Horario para revisar el borrador y publicarlo.`;
       addNotif(st, admins, txt);
     });
-    if (admins.length) await sendTo(admins, `Disponibilidad de ${mes} cerrada`, txt);
+    if (admins.length) await sendTo(admins, `Disponibilidad de ${mes} cerrada`, txt, '/?go=hor');
     return { sent: 'cierre', ym };
   }
   return { skipped: true, day };
@@ -210,7 +210,7 @@ async function pastorReminders() {
   const body = lines.join('\n');
   const note = dow >= 5 ? `${title}: ${lines.join(' · ')}` : `${title}: ${lines.join(' · ')}. Pon los enlaces a más tardar el miércoles en la pestaña Pastor.`;
   await editState((s2) => addNotif(s2, pastors, note));
-  const sent = await sendTo(pastors, title, body);
+  const sent = await sendTo(pastors, title, body, '/?go=ens');
   return { sent, lines };
 }
 
@@ -235,7 +235,7 @@ async function leipzigInvite() {
   if (!(await once(`lz-${sat}-${today}`))) return { skipped: true, already: today };
   const pred = l.teaching ? ` Predicación: ${l.teaching}.` : '';
   await editState((s2) => addNotif(s2, to, `Invitación: visita a Leipzig el sábado ${fmtD(sat).split(' ')[1]}.${pred} Si vas, toca «Yo iré» en Labores.`));
-  const sent = await sendTo(to, 'Invitación a Leipzig', `Visita el sábado ${fmtD(sat).split(' ')[1]}.${pred} Si vas, toca «Yo iré» en la app.`);
+  const sent = await sendTo(to, 'Invitación a Leipzig', `Visita el sábado ${fmtD(sat).split(' ')[1]}.${pred} Si vas, toca «Yo iré» en la app.`, '/?go=lz');
   return { sent, sat };
 }
 
@@ -265,7 +265,7 @@ async function introReminders() {
   const title = `Tu introducción ${d === today ? 'de hoy' : 'del ' + fmtD(d)}`;
   const body = `Pon la cita bíblica que leerás (y el enlace del testimonio, si tienes) en Labores, para que los intérpretes se preparen.`;
   await editState((s2) => addNotif(s2, [pid], `Das la introducción ${when}: pon la cita bíblica que leerás (y el enlace del testimonio, si tienes) para que los intérpretes se preparen.`));
-  const sent = await sendTo([pid], title, body);
+  const sent = await sendTo([pid], title, body, `/?go=ic&d=${d}`);
   return { sent, d, pid };
 }
 
@@ -452,6 +452,8 @@ Deno.serve(async (req) => {
     return json(out);
   }
   const to = (Array.isArray(b.to) ? b.to : []).filter((x: unknown) => typeof x === 'string').slice(0, 200);
-  const sent = await sendTo(to, String(b.title || 'Labores Berlín').slice(0, 120), String(b.body || '').slice(0, 500), '/');
+  // El enlace al tocar la notificación: solo rutas internas de la app (/?n=… o /?go=…)
+  const url = typeof b.url === 'string' && /^\/\?[\w=&%.-]{1,200}$/.test(b.url) ? b.url : '/';
+  const sent = await sendTo(to, String(b.title || 'Labores Berlín').slice(0, 120), String(b.body || '').slice(0, 500), url);
   return json({ sent });
 });

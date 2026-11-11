@@ -146,7 +146,7 @@ setInterval(()=>{today=ds(new Date());if(document.visibilityState==="visible"&&q
 function defaultMonth(){const d=new Date();if(d.getDate()>20)d.setMonth(d.getMonth()+1,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
 const ui={tab:'mis',month:defaultMonth(),area:'all',view:'grid',mv:'cal',cm:defaultMonth(),sel:null,edit:null,open:null,regen:false,delp:null};
 // Enlace desde la notificación de transmisión: ?tr=AAAA-MM-DD (y &a=si|no si se tocó un botón de la notificación)
-try{const q=new URLSearchParams(location.search);if(/^\d{4}-\d\d-\d\d$/.test(q.get('tr')||'')){ui.trQ=q.get('tr');ui.trA=['si','no'].includes(q.get('a'))?q.get('a'):null;ui.tab='mis'}if(q.has('tr'))history.replaceState(null,'',location.pathname)}catch(e){}
+try{const q=new URLSearchParams(location.search);if(/^\d{4}-\d\d-\d\d$/.test(q.get('tr')||'')){ui.trQ=q.get('tr');ui.trA=['si','no'].includes(q.get('a'))?q.get('a'):null;ui.tab='mis'}if(q.get('n'))ui.goN=q.get('n');if(q.get('go'))ui.goQ={tab:{ic:'mis',disp:'disp',hor:'hor',ens:'ens',lz:'mis',mis:'mis'}[q.get('go')]||'mis',d:/^\d{4}-\d\d-\d\d$/.test(q.get('d')||'')?q.get('d'):null,ed:q.get('go')==='ic'?'ic':null,lz:q.get('go')==='lz'?1:0};if(q.has('tr')||q.has('n')||q.has('go'))history.replaceState(null,'',location.pathname)}catch(e){}
 
 function monthDates(ym){const[y,m]=ym.split('-').map(Number);const out=[];const d=new Date(y,m-1,1,12);while(d.getMonth()===m-1){out.push(ds(d));d.setDate(d.getDate()+1)}return out}
 function mondayOf(s){const d=pd(s);d.setDate(d.getDate()-((d.getDay()+6)%7));return ds(d)}
@@ -350,6 +350,7 @@ document.addEventListener('submit',async e=>{if(e.target.id!=='auth-form')return
   if(r&&r.error){ui.authMsg=AUTHERR(r.error)}render()});
 function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clearTimeout(ui.flashT);ui.flashT=setTimeout(()=>{ui.flash=null;ui.flashFor=null;try{render()}catch(e){}},5000)}if(window.__MOVED)return;
   const p=me();
+  if((ui.goN||ui.goQ)&&READY&&p&&!ui.gating){const n=ui.goN&&state.notifs.find(x=>x.id===ui.goN),g=ui.goQ||(n?goFor(n,p):null);ui.goN=null;ui.goQ=null;if(n&&!n.read.includes(state.me)){n.read.push(state.me);save()}if(g){setTimeout(()=>nGo(g),0)}}
   if(ui.trA&&READY&&p&&(p.pastor||p.admin)){const a=ui.trA;ui.trA=null;trAnswer(ui.trQ,a);save()}
   if(!SESSION||ui.authMode==='newpass'){$('app').innerHTML=authView()+(ui.priv?privSheet():'');return}
   if(!READY){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div><div class="card empty-state">Cargando tus labores…</div></div>`;return}
@@ -395,7 +396,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   {const preaching=it.preach||it.slots.some(s=>s.k==='predica');
    if(preaching&&tm[d]){const as=schedOf(d)||{},ip=person(as.pul);notes.unshift(`<b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema sugerido:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`);notes.unshift(`<b>Predicas:</b> ${esc(tm[d].title)}`)}}
   if((w===4||w===0)&&!it.preach&&!it.slots.some(s=>s.k==='predica')&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d]){const as=schedOf(d)||{},pr=davidDay(d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul),tr=it.slots.some(s=>s.area==='trad');notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}<br><b>Predica:</b> ${pr?esc(pr.name):'sin asignar'}`+(tr&&!transOn(d)?`<br><b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema de la introducción:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`:'')+pdfLink('t',tm[d],tradLangs(me()))+(tr?linkRep('t',tm[d],d,tradLangs(me()),davidDay(d)?pr:null):''))}
-  return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
+  return `<div class="card mine" data-day="${d}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
     ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}
     ${notes.map(n=>`<div class="note">${n}</div>`).join('')}
@@ -404,7 +405,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
 const schedOf=d=>(state.schedules[d.slice(0,7)]||{})[d];
 const admins=()=>state.people.filter(x=>x.admin).map(x=>x.id);
 function svcPeople(d,pred){const as=schedOf(d)||{},out=[];for(const s of slotsAt(d))if(as[s.k]&&pred(s))out.push(as[s.k]);return out}
-function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state.me&&person(i));if(!ids.length)return 0;state.notifs.unshift({id:uid(),ts:Date.now(),to:ids,text,read:[],by:state.me,...(extra&&extra.push?(({push,...r})=>r)(extra):(extra||{}))});pushOut(ids,extra&&extra.push?extra.push.title:'Labores Berlín',extra&&extra.push?extra.push.body:text);state.notifs=state.notifs.slice(0,300);return ids.length}
+function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state.me&&person(i));if(!ids.length)return 0;const nid=uid();state.notifs.unshift({id:nid,ts:Date.now(),to:ids,text,read:[],by:state.me,...(extra&&extra.push?(({push,...r})=>r)(extra):(extra||{}))});pushOut(ids,extra&&extra.push?extra.push.title:'Labores Berlín',extra&&extra.push?extra.push.body:text,'/?n='+nid);state.notifs=state.notifs.slice(0,300);return ids.length}
 function candFor(d,k,from,asIn){const slots=slotsAt(d),s=slots.find(z=>z.k===k),as={...(asIn||schedOf(d)||{})};delete as[k];
   const partner=(s.pair||s.pairOf)?person(as[s.pair||s.pairOf]):null;
   return state.people.filter(x=>x.id!==from&&!why(x,s,d,as,slots)&&(!partner||partner.sex===x.sex))}
@@ -454,8 +455,23 @@ function pendingFor(p){return state.reqs.filter(r=>r.status==='open'&&r.date>=to
 function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).length}
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
-function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '7.3';
+/* ---- Tocar un aviso lleva al lugar donde se hace lo que pide ---- */
+function goFor(n,p){if(n.go)return n.go;const t=(n.text||'').toLowerCase();
+  if(/introducci/.test(t)&&/cita/.test(t)){const it=myItems(p);const d=Object.keys(it).sort().find(x=>x>=today&&!svcGone(x)&&[4,0].includes(pd(x).getDay())&&it[x].slots.some(s=>s.k==='pul')&&!introOf(x).cita);return {tab:'mis',d,ed:d?'ic':null,label:'Poner la cita'}}
+  if(/corrigi[oó] la ficha/.test(t))return {tab:'mis',d:n.date,label:'Ver la ficha'};
+  if(/ficha/.test(t)&&/pesta[nñ]a pastor/.test(t))return {tab:'ens',label:'Ir a Pastor'};
+  if(/transmisi[oó]n/.test(t)&&/¿hay/.test(t))return {tab:'mis',label:'Responder'};
+  if(/leipzig/.test(t)&&/(invitaci|yo ir)/.test(t))return {tab:'mis',lz:1,label:'Responder'};
+  if(/disponibilidad/.test(t))return /cerrada/.test(t)&&p.admin?{tab:'hor',label:'Ver horario'}:{tab:'disp',label:'Marcar mis días'};
+  if(/reuni[oó]n/.test(t))return {tab:'mis',label:'Ver reunión'};
+  if(/mensaje|→/.test(t))return {tab:'mis',label:'Ver mensaje'};
+  return {tab:'mis',d:n.date,label:'Ver'}}
+function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'&&g.month)ui.month=g.month;
+  if(g.ed&&g.d)ui.edName=g.ed+'|'+g.d;render();
+  const sel=g.lz?'.lzinv':g.d?`[data-day="${g.d}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
+  setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
+function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${n.id}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
+const APPV = '7.4';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -582,7 +598,7 @@ function meetBlock(p){const ms=state.meets.filter(m=>m.date>=today).sort((a,b)=>
       ${m.from===p.id||p.admin?(ui.mDel===m.id?`<button class="btn warnb sm" data-a="m-del-yes" data-v="${m.id}">Sí, cancelar reunión</button><button class="btn ghost sm" data-a="m-del-no">No</button>`:`<button class="btn ghost sm" data-a="m-del" data-v="${m.id}">Cancelar reunión</button>`):''}</div></div>`}).join('')}</div>`;
   return h}
 /* ---- notificaciones al celular ---- */
-function pushOut(ids,title,body){if(!SESSION||!ids||!ids.length)return;try{SB.functions.invoke('push',{body:{mode:'send',to:ids,title,body}}).catch(()=>{})}catch(e){}}
+function pushOut(ids,title,body,url){if(!SESSION||!ids||!ids.length)return;try{SB.functions.invoke('push',{body:{mode:'send',to:ids,title,body,url}}).catch(()=>{})}catch(e){}}
 const pushOk=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window&&window.CFG&&CFG.vapid;
 const isStandalone=()=>(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
 const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -1210,6 +1226,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'cal-hide':ui.calHide=true;try{localStorage.setItem('lb-calhide','1')}catch(e){}break;
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
   case'lz-go':{const[id,on]=v.split('|');const l=state.leipzig.find(x=>x.id===id);if(!l)break;l.going=(l.going||[]).filter(x=>x!==state.me);if(on==='1'){l.going.push(state.me);ui.flash=`Anotado: vas a Leipzig el ${fmt(l.date)}.`}else ui.flash='Anotado: ya no vas.';break}
+  case'n-go':{const n=state.notifs.find(x=>x.id===v);if(!n)return;if(!n.read.includes(state.me)){n.read.push(state.me);save()}nGo(goFor(n,p));return}
   case'rep-open':ui.repOpen=v;ui.repLang=null;render();return;
   case'rep-lang':ui.repLang=v;{const n=($('rep-note')||{}).value;render();const x=$('rep-note');if(x&&n)x.value=n}return;
   case'rep-x':ui.repOpen=null;render();return;
