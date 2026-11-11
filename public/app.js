@@ -455,7 +455,7 @@ function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 function nItem(n,p,un){const who=person(n.from||n.by);return `<div class="li ${un?'unread':''}" style="align-items:flex-start;gap:10px">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '7.1';
+const APPV = '7.2';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1010,14 +1010,30 @@ async function savePdf(ym){
 /* Fichas de interpretación: una en alemán (campo pdf) y otra en inglés (campo pdfEn). */
 const LANGF={de:'pdf',en:'pdfEn'},LINKF={de:'linkDe',en:'linkEn'},LANGN={de:'alemán',en:'inglés'};
 /* ---- Intérpretes: avisar que falta la ficha o que el enlace no funciona (le llega al pastor, o a quien predica si no es el pastor) ---- */
-const repKey=(kind,t,l)=>`${kind}|${t.id}|${l}|${t[LINKF[l]]||''}`;
-function linkRep(kind,t,d,langs,owner){if(!t||!langs.length)return'';const R=state.linkRep||{};const k=kind+'|'+t.id;
-  const done=langs.filter(l=>R[repKey(kind,t,l)]);const todo=langs.filter(l=>!R[repKey(kind,t,l)]);
-  let h='';
-  if(done.length)h+=`<div class="repok">✓ Avisaste que ${done.map(l=>t[LINKF[l]]?`la ficha en ${LANGN[l]} no abre`:`falta la ficha en ${LANGN[l]}`).join(' y ')}.</div>`;
-  if(!todo.length)return `<div class="rep">${h}</div>`;
-  if(ui.repOpen!==k)return `<div class="rep">${h}<button class="linkbtn" data-a="rep-open" data-v="${k}">¿Falta la ficha o no abre?</button></div>`;
-  return `<div class="rep">${h}<div class="repbox"><div class="info" style="margin:0 0 8px">Se le avisa ${owner?'a '+esc(owner.name):'al pastor'} para que la suba.</div><div class="inline">${todo.map(l=>`<button class="btn ghost sm" data-a="rep-send" data-v="${kind}|${t.id}|${l}|${d}|${owner?owner.id:''}">${t[LINKF[l]]?`El enlace en ${LANGN[l]} no abre`:`Falta la ficha en ${LANGN[l]}`}</button>`).join('')}<button class="btn ghost sm" data-a="rep-x">Cancelar</button></div></div></div>`}
+// Reportes de fichas: el intérprete escribe qué pasa; le llega al pastor (o a quien predica); al corregir, le llega al intérprete.
+const openReps=(kind,tid)=>(state.linkReps||[]).filter(r=>r.open&&r.kind===kind&&r.tid===tid);
+function linkRep(kind,t,d,langs,owner){if(!t||!langs.length)return'';const k=kind+'|'+t.id;
+  const mine=openReps(kind,t.id).filter(r=>r.by===state.me);
+  let h=mine.map(r=>`<div class="repok">✓ Avisaste (${LANGN[r.lang]}): «${esc(r.note)}» · esperando corrección</div>`).join('');
+  if(ui.repOpen!==k)return `<div class="rep">${h}<button class="linkbtn" data-a="rep-open" data-v="${k}">Enlace erróneo o faltante</button></div>`;
+  const lg=ui.repLang&&langs.includes(ui.repLang)?ui.repLang:langs[0];
+  return `<div class="rep">${h}<div class="repbox"><b style="font-size:15px">Enlace erróneo o faltante</b>
+    ${langs.length>1?`<div class="inline" style="margin:8px 0 0">${langs.map(l=>`<button class="f" data-a="rep-lang" data-v="${l}" aria-pressed="${l===lg}">Ficha en ${LANGN[l]}</button>`).join('')}</div>`:`<div class="info" style="margin:4px 0 0">Ficha en ${LANGN[lg]}</div>`}
+    <textarea id="rep-note" rows="3" placeholder="Cuéntale qué pasa. Por ejemplo: el enlace de inglés abre la ficha en alemán." style="margin-top:10px;width:100%"></textarea>
+    <div class="info" style="margin:6px 0 0">Le llega ${owner?'a '+esc(owner.name.replace(/\.$/,'')):'al pastor'}. Cuando lo corrija, te avisamos.</div>
+    <div class="inline" style="margin-top:12px"><button class="btn sm" data-a="rep-send" data-v="${kind}|${t.id}|${lg}|${d}|${owner?owner.id:''}">Enviar aviso</button><button class="btn ghost sm" data-a="rep-x">Cancelar</button></div></div></div>`}
+// Al corregir el enlace (o al marcarlo como resuelto), se cierran los reportes y se avisa a quienes reportaron
+function closeReps(kind,tid,lang,why){const rs=(state.linkReps||[]).filter(r=>r.open&&r.kind===kind&&r.tid===tid&&(!lang||r.lang===lang));if(!rs.length)return 0;
+  const t=kind==='l'?state.leipzig.find(x=>x.id===tid):state.teachings.find(x=>x.id===tid);const nm=(me()||{}).name||'El pastor';
+  for(const r of rs){r.open=false;r.fixedTs=Date.now();r.fixedBy=state.me;
+    const what=kind==='l'?`la visita a Leipzig del ${fmt(r.d)}`:`«${t?t.title:''}» (${fmt(r.d)})`;
+    const txt=`${nm} ${why||'corrigió'} la ficha en ${LANGN[r.lang]} de ${what}. Ya puedes abrirla.`;
+    notify([r.by],txt,{push:{title:'Ficha corregida',body:txt}})}
+  return rs.length}
+function repsCard(p){if(!(p.admin||p.pastor))return'';const rs=(state.linkReps||[]).filter(r=>r.open);if(!rs.length)return'';
+  return `<div class="card ask" style="margin:6px 0 12px"><b>Avisos de fichas (${rs.length})</b>${rs.map(r=>{const t=r.kind==='l'?state.leipzig.find(x=>x.id===r.tid):state.teachings.find(x=>x.id===r.tid);const who=person(r.by);
+    return `<div class="repitem"><div><b>${r.kind==='l'?'Leipzig':esc(t?t.title:'')}</b> · ${fmt(r.d)} · ficha en ${LANGN[r.lang]}</div><div>«${esc(r.note)}»</div><small class="info">${esc(who?who.name:'')} · ${ago(r.ts)}</small><div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="rep-done" data-v="${r.id}">Ya lo corregí</button></div></div>`}).join('')}
+    <div class="info" style="margin-top:8px">Al cambiar el enlace con el lápiz, se marca solo como corregido y se le avisa a quien reportó.</div></div>`}
 const pdfLink=(kind,t,langs=['de','en'])=>{const ls=t?langs.filter(l=>t[LINKF[l]]):[];if(!ls.length)return'';
   return `<div class="inline" style="margin-top:6px;flex-wrap:wrap">${ls.map(l=>`<a class="pdfl lnk" href="${esc(t[LINKF[l]])}" target="_blank" rel="noopener">Ficha en ${LANGN[l]}</a>`).join('')}</div>`};
 const tradLangs=p=>p?['de','en'].filter(l=>(p.roles||[]).includes('trad_'+l)):[];
@@ -1054,7 +1070,7 @@ function vEns(p){
     for(const l of state.leipzig)if(l.date>=today&&l.date<=sun){const miss=[!l.teaching&&'el título',!l.linkDe&&'el enlace en alemán',!l.linkEn&&'el enlace en inglés'].filter(Boolean);if(miss.length)out.push(`Leipzig ${fmt(l.date)}: falta ${miss.join(', ')}`)}
     if(w>=5||w===0){if(!transOn(sun)&&w!==0)out.push(`¿Hay transmisión internacional el ${fmt(sun)}? Si la hay, agrégala abajo.`)}
     return out})();
-  return `<h2>Enseñanzas y viajes</h2>${dupSummary()}${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas.</p>
+  return `<h2>Enseñanzas y viajes</h2>${repsCard(me())}${dupSummary()}${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas.</p>
   <h3>Enseñanzas en orden</h3>${ui.uplMsg?`<div class="banner warnbn">${esc(ui.uplMsg)}</div>`:''}<div class="card">
    <label class="field">Empiezan desde<input id="t-start" type="date" value="${state.teachStart}" data-c="t-start"></label>
    ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id])));
@@ -1186,21 +1202,23 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'ne-save':{const[kd,iv,lg]=v.split('|');let val=(($('ne-in')||{}).value||'').trim();
     if(kd==='ic'||kd==='it'){if(kd==='it'&&val&&!/^https?:\/\//i.test(val))val='https://'+val;state.intro=state.intro||{};const x=state.intro[iv]=state.intro[iv]||{};const f=kd==='ic'?'cita':'link';if(val)x[f]=val;else delete x[f];if(!x.cita&&!x.link)delete state.intro[iv];ui.edName=null;break}
     if(kd==='fx'){if(val&&!/^https?:\/\//i.test(val))val='https://'+val;state.fichas=state.fichas||{};if(val)state.fichas[iv]=val;else delete state.fichas[iv];ui.edName=null;break}
-    if(kd==='tl'||kd==='ll'){if(val&&!/^https?:\/\//i.test(val))val='https://'+val;const x=(kd==='tl'?state.teachings:state.leipzig).find(z=>z.id===iv),f=LINKF[lg||'de'];if(x){if(val)x[f]=val;else delete x[f]}ui.edName=null;break}
+    if(kd==='tl'||kd==='ll'){if(val&&!/^https?:\/\//i.test(val))val='https://'+val;const x=(kd==='tl'?state.teachings:state.leipzig).find(z=>z.id===iv),f=LINKF[lg||'de'];if(x){const before=x[f];if(val)x[f]=val;else delete x[f];if(val&&val!==before&&closeReps(kd==='tl'?'t':'l',iv,lg||'de','corrigió'))ui.flash='Enlace guardado. Se avisó a quien lo había reportado.'}ui.edName=null;break}
     if(!val){const i=$('ne-in');if(i){i.placeholder='El título no puede quedar vacío';i.classList.add('bad');i.focus()}return}if(kd==='lz'){const l=state.leipzig.find(x=>x.id===iv);if(l)l.teaching=val}else{const x=state.teachings.find(z=>z.id===iv);if(x&&val){x.title=val;dupFlash(iv)}}ui.edName=null;break}
   case't-past':ui.tPast=!ui.tPast;break;
   case'upd':location.reload();return;
   case'cal-hide':ui.calHide=true;try{localStorage.setItem('lb-calhide','1')}catch(e){}break;
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
   case'lz-go':{const[id,on]=v.split('|');const l=state.leipzig.find(x=>x.id===id);if(!l)break;l.going=(l.going||[]).filter(x=>x!==state.me);if(on==='1'){l.going.push(state.me);ui.flash=`Anotado: vas a Leipzig el ${fmt(l.date)}.`}else ui.flash='Anotado: ya no vas.';break}
-  case'rep-open':ui.repOpen=v;render();return;
+  case'rep-open':ui.repOpen=v;ui.repLang=null;render();return;
+  case'rep-lang':ui.repLang=v;{const n=($('rep-note')||{}).value;render();const x=$('rep-note');if(x&&n)x.value=n}return;
   case'rep-x':ui.repOpen=null;render();return;
   case'rep-send':{const[kind,id,l,d,ow]=v.split('|');const t=kind==='l'?state.leipzig.find(x=>x.id===id):state.teachings.find(x=>x.id===id);if(!t)return;
-    state.linkRep=state.linkRep||{};state.linkRep[repKey(kind,t,l)]={by:state.me,ts:Date.now()};ui.repOpen=null;
-    const me_=me(),bad=!!t[LINKF[l]],what=kind==='l'?`la visita a Leipzig del ${fmt(d)}`:`«${t.title}» (${fmt(d)})`;
+    const note=(($('rep-note')||{}).value||'').trim();if(!note){const x=$('rep-note');if(x){x.classList.add('bad');x.placeholder='Escribe qué pasa con el enlace';x.focus()}return}
     const to=ow?[ow]:state.people.filter(x=>x.pastor&&!x.deleted).map(x=>x.id);
-    const txt=bad?`${me_.name} avisa: el enlace de la ficha en ${LANGN[l]} de ${what} no abre. Revísalo en la pestaña Pastor.`:`${me_.name} avisa: falta la ficha en ${LANGN[l]} de ${what}. Súbela en la pestaña Pastor.`;
-    notify(to,txt,{push:{title:'Ficha de interpretación',body:txt}});ui.flash='Listo, se avisó para que suban la ficha.';break}
+    state.linkReps=state.linkReps||[];state.linkReps.push({id:uid(),kind,tid:id,lang:l,d,by:state.me,note,ts:Date.now(),open:true,to});ui.repOpen=null;
+    const what=kind==='l'?`la visita a Leipzig del ${fmt(d)}`:`«${t.title}» (${fmt(d)})`;const txt=`${me().name} avisa sobre la ficha en ${LANGN[l]} de ${what}: «${note}». Corrígela en la pestaña Pastor.`;
+    notify(to,txt,{push:{title:'Enlace erróneo o faltante',body:txt}});ui.flash='Listo, se avisó. Cuando lo corrijan te llega un aviso.';break}
+  case'rep-done':{const r=(state.linkReps||[]).find(x=>x.id===v);if(!r)return;closeReps(r.kind,r.tid,r.lang,'corrigió');ui.flash='Listo, se avisó a quien reportó.';break}
   case'tr-ans':{const[d,a]=v.split('|');trAnswer(d,a);break}
   case'mrow':ui.mrow=v;if(v==='av'&&!avOf(ui.month))ui.avAsk=true;render();return;
   case'mrow-x':ui.mrow=null;ui.avAsk=false;ui.compose=false;ui.meet=false;render();return;
