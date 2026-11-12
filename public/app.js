@@ -397,7 +397,7 @@ function myItems(p){
 const ckRow=(st,label,val,btn)=>`<div class="ck"><span class="dot ${st==='todo'?'need':st}" aria-hidden="true">${st==='done'?'✓':st==='todo'?'!':''}</span><div class="ckm"><div class="fl2">${label}</div>${val}</div>${btn||''}</div>`;
 const penBtn=(k,lbl)=>`<button class="pen big" data-a="ne-edit" data-v="${esc(k)}" aria-label="${esc(lbl)}">${PENCIL}</button>`;
 const todoBox=(title,body)=>`<div class="todo"><div class="tl">${title}</div>${body}</div>`;
-const isec=(l,h)=>`<div class="isec">${l?`<div class="il">${l}</div>`:''}${h}</div>`;
+const isec=(l,h,c)=>`<div class="isec">${l?`<div class="il${c?' '+c:''}">${l}</div>`:''}${h}</div>`;
 // Fichas de interpretación como filas: ✓ si está el enlace, «!» si todavía no está
 function fichaRows(kind,t,langs){if(!t||!langs.length)return'';return langs.map(l=>t[LINKF[l]]?ckRow('done',`Ficha en ${LANGN[l]}`,xlink(t[LINKF[l]],'Ver la ficha')):ckRow('todo',`Ficha en ${LANGN[l]}`,'<div class="fv empty">Todavía no está</div>')).join('')}
 // Lo que puso quien da la introducción (para quien predica y los intérpretes)
@@ -432,8 +432,8 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   // 1. Lo que prepara esta persona
   if(preaching&&t)todo.push(todoBox('Tu predicación',`<div class="big2">${esc(t.title)}</div>`));
   if(isIntro)todo.push(introTodo(d));
-  if(has(s=>s.k==='pul_ini'||s.k==='pul_fin'))info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(PREAMB[preamb(d)])}</div>`));
-  if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`))}
+  if(has(s=>s.k==='pul_ini'||s.k==='pul_fin'))info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(PREAMB[preamb(d)])}</div>`,'gold'));
+  if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   if(w===0&&tr&&has(s=>s.k==='pul')){const x=preTR(d);todo.push(todoBox('Preámbulo sugerido',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`))}
   const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
   if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
@@ -542,7 +542,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '8.6';
+const APPV = '8.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
