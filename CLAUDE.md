@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **8.0**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **8.1**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v86`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v87`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -124,8 +124,8 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 ## Convenciones de UI (las pidió el usuario)
 
 - Tamaños de letra según buenas prácticas: texto principal 16 px, notas 15 px, secundario 14 px, etiquetas en mayúsculas y números de aviso nunca menos de 12 px. Áreas táctiles ≥ 44 px (enlaces ≥ 40 px).
-- **Tarjetas de Labores (`itemCard`, diseño «C»):** cabecera (fecha, culto, chips); arriba un cuadro dorado `todoBox` con lo que prepara esa persona según su labor (Tu predicación · Tu introducción con ✓/! de cita y testimonio · Tu preámbulo · Tu interpretación con las fichas); debajo secciones con etiqueta (`isec`: Enseñanza del culto, Introducción, Tu pareja, Transmisión, Leipzig, Reunión). Las notas de `myItems` son objetos `{l, h}`.
-- **Recordatorio de la introducción (`introPend`/`introNag`):** a quien da la introducción en los próximos 8 días y le falta la cita o el enlace del testimonio: un solo aviso amarillo arriba de Labores (el más próximo), número rojo en la pestaña y en el ícono de la app (`appBadge`, Badging API) y «!» amarillo pequeño en la tarjeta. El testimonio no es obligatorio: «No tengo testimonio» guarda `intro[fecha].noLink`.
+- **Tarjetas de Labores (`itemCard`, diseño «C»):** cabecera (fecha, culto, chips); arriba un cuadro dorado `todoBox` con lo que prepara esa persona según su labor (Tu predicación · Tu introducción con ✓/! de cita y testimonio · Preámbulo sugerido (solo el texto) · Tu interpretación con las fichas); debajo secciones con etiqueta (`isec`: Enseñanza del culto, Introducción, Tu pareja, Transmisión, Leipzig, Reunión). Las notas de `myItems` son objetos `{l, h}`.
+- **Recordatorio de la introducción (`introPend`/`introNag`):** a quien da la introducción **ese mismo día** y le falta la cita o el enlace del testimonio: un solo aviso amarillo arriba de Labores (el más próximo), número rojo en la pestaña y en el ícono de la app (`appBadge`, Badging API) y «!» amarillo pequeño en la tarjeta. El testimonio no es obligatorio: «No tengo testimonio» guarda `intro[fecha].noLink`.
 - **Tarjeta según el puesto:** quien predica ve en el cuadro solo el título de su predicación; el intérprete de la introducción ve «Interpretas la introducción» (quién, tema, cita, testimonio); el de predicación/testimonios ve «Interpretas la predicación» (título, quién predica, fichas). Los avisos con `date` de un culto que ya pasó no se muestran ni cuentan (`nLive`).
 - **Predicaciones (`cronograma`) y Pastor:** «Predica: X» va justo debajo del título; en la lista del pastor solo se muestra quién predica (no la introducción). Leipzig en Pastor: solo las visitas que vienen, con el mismo formato que las enseñanzas.
 - **Enlaces externos (`xlink`):** texto que dice qué es («Ficha en alemán», «Ver el testimonio»), subrayado y con flecha ↗; nunca «LINK / Abrir». Si falta: punto rojo + «falta» + botón «Agregar enlace».

@@ -406,9 +406,9 @@ function introInfo(d,ip){const x=introOf(d);
     `<div class="kv"><span>Cita bíblica</span>${x.cita?esc(x.cita):'<i>todavía no la puso</i>'}</div>`+
     (x.link?`<div class="kv"><span>Testimonio</span>${xlink(x.link,'Ver el testimonio')}</div>`:'')}
 // Quien da la introducción: cita (obligatoria), testimonio (opcional) y tema sugerido
-/* Recordatorio para quien da la introducción en los próximos 8 días: falta la cita o el enlace del testimonio.
+/* Recordatorio para quien da la introducción, solo el mismo día: falta la cita o el enlace del testimonio.
    El testimonio no es obligatorio: con «No tengo testimonio» deja de recordarse. */
-function introPend(p){if(!p)return[];const out=[],end=ds(new Date(pd(today).getTime()+8*864e5));
+function introPend(p){if(!p)return[];const out=[],end=today;
   for(const ym in state.schedules){if(!canSeeMonth(p,ym))continue;for(const d in state.schedules[ym]){
     if(d<today||d>end||svcGone(d)||transOn(d)||![4,0].includes(pd(d).getDay())||state.schedules[ym][d].pul!==p.id)continue;
     const x=introOf(d),cita=!x.cita,link=!x.link&&!x.noLink;if(cita||link)out.push({d,cita,link})}}
@@ -432,9 +432,9 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   // 1. Lo que prepara esta persona
   if(preaching&&t)todo.push(todoBox('Tu predicación',`<div class="big2">${esc(t.title)}</div>`));
   if(isIntro)todo.push(introTodo(d));
-  if(has(s=>s.k==='pul_ini'||s.k==='pul_fin'))todo.push(todoBox('Tu preámbulo',`<div class="big2">${esc(PREAMB[preamb(d)])}</div><div class="help">Preámbulo sugerido para la alabanza.</div>`));
-  if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);todo.push(todoBox('Tu preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Preámbulo sugerido para el estudio bíblico (el mismo el martes y el sábado).</div>`))}
-  if(w===0&&tr&&has(s=>s.k==='pul')){const x=preTR(d);todo.push(todoBox('Tu preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Preámbulo sugerido para la transmisión.</div>`))}
+  if(has(s=>s.k==='pul_ini'||s.k==='pul_fin'))todo.push(todoBox('Preámbulo sugerido',`<div class="big2">${esc(PREAMB[preamb(d)])}</div>`));
+  if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);todo.push(todoBox('Preámbulo sugerido',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`))}
+  if(w===0&&tr&&has(s=>s.k==='pul')){const x=preTR(d);todo.push(todoBox('Preámbulo sugerido',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`))}
   const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
   if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
   if(trPred&&(w===4||w===0)&&t)todo.push(todoBox('Interpretas la predicación',`<div class="big2">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+fichaRows('t',t,tradLangs(me()))+linkRep('t',t,d,tradLangs(me()),dday?preacher:null)));
@@ -532,7 +532,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '8.0';
+const APPV = '8.1';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
