@@ -451,8 +451,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .dot.todo{background:var(--red);color:#fff}
 .bdg,.hbd{background:var(--red)!important;color:#fff!important}
 :root{--red:#d33b3b}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--red:#ff6b6b}}
-:root[data-theme="dark"]{--red:#ff6b6b}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--red:#e5484d}}
+:root[data-theme="dark"]{--red:#e5484d}
 
 /* Enlaces que se abren fuera: texto que dice qué es, subrayado y con flecha */
 .xl{display:inline-flex;align-items:center;gap:6px;min-height:40px;font-weight:600;font-size:16px;color:var(--navy);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;overflow-wrap:anywhere}
@@ -478,6 +478,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .ck{gap:10px}
 .il2{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
 .trow .sub2{margin-top:2px}
+
+/* 8.5: contraste en modo oscuro (fondo azul claro → letra oscura) y días pasados en la agenda de PC */
+.toast{background:var(--ink);color:var(--bg)}
+.ta.pin.on{color:var(--on-navy)}
+.dkday.past{opacity:.45}
 </style>
 <script src="go.js"></script>
 </head>

@@ -515,7 +515,14 @@ function late(d,msg){const p=me(),as=schedOf(d)||{},mine=slotsAt(d).filter(s=>as
   ui.flash=`Aviso enviado a ${n} ${n===1?'persona':'personas'}.`}
 function ago(ts){const m=Math.round((Date.now()-ts)/6e4);if(m<1)return'ahora';if(m<60)return`hace ${m} min`;const h=Math.round(m/60);if(h<24)return`hace ${h} h`;const d=new Date(ts);return`${d.getDate()} ${MESS[d.getMonth()]}`}
 function pendingFor(p){return state.reqs.filter(r=>r.status==='open'&&r.date>=today&&r.cands.includes(p.id)&&!r.declined.includes(p.id))}
-const nLive=n=>!(n.date&&svcGone(n.date));
+const DOWN=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+function nDate(n){if(n.date)return n.date;if(n.go&&n.go.d)return n.go.d;const t=(n.text||'').toLowerCase(),b=new Date(n.ts||Date.now());
+  let m=/\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/.exec(t);
+  if(m){const mi=MESS.indexOf(m[2]);let y=b.getFullYear();if(mi<b.getMonth()-6)y++;return `${y}-${pad(mi+1)}-${pad(+m[1])}`}
+  m=new RegExp('\\b('+DOWN.join('|')+') (\\d{1,2})\\b').exec(t);
+  if(m){const x=new Date(b.getFullYear(),b.getMonth(),b.getDate(),12);for(let i=0;i<40;i++){if(x.getDate()===+m[2])return ds(x);x.setDate(x.getDate()+1)}}
+  return null}
+const nLive=n=>{const d=nDate(n);return !(d&&svcGone(d))};
 function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)&&nLive(n)).length}
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
@@ -535,7 +542,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '8.4';
+const APPV = '8.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -796,15 +803,16 @@ const ARROW='<svg viewBox="0 0 24 24" class="arw"><path d="M9 6l6 6-6 6"/></svg>
 function dkNextTeach(){const tm=teachMap();const d=Object.keys(tm).sort().find(x=>x>=today&&!svcGone(x)&&!transOn(x));return d?{d,t:tm[d]}:null}
 function dkAgenda(p){const off=ui.dkWeek||0;const mon=pd(mondayOf(today));mon.setDate(mon.getDate()+off*7);
   const days=[...Array(7)].map((_,i)=>{const x=new Date(mon);x.setDate(x.getDate()+i);return ds(x)});
-  const sel=ui.dkDay&&days.includes(ui.dkDay)?ui.dkDay:(days.includes(today)?today:days[0]);
+  const sel=ui.dkDay&&days.includes(ui.dkDay)?ui.dkDay:(days.find(d=>!svcGone(d))||days[0]);
   const items=myItems(p);const tm=teachMap();
   const strip=days.map(d=>{const x=pd(d),it=items[d],mine=it&&it.slots.length,ev=it&&!mine&&(it.notes.length||it.attend);
-    return `<button class="dkday ${d===today?'today':''}" data-a="dk-day" data-v="${esc(d)}" aria-pressed="${d===sel}"><span>${DOWS[x.getDay()]}</span><b>${x.getDate()}</b><i class="${mine?'on':ev?'ev':''}"></i></button>`}).join('');
+    return `<button class="dkday ${d===today?'today':''} ${svcGone(d)?'past':''}" data-a="dk-day" data-v="${esc(d)}" aria-pressed="${d===sel}"><span>${DOWS[x.getDay()]}</span><b>${x.getDate()}</b><i class="${svcGone(d)?'':mine?'on':ev?'ev':''}"></i></button>`}).join('');
   const it=items[sel];const w=pd(sel).getDay(),[sn,st]=SVC[w];
   let det=`<div class="dkdet-h"><b>${DOWL(sel)}</b><span>${esc(sn)} · ${st}${transOn(sel)?' · Transmisión':''}${leipOn(sel)?' · Visita a Leipzig':''}</span></div>`;
-  if(it&&(it.slots.length||it.notes.length||it.attend))det+=`<div class="dkmine">${itemCard(sel,it,tm)}</div>`;
+  if(svcGone(sel))det+=`<div class="info" style="margin:6px 0 0">Este culto ya pasó.</div>`;
+  else if(it&&(it.slots.length||it.notes.length||it.attend))det+=`<div class="dkmine">${itemCard(sel,it,tm)}</div>`;
   else det+=`<div class="info" style="margin:6px 0 0">No tienes labores este día.</div>`;
-  const as=schedOf(sel);
+  const as=svcGone(sel)?null:schedOf(sel);
   if(as&&canSeeMonth(p,sel.slice(0,7))){const rows=slotsAt(sel).filter(s=>as[s.k]).map(s=>{const x=person(as[s.k]);return `<div class="dkrow"><span class="lbl"><i class="dot" style="--c:var(${AREAC[s.area]})"></i>${esc(s.l)}</span><b ${as[s.k]===p.id?'class="me"':''}>${esc(x?x.name:'—')}</b></div>`}).join('');
     if(rows)det+=`<div class="dkteam"><div class="dksub">Quién sirve ese día</div><div class="dkrows">${rows}</div></div>`}
   const first=pd(days[0]),last=pd(days[6]);
@@ -824,7 +832,7 @@ function dkTeach(p){const n=dkNextTeach();if(!n)return'';const as=schedOf(n.d)||
     <div class="dkrows"><div class="dkrow"><span class="lbl">Predica</span><b>${pr?esc(pr.name):'—'}</b></div><div class="dkrow"><span class="lbl">Introducción</span><b>${ip?esc(ip.name):'sin asignar'}</b></div></div>
     <div class="info" style="margin-top:8px"><b>Tema de la introducción:</b> ${esc(INTROT[introTema(n.d)])}${introView(n.d)}</div>${pdfLink('t',n.t,langs)}
     ${tabsFor(p).some(t=>t[0]==='ens')?`<button class="linkbtn" data-a="tab" data-v="ens" style="margin-top:6px">Ver todas las enseñanzas</button>`:''}</section>`}
-function dkNotifs(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice(0,4);
+function dkNotifs(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)&&nLive(n)).slice(0,4);
   return `<section class="card dkcard"><div class="dkhead"><h4>Avisos</h4><button class="linkbtn" data-a="bell">Ver todos</button></div>
     ${ns.length?`<div class="dknot">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}</div>${ns.some(n=>!n.read.includes(p.id))?'<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>':''}`:'<div class="info">Sin avisos.</div>'}</section>`}
 function dkQuick(p){const L={cal:'Ver calendario',disp:'Mis días para servir',hor:'Horario del mes',ens:p.admin||p.pastor?'Enseñanzas (pastor)':'Predicaciones',per:'Personas'};
