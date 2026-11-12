@@ -411,16 +411,16 @@ function introInfo(d,ip,test=true){const x=introOf(d);
 function introPend(p){if(!p)return[];const out=[],end=today;
   for(const ym in state.schedules){if(!canSeeMonth(p,ym))continue;for(const d in state.schedules[ym]){
     if(d<today||d>end||svcGone(d)||transOn(d)||![4,0].includes(pd(d).getDay())||state.schedules[ym][d].pul!==p.id)continue;
-    const x=introOf(d);if(!x.cita)out.push({d,cita:true,link:false})}}
+    const x=introOf(d),cita=!x.cita,link=!x.link&&!x.noLink;if(cita||link)out.push({d,cita,link})}}
   return out.sort((a,b)=>a.d<b.d?-1:1)}
-function introNag(p){return introPend(p).slice(0,1).map(x=>{const falta='la cita bíblica';
+function introNag(p){return introPend(p).slice(0,1).map(x=>{const falta=[x.cita&&'la cita bíblica',x.link&&'el enlace del testimonio (si tienes)'].filter(Boolean).join(' y ');
   return `<div class="card nag"><span class="rdot" aria-hidden="true"></span><div style="flex:1;min-width:0"><b>Tu introducción del ${DOW[pd(x.d).getDay()].toLowerCase()} ${fmt(x.d).replace(/^\S+\s/,'')}</b><div class="sub2">Todavía no has puesto ${falta}.</div>
     <button class="btn sm" data-a="ic-go" data-v="${esc(x.d+'|'+(x.cita?'ic':'it'))}" style="margin-top:10px">${x.cita?'Poner la cita':'Poner el enlace'}</button></div></div>`}).join('')}
 function introTodo(d){const x=introOf(d),kc='ic|'+d,kl='it|'+d;
   const cita=ui.edName===kc?`<div class="fl2" style="margin-top:8px">Cita bíblica que leerás</div>${nameEd('ic',d,x.cita||'','Por ejemplo: Juan 3:16')}`
     :ckRow(x.cita?'done':'todo','Cita bíblica que leerás',x.cita?`<div class="fv">${esc(x.cita)}</div>`:'<div class="fv empty">Falta ponerla</div>',penBtn(kc,x.cita?'Cambiar la cita':'Poner la cita'));
   const tes=ui.edName===kl?`<div class="fl2" style="margin-top:8px">Testimonio (si tienes)</div>${linkEd('it',d,x.link,'Pega aquí el enlace del testimonio')}`
-    :ckRow(x.link?'done':'opt','Testimonio (si tienes)',x.link?xlink(x.link,'Ver el testimonio'):'<div class="fv empty">Sin enlace</div>',penBtn(kl,x.link?'Cambiar el enlace':'Poner el enlace'));
+    :ckRow(x.link?'done':x.noLink?'opt':'todo','Testimonio (si tienes)',x.link?xlink(x.link,'Ver el testimonio'):x.noLink?'<div class="fv empty">Sin testimonio</div>':'<div class="fv empty">Falta el enlace</div>',penBtn(kl,x.link?'Cambiar el enlace':'Poner el enlace'));
   return todoBox('Tu introducción',cita+tes+`<div class="tsec"><div class="fl2">Tema sugerido</div><div class="tv">${esc(INTROT[introTema(d)])}</div></div><div class="help">Los intérpretes ven la cita y el testimonio para prepararse.</div>`)}
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const as=schedOf(d)||{},has=f=>it.slots.some(f),todo=[],info=[];
@@ -540,7 +540,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '8.9';
+const APPV = '9.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
