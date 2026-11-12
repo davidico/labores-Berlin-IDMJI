@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **8.5**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **8.6**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v91`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v92`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -123,7 +123,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 
 ## Convenciones de UI (las pidió el usuario)
 
-- Tamaños de letra según buenas prácticas: texto principal 16 px, notas 15 px, secundario 14 px, etiquetas en mayúsculas y números de aviso nunca menos de 12 px. Áreas táctiles ≥ 44 px (enlaces ≥ 40 px).
+- Tamaños de letra según buenas prácticas: texto principal 16 px, notas 15 px, secundario 14 px (en las tarjetas de Labores: títulos 17–18, texto 16, secundario 14–15); señales ✓ y «!» de 16 px y puntos de aviso de 8 px, discretos, etiquetas en mayúsculas y números de aviso nunca menos de 12 px. Áreas táctiles ≥ 44 px (enlaces ≥ 40 px).
 - **Tarjetas de Labores (`itemCard`, diseño «C»):** cabecera (fecha, culto, chips); arriba un cuadro dorado `todoBox` con lo que prepara esa persona según su labor (Tu predicación · Tu introducción con ✓/! de cita y testimonio · Tu interpretación con las fichas); debajo secciones con etiqueta (`isec`: Preámbulo sugerido de alabanza y estudio bíblico —sin cuadro dorado—, Enseñanza del culto, Introducción, Tu pareja, Transmisión, Leipzig, Reunión). Las notas de `myItems` son objetos `{l, h}`.
 - **Recordatorio de la introducción (`introPend`/`introNag`):** a quien da la introducción **ese mismo día** y le falta la cita o el enlace del testimonio: un solo aviso amarillo arriba de Labores (el más próximo), número rojo en la pestaña y en el ícono de la app (`appBadge`, Badging API) y «!» amarillo pequeño en la tarjeta. El testimonio no es obligatorio: «No tengo testimonio» guarda `intro[fecha].noLink`.
 - **Tarjeta según el puesto:** quien predica ve en el cuadro solo el título de su predicación; el intérprete de la introducción ve «Interpretas la introducción» (quién, tema, cita, testimonio); el de predicación ve «Interpretas la predicación» (título, quién predica, fichas) y el de testimonios además el enlace del testimonio en su cuadro. Los avisos de un culto que ya pasó no se muestran ni cuentan (`nLive`; la fecha sale de `date`, `go.d` o del texto, con `nDate`). En la agenda de PC los días pasados quedan grises y sin tarjeta.
