@@ -1,5 +1,5 @@
 // Guarda la app para que abra rápido y funcione con mala conexión.
-const CACHE = 'labores-v82';
+const CACHE = 'labores-v83';
 const SHELL = ['./', './index.html', './app.js', './go.js', './config.js', './privacy.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './badge.png'];
 const CDN = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
@@ -17,8 +17,10 @@ self.addEventListener('fetch', e => {
   const u = new URL(req.url);
   // Archivos de la app: primero la red (para recibir mejoras), si no hay red, la copia guardada.
   if (u.origin === location.origin) {
-    e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); return r; })
-      .catch(() => caches.match(req).then(m => m || caches.match('./index.html'))));
+    // Se guarda solo lo que llegó bien, sin la parte ?… de la dirección (así no se llena de copias) y nunca version.json.
+    const key = u.origin + u.pathname, keep = !u.pathname.endsWith('version.json');
+    e.respondWith(fetch(req).then(r => { if (r.ok && keep) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(key, cp)); } return r; })
+      .catch(() => caches.match(key).then(m => m || (req.mode === 'navigate' ? caches.match('./index.html') : Response.error()))));
     return;
   }
   // Librerías y fuentes: la copia guardada primero.
@@ -46,7 +48,7 @@ self.addEventListener('notificationclick', e => {
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
     for (const c of cs) {
       if (c.url.startsWith(self.registration.scope)) {
-        if (withQuery && c.navigate) return c.navigate(url).then(x => x && x.focus());
+        if (withQuery && c.navigate) return c.navigate(url).then(x => x && x.focus()).catch(() => self.clients.openWindow(url));
         return c.focus();
       }
     }

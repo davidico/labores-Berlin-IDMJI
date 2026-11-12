@@ -56,38 +56,9 @@ function combo(a,b){
 
 function P(id,name,sex,roles,x={}){return{id,name,sex,roles,days:[0,1,2,3,4,5,6],blocked:[],phone:'',...x}}
 function seed(){
-  return {v:1,me:null,davidFix:1,davidFix2:1,leipFix:1,roxFix:1,ruleFix3:1,grdFix:1,lateFix:1,phoneFix:1,meets:[],leipThuRule:1,
-    people:[
-      P('javier','Javier','M',['pulpito'],{pastor:true,leipzig:true}),
-      P('david','David C.','M',['pulpito','puerta','microfonos','entrega'],{admin:true,freeAlab:true,blocked:['2026-11-02']}),
-      P('oswaldo','Oswaldo G.','M',['pulpito','puerta','sonido','ofrendas','entrega']),
-      P('carlos','Carlos R.','M',['puerta','trad_de']),
-      P('alfonso','Alfonso R.','M',['puerta']),
-      P('miguel','Miguel M.','M',['puerta','ofrendas','microfonos','entrega']),
-      P('armando','Armando','M',['sonido']),
-      P('daniel','Daniel L.','M',['sonido','entrega']),
-      P('aicardo','Aicardo M.','M',['ofrendas','microfonos','entrega'],{days:[0]}),
-      P('gabriela','Gabriela C.','F',['sonido','trad_en','entrega','guardar_sup'],{noSlots:['en_test','de_test'],maxOne:true,introNotWith:'david'}),
-      P('leidy','Leidy O.','F',['sonido','trad_en','entrega']),
-      P('nadia','Nadia G.','F',['sonido','entrega']),
-      P('valery','Valery R.','F',['trad_de','guardar'],{noSlots:['de_test','en_test']}),
-      P('denisse','Denisse R.','F',['trad_de','entrega','guardar_sup']),
-      P('katherine','Katherine O.','F',['trad_de','ofrendas','entrega']),
-      P('mafe','Maria Fernanda C.','F',['trad_de','trad_en','entrega']),
-      P('roxana','Roxana R.','F',['trad_de'],{leipzig:true,avoidSlots:['de_intro'],avoidDays:[4],favorSlots:['de_pred','de_test']}),
-      P('evelyn','Evelyn G.','F',['ofrendas','entrega']),
-      P('alexandra','Alexandra C.','F',['ofrendas','entrega']),
-      P('ariana','Ariana P.','F',['ofrendas','entrega']),
-      P('tomasa','Tomasa P.','F',['guardar']),
-      P('marion','Marion D.','F',['guardar'])
-    ],
-    fixed:{sonido:{1:'leidy',2:'gabriela',3:'nadia',4:'armando',5:'armando',6:'nadia',0:'daniel'},puerta:{0:'carlos'}},
-    teachStart:'2026-11-01',
-    teachings:Array.from({length:8},(_,i)=>({id:uid(),title:`Enseñanza ${i+1} (ejemplo)`})),
-    trans:[{id:uid(),date:'2026-11-15',link:'',note:'Ejemplo de transmisión internacional'}],
-    leipzig:[{id:uid(),date:'2026-11-14',teaching:''},{id:uid(),date:'2026-11-28',teaching:''}],
-    schedules:{}
-  };
+  // Estado vacío: los datos reales llegan de Supabase al entrar (no se guardan nombres en el código público).
+  return {v:1,me:null,davidFix:1,davidFix2:1,leipFix:1,roxFix:1,ruleFix3:1,grdFix:1,lateFix:1,phoneFix:1,entFix:1,novFix:1,pubFix:1,gabyAlabUndo:1,gabyAlab:1,meets:[],leipThuRule:1,
+    people:[],fixed:{},teachStart:ds(new Date()),teachings:[],trans:[],leipzig:[],schedules:{},published:{},avReqs:{}};
 }
 let state;
 try{state=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){state=null}
@@ -95,8 +66,23 @@ if(!state||state.v!==1) state=seed();
 state.reqs=state.reqs||[];state.notifs=state.notifs||[];state.msgs=state.msgs||[];state.meets=state.meets||[];
 if(!state.adminFix){const g=state.people.find(p=>p.id==='gabriela'),d=state.people.find(p=>p.id==='david');if(g)g.admin=false;if(d)d.admin=true;state.adminFix=1;if(state.me==='gabriela')state.me=null}
 const SB=window.supabase.createClient(window.CFG.url,window.CFG.key);
-let SYNC='loading',lastJson=null,BASE=null,VER=0,writing=false,dirty=false,wTimer=null,SESSION=null,MYPID=null,READY=false,CH=null;
-const sharedObj=()=>{const{me,...rest}=state;return rest};
+let SYNC='loading',lastJson=null,BASE=null,VER=0,writing=false,dirty=false,wTimer=null,SESSION=null,MYPID=null,READY=false,CH=null,LOADED=false,rTimer=null,lTimer=null,skipped=false;
+/* Lo último que se sincronizó con el servidor: si se cierra la app con cambios sin guardar, al volver se unen con lo del servidor en vez de perderse. */
+const BASEK=LS+'-base';
+const storeBase=()=>{try{if(lastJson)localStorage.setItem(BASEK,lastJson)}catch(e){}};
+try{const b=localStorage.getItem(BASEK);if(b){BASE=JSON.parse(b);lastJson=b}}catch(e){lastJson=null;BASE=null}
+/* Teléfono y correo van en la tabla private_info (solo los leen el admin y la propia persona), no en el estado que ven todos. */
+let PRIV={},PRIVTBL=false;
+const sharedObj=()=>{const{me,...rest}=state;if(!state.privMoved)return rest;return {...rest,people:(rest.people||[]).map(({phone,email,...x})=>x)}};
+async function loadPriv(){try{const{data,error}=await SB.from('private_info').select('person_id,phone,email');if(error)throw error;PRIVTBL=true;PRIV={};for(const x of data||[])PRIV[x.person_id]={phone:x.phone||'',email:x.email||''}}catch(e){PRIVTBL=false}}
+function applyPriv(){if(!PRIVTBL)return;for(const p of state.people||[]){const x=PRIV[p.id];if(x){p.phone=x.phone;p.email=x.email}}}
+function savePriv(p){if(!PRIVTBL||!p)return;PRIV[p.id]={phone:p.phone||'',email:(p.email||'').toLowerCase()};
+  SB.from('private_info').upsert({person_id:p.id,...PRIV[p.id],updated_at:new Date().toISOString()}).then(r=>{if(r&&r.error){ui.toast='No se pudo guardar el teléfono o el correo. Revisa la conexión.';render()}},()=>{})}
+// Una sola vez, en el aparato del admin: pasa teléfonos y correos a la tabla privada y los quita del estado compartido.
+async function movePriv(){const r=realMe();if(!PRIVTBL||state.privMoved||!r||!r.admin||ui.viewAs)return;
+  const rows=state.people.filter(p=>p.phone||p.email||PRIV[p.id]).map(p=>({person_id:p.id,phone:(PRIV[p.id]&&PRIV[p.id].phone)||p.phone||'',email:((PRIV[p.id]&&PRIV[p.id].email)||p.email||'').toLowerCase(),updated_at:new Date().toISOString()}));
+  try{if(rows.length){const{error}=await SB.from('private_info').upsert(rows);if(error)return}
+    for(const x of rows)PRIV[x.person_id]={phone:x.phone,email:x.email};state.privMoved=1;save()}catch(e){}}
 const sharedJson=()=>JSON.stringify(sharedObj());
 function save(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}if(SESSION&&READY){clearTimeout(wTimer);wTimer=setTimeout(push,400)}}
 /* Unir cambios de dos personas que guardan al mismo tiempo (base común, lo mío, lo del servidor). */
@@ -123,16 +109,27 @@ function merge3(b,l,r){
       return [...r.filter(x=>!del.includes(x)),...add.filter(x=>!r.includes(x))]}}
   return l}
 async function refetch(){const{data}=await SB.from('app_state').select('json,version').eq('id','main').maybeSingle();if(data)adopt(data.json,data.version)}
-async function push(){if(!SESSION||!READY)return;if(writing){dirty=true;return}
-  writing=true;
-  try{for(let i=0;i<6;i++){const j=sharedJson();if(j===lastJson)break;
+async function push(){if(!SESSION||!READY||!LOADED)return;if(writing){dirty=true;return}
+  writing=true;let ok=false;clearTimeout(rTimer);
+  try{for(let i=0;i<6;i++){const j=sharedJson();if(j===lastJson){ok=true;break}
       const res=VER?await SB.from('app_state').update({json:j,version:VER+1,updated_at:new Date().toISOString()}).eq('id','main').eq('version',VER).select('version')
                    :await SB.from('app_state').insert({id:'main',json:j,version:1}).select('version');
-      if(!res.error&&res.data&&res.data.length){VER=res.data[0].version;lastJson=j;BASE=JSON.parse(j);continue}
+      if(!res.error&&res.data&&res.data.length){VER=res.data[0].version;lastJson=j;BASE=JSON.parse(j);storeBase();continue}
       if(res.error&&VER)throw res.error;
       await refetch()}
-    if(SYNC!=='ok'){SYNC='ok';render()}}catch(e){SYNC='error';render()}
-  writing=false;if(dirty){dirty=false;push()}}
+    if(!ok)throw new Error('conflicto');
+    if(SYNC!=='ok'){SYNC='ok';render()}}
+  catch(e){if(e&&e.code==='42501'){
+      // La base rechazó un cambio que solo puede hacer el admin: se descarta lo local y se toma lo del servidor.
+      lastJson=null;writing=false;ui.toast='Un cambio no se guardó: solo el administrador puede hacerlo.';
+      refetch().then(()=>{SYNC='ok';resolveMe();render()}).catch(()=>{});return}
+    SYNC=navigator.onLine===false?'local':'error';render();rTimer=setTimeout(push,15000)}
+  writing=false;if(dirty){dirty=false;push()}
+  else if(skipped){skipped=false;refetch().then(()=>{resolveMe();softRender()}).catch(()=>{})}}
+/* Volver a dibujar sin borrar lo que alguien está escribiendo: si hay un campo activo, se espera a que salga de él. */
+function softRender(){if(quiet())render();else ui.needRender=true}
+document.addEventListener('focusout',()=>setTimeout(()=>{if(ui.needRender&&quiet()){ui.needRender=false;render()}},250));
+window.addEventListener('online',()=>{if(SESSION&&LOADED){push();refetch().then(()=>{resolveMe();softRender()}).catch(()=>{})}else if(SESSION)loadData()});
 const person=id=>state.people.find(p=>p.id===id);
 const me=()=>person(state.me);
 
@@ -141,7 +138,9 @@ let today=ds(new Date());
 const GONE_MIN=150;
 function svcGone(d){if(d<today)return true;if(d>today)return false;const t=(SVC[pd(d).getDay()]||[0,'23:59'])[1].split(':').map(Number),n=new Date();return n.getHours()*60+n.getMinutes()>=t[0]*60+t[1]+GONE_MIN}
 const quiet=()=>!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){today=ds(new Date());if(quiet())try{render()}catch(e){}}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){today=ds(new Date());if(quiet())try{render()}catch(e){}
+  // Al volver a la app: traer lo último (mientras el celular duerme no llegan los cambios en vivo)
+  if(SESSION&&LOADED&&!writing)refetch().then(()=>{resolveMe();softRender()}).catch(()=>{})}});
 setInterval(()=>{today=ds(new Date());if(document.visibilityState==="visible"&&quiet())try{render()}catch(e){}},10*60e3);
 function defaultMonth(){const d=new Date();if(d.getDate()>20)d.setMonth(d.getMonth()+1,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
 const ui={tab:'mis',month:defaultMonth(),area:'all',view:'grid',mv:'cal',cm:defaultMonth(),sel:null,edit:null,open:null,regen:false,delp:null};
@@ -174,6 +173,7 @@ const isPinned=t=>{if(!t.pin)return false;const tm=teachMap();return !!(tm[t.pin
 function autoPinDavid(){let ch=false;const tm=teachMap();for(const d in tm){if(d<today)continue;const t=tm[d];if(!t.pin&&!t.unpinned&&davidDay(d)){t.pin=d;t.pinAuto=1;ch=true}}return ch}
 const transOn=date=>state.trans.find(t=>t.date===date);
 const leipOn=date=>state.leipzig.find(l=>l.date===date);
+const yList=a=>a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' y '+a[a.length-1];
 const fmt=s=>{const d=pd(s);return `${DOWS[d.getDay()]} ${d.getDate()} ${MESS[d.getMonth()]}`};
 
 function why(p,s,date,as,slots){
@@ -237,17 +237,10 @@ function genOnce(ym){
     sched[date]=as}
   GEN=null;return sched;
 }
-if(!Object.keys(state.schedules).length){generate(defaultMonth())}
+if(!Object.keys(state.schedules).length&&state.people.length){generate(defaultMonth())}
 if(!state.entFix){let hit=false;for(const id of ['carlos','alfonso','armando']){const x=person(id);if(x)x.roles=x.roles.filter(r=>r!=='entrega')}
 for(const ym in state.schedules)for(const d in state.schedules[ym]){const as=state.schedules[ym][d];if(['carlos','alfonso','armando'].includes(as.ent)){delete as.ent;hit=true;const sl=slotsAt(d),s=sl.find(z=>z.k==='ent');const c=state.people.filter(p=>!why(p,s,d,as,sl))[0];if(c)as.ent=c.id}}
 state.entFix=1;save()}
-if(!state.novFix){const N=a=>a.map(d=>`2026-11-${pad(d)}`);const all=monthDates('2026-11');
-  const blk={katherine:all.filter(d=>![1,5,8,12,19,22,26].includes(+d.slice(8))).map(d=>+d.slice(8)),mafe:[9,11],oswaldo:[3,4,5,9,11,12,14,15,20,23,25,26],denisse:[15],alexandra:[8],ariana:[12,26],miguel:[2,3,5,6,11,16,18,23,24,25]};
-  for(const id in blk){const x=person(id);if(x)x.blocked=[...new Set([...x.blocked,...N(blk[id])])]}
-  const al=person('alexandra');if(al)al.days=[0];
-  const c=person('carlos');if(c)c.pref={puerta:[0,2,5]};
-  const af=person('alfonso');if(af)af.pref={puerta:[2,5]};
-  generate('2026-11');state.novFix=1;save()}
 function refill(ym,date,k){const as=state.schedules[ym][date],sl=slotsAt(date),s=sl.find(z=>z.k===k);
   const pr=(s.pair||s.pairOf)?person(as[s.pair||s.pairOf]):null;
   const n=id=>Object.values(state.schedules[ym]).reduce((a,v)=>a+Object.values(v).filter(z=>z===id).length,0);
@@ -352,7 +345,7 @@ function pwIn(ac,req){return `<span class="pwrap"><input id="au-pass" type="pass
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pw]');if(!b)return;e.preventDefault();e.stopPropagation();const i=$('au-pass');if(!i)return;const show=i.type==='password';i.type=show?'text':'password';b.textContent=show?'Ocultar':'Ver';b.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña')},true);
 document.addEventListener('submit',async e=>{if(e.target.id!=='auth-form')return;e.preventDefault();const m=e.target.dataset.mode,email=$('au-email').value.trim(),pass=$('au-pass')?$('au-pass').value:'';ui.authEmail=email;ui.authMsg='';ui.authOk=false;
   let r;if(m==='login')r=await SB.auth.signInWithPassword({email,password:pass});
-  else if(m==='signup'){try{localStorage.setItem('lb-priv',window.PRIV_V+'|'+Date.now())}catch(e){}r=await SB.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}});if(!r.error){ui.authOk=true;ui.authMsg='Te enviamos un correo. Ábrelo y toca el enlace para confirmar tu cuenta.'}}
+  else if(m==='signup'){try{localStorage.setItem('lb-priv',window.PRIV_V+'|'+Date.now()+'|'+email.toLowerCase())}catch(e){}r=await SB.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}});if(!r.error){ui.authOk=true;ui.authMsg='Te enviamos un correo. Ábrelo y toca el enlace para confirmar tu cuenta.'}}
   else{r=await SB.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(!r.error){ui.authOk=true;ui.authMsg='Listo. Revisa tu correo para crear una contraseña nueva.'}}
   if(r&&r.error){ui.authMsg=AUTHERR(r.error)}render()});
 function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clearTimeout(ui.flashT);ui.flashT=setTimeout(()=>{ui.flash=null;ui.flashFor=null;try{render()}catch(e){}},5000)}if(window.__MOVED)return;
@@ -365,14 +358,14 @@ function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clea
   if(!p){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div><button class="who" data-a="logout">Salir</button></div>
     <h2>Tu correo aún no está registrado</h2><p class="lead">Entraste como <b>${esc(SESSION.user.email)}</b>, pero ese correo no está asignado a ningún hermano. Pide al administrador que lo agregue en Personas y vuelve a entrar.</p></div>`;return}
   const tabs=tabsFor(p);if(ui.tab!=='aj'&&!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
-  {const r=realMe();if(r&&!privOk(r)){let pend='';try{pend=localStorage.getItem('lb-priv')||''}catch(e){}if(pend.split('|')[0]===window.PRIV_V){r.privacy={v:window.PRIV_V,ts:+pend.split('|')[1]||Date.now()};try{localStorage.removeItem('lb-priv')}catch(e){}save()}}}
+  {const r=realMe();if(r&&!privOk(r)){let pend='';try{pend=localStorage.getItem('lb-priv')||''}catch(e){}const pe=pend.split('|');if(pe[0]===window.PRIV_V&&(!pe[2]||pe[2]===((SESSION&&SESSION.user.email)||'').toLowerCase())){r.privacy={v:window.PRIV_V,ts:+pend.split('|')[1]||Date.now()};try{localStorage.removeItem('lb-priv')}catch(e){}save()}}}
   const gate=!ui.viewAs&&!privOk(realMe());
   let body;try{body=gate?privGate(p):{mis:DESK()?vDash:vMis,cal:vCal,disp:vDisp,hor:vHor,ens:vEns,per:vPer,aj:vAj}[ui.tab](p)}catch(e){console.error(e);body=`<div class="card" style="margin-top:10px"><b>Algo falló al mostrar esta pantalla.</b><div class="info" style="margin:6px 0 10px">Avísale al administrador. Detalle: ${esc(String(e&&e.message||e))}</div><button class="btn sm" data-a="upd">Recargar</button></div>`}
   const dash=DESK()&&ui.tab==='mis'&&!gate;
   $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''} ${dash?'dash':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
     ${hdr(p)}</div>${ui.viewAs?`<div class="viewas">Viendo como <b>${esc(p.name)}</b><button class="linkbtn" data-a="logout">Volver a mi cuenta</button></div>`:''}
     ${ui.upd?`<div class="banner ok" style="display:flex;align-items:center;justify-content:space-between;gap:10px">Hay una versión nueva (${esc(ui.upd)}).<button class="btn sm" data-a="upd">Actualizar</button></div>`:''}${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div><div class="pg">${body}</div></div>
-    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.flash?`<div class="toast" role="status">${esc(ui.flash)}</div>`:''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}`;
+    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${esc(k)}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.flash?`<div class="toast" role="status">${esc(ui.flash)}</div>`:''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
 const chip=(area,label)=>`<span class="chip" style="--c:var(${AREAC[area]})">${esc(label)}</span>`;
@@ -387,9 +380,9 @@ function myItems(p){
     const as=state.schedules[ym][date],w=pd(date).getDay();
     for(const s of slotsAt(date))if(as[s.k]===p.id)add(date).slots.push(s);
   }
-  for(const t of state.trans)if(isPul)add(t.date).notes.push(`<b>Transmisión internacional.</b> ${svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre" style="margin-top:4px">${linkify(t.link)}</div>`:'La información aún no está.'}`);
+  for(const t of state.trans)if(isPul)add(t.date).notes.push(`<b>Transmisión internacional.</b> ${svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre" style="margin-top:4px">${linkify(t.link)}</div>`:'Aún sin datos (enlace y hora).'}`);
   if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
-  if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))){const it=add(d);it.attend=true;it.notes.unshift('Ese día vas tú a la alabanza. No tienes labor.')}}
+  if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))&&!(items[d]&&items[d].slots.length)){const it=add(d);it.attend=true;it.notes.unshift('Ese día vas tú a la alabanza. No tienes labor.')}}
   for(const m of myMeets(p))add(m.date).notes.push(`<b>Reunión:</b> ${esc(m.title)}${m.time?' · '+esc(m.time):''}`);
   for(const l of state.leipzig)add(l.date).notes.push(`<b>Visita a Leipzig.</b> Predicación: ${esc(l.teaching||'por definir')}${p.leipzig?' · Viajas este día':(l.going||[]).includes(p.id)?' · Vas a ir':''}${seesLzGoing(p)?'<br>'+lzGoingLine(l):''}${pdfLink('l',l,lzLangs(p))}${lzLangs(p).length&&l.date>=today?linkRep('l',l,l.date,lzLangs(p),null):''}`);
   return items;
@@ -400,20 +393,32 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if(w===0&&transOn(d)&&it.slots.some(s=>s.k==='pul'))notes.unshift(`<b>Preámbulo sugerido para la transmisión:</b> ${preTxt(preTR(d))}`);
   if((w===4||w===0)&&it.slots.some(s=>s.k==='pul')&&!transOn(d))notes.unshift(`<b>Tema sugerido para la introducción:</b> ${esc(INTROT[introTema(d)])}${introEdit(d)}`);
   {const as=schedOf(d)||{};for(const s of it.slots)if(s.pair||s.pairOf){const o=person(as[s.pair||s.pairOf]),n=(s.l.match(/pareja \d/)||['pareja'])[0];notes.unshift(`<b>Tu pareja (${n}):</b> ${o?`<b>${esc(o.name)}</b>`:'sin asignar todavía'}`)}}
-  if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo ${preamb(d)+1}:</b> ${PREAMB[preamb(d)]}`);
+  if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo sugerido para la alabanza:</b> ${esc(PREAMB[preamb(d)])}`);
   {const preaching=it.preach||it.slots.some(s=>s.k==='predica');
-   if(preaching&&tm[d]){const as=schedOf(d)||{},ip=person(as.pul);notes.unshift(`<b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema sugerido:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`);notes.unshift(`<b>Predicas:</b> ${esc(tm[d].title)}`)}}
+   if(preaching&&tm[d]){const as=schedOf(d)||{},ip=person(as.pul);notes.unshift(`<b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema sugerido:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`);notes.unshift(`<b>Tú predicas:</b> ${esc(tm[d].title)}`)}}
   if((w===4||w===0)&&!it.preach&&!it.slots.some(s=>s.k==='predica')&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d]){const as=schedOf(d)||{},pr=davidDay(d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul),tr=it.slots.some(s=>s.area==='trad');notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}<br><b>Predica:</b> ${pr?esc(pr.name):'sin asignar'}`+(tr&&!transOn(d)?`<br><b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema de la introducción:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`:'')+pdfLink('t',tm[d],tradLangs(me()))+(tr?linkRep('t',tm[d],d,tradLangs(me()),davidDay(d)?pr:null):''))}
-  return `<div class="card mine" data-day="${d}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
+  return `<div class="card mine" data-day="${esc(d)}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
     ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}
     ${notes.map(n=>`<div class="note">${n}</div>`).join('')}
     ${it.slots.length&&d>=today?actions(d,it):''}</div></div>`}
 /* ---- avisos y reemplazos ---- */
 const schedOf=d=>(state.schedules[d.slice(0,7)]||{})[d];
+const snapDays=dates=>{const o={};for(const d of dates)o[d]={...(schedOf(d)||{})};return o};
+/* Después de un cambio del admin (Leipzig, volver a generar, quitar persona): avisa a quien entra y a quien sale.
+   Solo meses publicados y cultos que no pasaron; un solo aviso por persona. Devuelve a cuántos se avisó. */
+function schedDiffNotify(before){const per={};
+  for(const d in before){const ym=d.slice(0,7);if(!isPub(ym)||d<today||svcGone(d))continue;const a=before[d]||{},b=schedOf(d)||{};
+    const when=`el ${DOW[pd(d).getDay()].toLowerCase()} ${fmt(d).replace(/^\S+\s/,'')}`;
+    for(const k of new Set([...Object.keys(a),...Object.keys(b)])){if(a[k]===b[k])continue;const s=slotOf(d,k),lbl=s?s.l:k;
+      if(b[k])(per[b[k]]=per[b[k]]||{in:[],out:[]}).in.push(`${lbl} ${when}`);
+      if(a[k])(per[a[k]]=per[a[k]]||{in:[],out:[]}).out.push(`${lbl} ${when}`)}}
+  let n=0;for(const id in per){const x=per[id],parts=[];if(x.in.length)parts.push('ahora te toca '+x.in.join('; '));if(x.out.length)parts.push('ya no te toca '+x.out.join('; '));
+    const txt=`Cambio en el horario: ${parts.join('. Y ')}.`;n+=notify([id],txt,{push:{title:'Cambio en tu horario',body:txt.replace(/^Cambio en el horario: /,'')}})}
+  return n}
 const admins=()=>state.people.filter(x=>x.admin).map(x=>x.id);
 function svcPeople(d,pred){const as=schedOf(d)||{},out=[];for(const s of slotsAt(d))if(as[s.k]&&pred(s))out.push(as[s.k]);return out}
-function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state.me&&person(i));if(!ids.length)return 0;const nid=uid();state.notifs.unshift({id:nid,ts:Date.now(),to:ids,text,read:[],by:state.me,...(extra&&extra.push?(({push,...r})=>r)(extra):(extra||{}))});pushOut(ids,extra&&extra.push?extra.push.title:'Labores Berlín',extra&&extra.push?extra.push.body:text,'/?n='+nid);state.notifs=state.notifs.slice(0,300);return ids.length}
+function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state.me&&person(i)&&!person(i).deleted);if(!ids.length)return 0;const nid=uid();state.notifs.unshift({id:nid,ts:Date.now(),to:ids,text,read:[],by:state.me,...(extra&&extra.push?(({push,...r})=>r)(extra):(extra||{}))});pushOut(ids,extra&&extra.push?extra.push.title:'Labores Berlín',extra&&extra.push?extra.push.body:text,'/?n='+nid);state.notifs=state.notifs.slice(0,300);return ids.length}
 function candFor(d,k,from,asIn){const slots=slotsAt(d),s=slots.find(z=>z.k===k),as={...(asIn||schedOf(d)||{})};delete as[k];
   const partner=(s.pair||s.pairOf)?person(as[s.pair||s.pairOf]):null;
   return state.people.filter(x=>x.id!==from&&!why(x,s,d,as,slots)&&(!partner||partner.sex===x.sex))}
@@ -422,12 +427,12 @@ function emptyLbl(d,k,def){return state.reqs.some(r=>r.date===d&&r.k===k&&r.stat
 function actions(d,it){const real=it.slots.filter(s=>s.k);
   if(ui.panel&&ui.panel.d===d){
     if(ui.panel.t==='out')return `<div class="panel"><b>¿Seguro que no puedes ir?</b><ul class="pl">${real.map(s=>{const c=candFor(d,s.k,state.me);return `<li>${esc(s.l)}: ${c.length?`se pregunta a ${c.map(x=>esc(x.name)).join(', ')}`:'<b>no hay nadie disponible</b>, se avisa al administrador'}</li>`}).join('')}</ul>
-      <div class="inline"><button class="btn warnb sm" data-a="out-yes" data-v="${d}">Sí, pedir reemplazo</button><button class="btn ghost sm" data-a="panel-x">Cancelar</button></div>
+      <div class="inline"><button class="btn warnb sm" data-a="out-yes" data-v="${esc(d)}">Sí, pedir reemplazo</button><button class="btn ghost sm" data-a="panel-x">Cancelar</button></div>
       <div class="info" style="margin-top:6px">El primero que acepte queda asignado. Tu equipo, los de púlpito y el administrador reciben el aviso.</div></div>`;
     return `<div class="panel"><label class="field" style="margin-bottom:8px">Mensaje para el equipo<textarea id="late-msg" rows="2" placeholder="Por ejemplo: llego unos 15 minutos tarde"></textarea></label>
-      <div class="inline"><button class="btn sm" data-a="late-yes" data-v="${d}">Enviar aviso</button><button class="btn ghost sm" data-a="panel-x">Cancelar</button></div>
+      <div class="inline"><button class="btn sm" data-a="late-yes" data-v="${esc(d)}">Enviar aviso</button><button class="btn ghost sm" data-a="panel-x">Cancelar</button></div>
       <div class="info" style="margin-top:6px">Lo recibe tu equipo de ese culto, los de púlpito y el administrador.</div></div>`}
-  return `<div class="acts">${real.length?`<button class="btn ghost sm" data-a="out-open" data-v="${d}">No puedo ir</button>`:''}<button class="btn ghost sm" data-a="late-open" data-v="${d}">Llego tarde</button></div>`}
+  return `<div class="acts">${real.length?`<button class="btn ghost sm" data-a="out-open" data-v="${esc(d)}">No puedo ir</button>`:''}<button class="btn ghost sm" data-a="late-open" data-v="${esc(d)}">Llego tarde</button></div>`}
 function outReq(d){const p=me(),as=schedOf(d);if(!as)return;
   const mine=slotsAt(d).filter(s=>as[s.k]===p.id);
   for(const s of mine)delete as[s.k];
@@ -476,10 +481,10 @@ function goFor(n,p){if(n.go)return n.go;const t=(n.text||'').toLowerCase();
   return {tab:'mis',d:n.date,label:'Ver'}}
 function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'&&g.month)ui.month=g.month;
   if(g.ed&&g.d)ui.edName=g.ed+'|'+g.d;render();
-  const sel=g.lz?'.lzinv':g.d?`[data-day="${g.d}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
+  const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
-function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${n.id}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '7.6';
+function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
+const APPV = '7.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -503,7 +508,7 @@ function bellSheet(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice
   return `<div class="scrim" data-a="sheet-x"></div><div class="pop bell-pop"><div class="dayhead"><b>Notificaciones</b><button class="x" data-a="sheet-x" aria-label="Cerrar">✕</button></div>
   <div class="bell-list">${ns.length?ns.map(n=>nItem(n,p,hl.includes(n.id))).join(''):'<div class="info" style="padding:14px 0">No tienes notificaciones.</div>'}</div></div>`}
 function vAj(p){const em=ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||'';
-  return `<button class="linkbtn" data-a="tab" data-v="${ui.prevTab||'mis'}" style="margin-bottom:6px">‹ Volver</button><h2>Ajustes</h2>
+  return `<button class="linkbtn" data-a="tab" data-v="${esc(ui.prevTab||'mis')}" style="margin-bottom:6px">‹ Volver</button><h2>Ajustes</h2>
   <div class="card"><div class="phrow">${avatar(p,84)}<div class="inline" style="flex-direction:column;align-items:flex-start;gap:6px">
      <label class="btn ghost sm" style="cursor:pointer">${p.photo?'Cambiar foto':'Agregar foto de perfil'}<input type="file" accept="image/*" hidden id="ph-in" data-c="photo"></label>
      ${p.photo?'<button class="linkbtn" data-a="photo-del" style="font-size:15px">Quitar foto</button>':''}</div></div>
@@ -523,13 +528,13 @@ const PRIV_LINKS=[['Registro de actividades (Verzeichnis von Verarbeitungstätig
 function privDocsCard(){const ds_=state.privDocs||[];
   return `<h3>Documentos de privacidad · solo administrador</h3><div class="card">
    ${PRIV_LINKS.map(([l,u])=>`<div class="li"><div class="main"><a href="${u}" target="_blank" rel="noopener" style="color:var(--navy);font-weight:600">${esc(l)}</a></div></div>`).join('')}
-   ${ds_.map(d=>`<div class="li"><div class="main"><button class="pdfl dl" data-a="dlpdf" data-v="pd|${d.id}|de">${esc(d.name)}</button><small>Guardado el ${fmt(ds(new Date(d.ts)))}</small></div><button class="x" data-a="pd-del" data-v="${d.id}" aria-label="Quitar">✕</button></div>`).join('')}
+   ${ds_.map(d=>`<div class="li"><div class="main"><button class="pdfl dl" data-a="dlpdf" data-v="pd|${esc(d.id)}|de">${esc(d.name)}</button><small>Guardado el ${fmt(ds(new Date(d.ts)))}</small></div><button class="x" data-a="pd-del" data-v="${esc(d.id)}" aria-label="Quitar">✕</button></div>`).join('')}
    ${ui.upl==='pd'?'<div class="info">Subiendo…</div>':AS?`<label class="btn ghost sm" style="cursor:pointer;margin-top:10px">Guardar un PDF aquí<input type="file" accept="application/pdf" hidden data-c="pd-up"></label>`:''}
    ${ui.uplMsg?`<div class="info" style="color:var(--warn)">${esc(ui.uplMsg)}</div>`:''}
    <div class="info" style="margin-top:8px">Solo tú ves esta sección. Guarda aquí los PDF (por ejemplo el contrato de Cloudflare descargado o el registro en PDF).</div></div>`}
 const PENCIL='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 const linkPair=(kind,t,langs)=>`<div class="fich">${langs.map(l=>`<span class="fl">${l==='de'?'Alemán':'Inglés'}</span><div class="fc" style="display:block">${linkEd(kind,t.id+'|'+l,t[LINKF[l]])}</div>`).join('')}</div>`;
-const doneTog=(kind,t)=>`<button class="sw" role="switch" aria-checked="${!!t.done}" data-a="f-done" data-v="${kind}|${t.id}" style="margin-top:4px"><span class="swl">${t.done?'Fichas subidas a Drive':'Fichas sin subir'}</span><span class="swt"><span class="swk"></span></span></button>`;
+const doneTog=(kind,t)=>`<button class="sw" role="switch" aria-checked="${!!t.done}" data-a="f-done" data-v="${esc(kind)}|${esc(t.id)}" style="margin-top:4px"><span class="swl">${t.done?'Fichas subidas a Drive':'Fichas sin subir'}</span><span class="swt"><span class="swk"></span></span></button>`;
 function fichasCard(){const F=state.fichas||{};
   return `<h3>Carpetas de fichas (Drive)</h3><div class="card"><div class="info" style="margin:0 0 6px">Cada intérprete ve el enlace de su idioma en la enseñanza que le toca.</div>
    <div class="fich"><span class="fl">Alemán</span><div class="fc" style="display:block">${linkEd('fx','de',F.de)}</div><span class="fl">Inglés</span><div class="fc" style="display:block">${linkEd('fx','en',F.en)}</div></div></div>`}
@@ -542,15 +547,15 @@ function introEdit(d){const x=introOf(d);
     <div class="fl">Enlace del testimonio <span>(si tienes)</span></div>${linkEd('it',d,x.link,'Pega aquí el enlace del testimonio','<small>Sin enlace</small>')}
     <div class="fl-help">Los intérpretes lo ven para prepararse.</div></div>`}
 function linkEd(kind,id,val,ph,empty){const k=kind+'|'+id;
-  if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:6px 0;flex-wrap:nowrap"><input id="ne-in" type="url" inputmode="url" value="${esc(val||'')}" placeholder="${esc(ph||'Pega aquí el enlace de Drive')}" style="flex:1;min-width:0"><button class="btn sm" data-a="ne-save" data-v="${k}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
-  return `<div class="nrow" style="margin-top:4px">${val?`<a class="pdfl lnk" href="${esc(val)}" target="_blank" rel="noopener">Abrir</a>`:(empty||'<small style="color:var(--warn)">Sin enlace</small>')}<button class="pen" data-a="ne-edit" data-v="${k}" aria-label="${val?'Editar enlace':'Agregar enlace'}">${PENCIL}</button></div>`}
+  if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:6px 0;flex-wrap:nowrap"><input id="ne-in" type="url" inputmode="url" value="${esc(val||'')}" placeholder="${esc(ph||'Pega aquí el enlace de Drive')}" style="flex:1;min-width:0"><button class="btn sm" data-a="ne-save" data-v="${esc(k)}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
+  return `<div class="nrow" style="margin-top:4px">${val?`<a class="pdfl lnk" href="${esc(val)}" target="_blank" rel="noopener">Abrir</a>`:(empty||'<small style="color:var(--warn)">Sin enlace</small>')}<button class="pen" data-a="ne-edit" data-v="${esc(k)}" aria-label="${val?'Editar enlace':'Agregar enlace'}">${PENCIL}</button></div>`}
 // Acciones de cada enseñanza, junto al lápiz: mover (grupo) y quitar (aparte, en rojo)
 const IC_UP='<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>',IC_DN='<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',IC_DEL='<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
 const IC_PIN='<svg viewBox="0 0 24 24"><path d="M9 4h6l-1 5 3 3v2H7v-2l3-3-1-5zM12 14v6"/></svg>';
-function tActs(t,mov){const id=t.id,pin=isPinned(t),i=mov.indexOf(t),n=mov.length;return `<div class="tacts"><button class="ta pin ${pin?'on':''}" data-a="t-pin" data-v="${id}" aria-pressed="${pin}" aria-label="${pin?'Soltar: que se corra con las demás':'Fijar en esta fecha'}" title="${pin?'Fija en esta fecha':'Fijar en esta fecha'}">${IC_PIN}</button><div class="tseg" role="group" aria-label="Mover"><button class="ta" data-a="t-up" data-v="${id}" aria-label="Subir" ${!pin&&i>0?'':'disabled'}>${IC_UP}</button><button class="ta" data-a="t-down" data-v="${id}" aria-label="Bajar" ${!pin&&i>=0&&i<n-1?'':'disabled'}>${IC_DN}</button></div><button class="ta del" data-a="t-del" data-v="${id}" aria-label="Quitar enseñanza">${IC_DEL}</button></div>`}
+function tActs(t,mov){const id=t.id,pin=isPinned(t),i=mov.indexOf(t),n=mov.length;return `<div class="tacts"><button class="ta pin ${pin?'on':''}" data-a="t-pin" data-v="${esc(id)}" aria-pressed="${pin}" aria-label="${pin?'Soltar: que se corra con las demás':'Fijar en esta fecha'}" title="${pin?'Fija en esta fecha':'Fijar en esta fecha'}">${IC_PIN}</button><div class="tseg" role="group" aria-label="Mover"><button class="ta" data-a="t-up" data-v="${esc(id)}" aria-label="Subir" ${!pin&&i>0?'':'disabled'}>${IC_UP}</button><button class="ta" data-a="t-down" data-v="${esc(id)}" aria-label="Bajar" ${!pin&&i>=0&&i<n-1?'':'disabled'}>${IC_DN}</button></div><button class="ta del" data-a="t-del" data-v="${esc(id)}" aria-label="Quitar enseñanza">${IC_DEL}</button></div>`}
 function nameEd(kind,id,val,ph,bold){const k=kind+'|'+id;
-  if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:4px 0;flex-wrap:nowrap"><input id="ne-in" type="text" value="${esc(val)}" placeholder="${esc(ph||'Escribe el nombre')}" style="flex:1;min-width:0" data-k="${k}"><button class="btn sm" data-a="ne-save" data-v="${k}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
-  return `<div class="nrow">${bold?`<b>${esc(val||ph)}</b>`:`<small>${esc(val||ph)}</small>`}<button class="pen" data-a="ne-edit" data-v="${k}" aria-label="Editar nombre">${PENCIL}</button></div>`}
+  if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:4px 0;flex-wrap:nowrap"><input id="ne-in" type="text" value="${esc(val)}" placeholder="${esc(ph||'Escribe el nombre')}" style="flex:1;min-width:0" data-k="${esc(k)}"><button class="btn sm" data-a="ne-save" data-v="${esc(k)}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
+  return `<div class="nrow">${bold?`<b>${esc(val||ph)}</b>`:`<small>${esc(val||ph)}</small>`}<button class="pen" data-a="ne-edit" data-v="${esc(k)}" aria-label="Editar nombre">${PENCIL}</button></div>`}
 document.addEventListener('keydown',e=>{if(e.target.id!=='ne-in')return;if(e.key==='Enter'){e.preventDefault();const b=document.querySelector('[data-a=ne-save]');b&&b.click()}else if(e.key==='Escape'){const b=document.querySelector('[data-a=ne-x]');b&&b.click()}});
 /* ---- Privacidad ---- */
 const privOk=p=>!!(p&&p.privacy&&p.privacy.v===window.PRIV_V);
@@ -572,7 +577,7 @@ function avisos(p,noN){let h='';
   if(ui.flash){h+=`<div class="banner ok">${esc(ui.flash)}</div>`;ui.flash=null}
   const rq=pendingFor(p);
   if(rq.length)h+=`<div class="list" style="margin-bottom:14px">${rq.map(r=>{const f=person(r.from),s=slotOf(r.date,r.k);return `<div class="card ask" style="display:flex;gap:12px;align-items:flex-start">${f?avatar(f,44):''}<div style="flex:1;min-width:0"><div class="info" style="margin:0 0 4px">Piden reemplazo</div><b>${esc(f?f.name:'Un hermano')}</b> no puede ir el <b>${fmt(r.date)}</b> · ${esc(s.l)}. ¿Puedes ir tú?
-    <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="acc" data-v="${r.id}">Sí, yo voy</button><button class="btn ghost sm" data-a="dec" data-v="${r.id}">No puedo</button></div></div></div>`}).join('')}</div>`;
+    <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="acc" data-v="${esc(r.id)}">Sí, yo voy</button><button class="btn ghost sm" data-a="dec" data-v="${esc(r.id)}">No puedo</button></div></div></div>`}).join('')}</div>`;
   const ns=noN?[]:state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).slice(0,8);
   if(ns.length){const un=ns.filter(n=>!n.read.includes(p.id)).length;
     h+=`<h3 style="margin-top:4px">Avisos${un?` <span class="tag">${un} ${un===1?'nuevo':'nuevos'}</span>`:''}</h3><div class="card">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}
@@ -589,12 +594,12 @@ function meetHead(m){const f=person(m.from),d=pd(m.date);return `<div class="msg
   ${m.place?`<div class="pre" style="margin-top:6px">${linkify(m.place)}</div>`:''}${m.notes?`<div class="pre info" style="margin-top:4px">${linkify(m.notes)}</div>`:''}`}
 function misMeets(p){const ms=myMeets(p);if(!ms.length)return'';
   return `<h3 style="margin-top:4px">Reuniones</h3><div class="list">${ms.map(m=>{const r=m.rsvp[p.id];return `<div class="card">${meetHead(m)}
-    <div class="rsvp"><button class="tog" data-a="rsvp" data-v="${m.id}|yes" aria-pressed="${r==='yes'}">Asisto</button><button class="tog" data-a="rsvp" data-v="${m.id}|no" aria-pressed="${r==='no'}">No puedo</button></div></div>`}).join('')}</div>`}
+    <div class="rsvp"><button class="tog" data-a="rsvp" data-v="${esc(m.id)}|yes" aria-pressed="${r==='yes'}">Asisto</button><button class="tog" data-a="rsvp" data-v="${esc(m.id)}|no" aria-pressed="${r==='no'}">No puedo</button></div></div>`}).join('')}</div>`}
 function meetBlock(p){const ms=state.meets.filter(m=>m.date>=today).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1);let h='';
   if(ui.meet){const d=ui.md;h+=`<div class="panel" style="margin-top:12px"><b>Convocar reunión</b>
     <label class="field" style="margin-top:8px">Título<input id="md-title" type="text" value="${esc(d.title)}" placeholder="Por ejemplo: Reunión del equipo de puerta" data-c="md" data-v="title"></label>
     <div class="inline" style="margin-bottom:10px"><label class="field" style="margin:0">Fecha<input id="md-date" type="date" min="${today}" value="${esc(d.date)}" data-c="md" data-v="date"></label><label class="field" style="margin:0">Hora<input id="md-time" type="time" value="${esc(d.time)}" data-c="md" data-v="time"></label></div>
-    <div class="info">Equipos convocados</div><div class="checks">${[['all','Todos los equipos'],...Object.entries(AREAN)].map(([k,l])=>`<label><input type="checkbox" id="md-a-${k}" data-c="md-area" data-v="${k}" ${d.areas.includes(k)?'checked':''}>${l}</label>`).join('')}</div>
+    <div class="info">Equipos convocados</div><div class="checks">${[['all','Todos los equipos'],...Object.entries(AREAN)].map(([k,l])=>`<label><input type="checkbox" id="md-a-${k}" data-c="md-area" data-v="${esc(k)}" ${d.areas.includes(k)?'checked':''}>${l}</label>`).join('')}</div>
     <label class="field">Lugar o link<textarea id="md-place" rows="2" placeholder="En la iglesia, o pega el link de la videollamada" data-c="md" data-v="place">${esc(d.place)}</textarea></label>
     <label class="field">Detalles (opcional)<textarea id="md-notes" rows="2" data-c="md" data-v="notes">${esc(d.notes)}</textarea></label>
     ${ui.mdErr?`<div class="info" style="color:var(--warn);margin-bottom:8px">${esc(ui.mdErr)}</div>`:''}
@@ -603,8 +608,8 @@ function meetBlock(p){const ms=state.meets.filter(m=>m.date>=today).sort((a,b)=>
   if(ms.length)h+=`<div class="list" style="margin-top:10px">${ms.map(m=>{const inv=invitees(m),yes=inv.filter(i=>m.rsvp[i]==='yes'),no=inv.filter(i=>m.rsvp[i]==='no'),pend=inv.filter(i=>!m.rsvp[i]);const nm=a=>a.map(i=>esc((person(i)||{}).name||'')).join(', ')||'—';
     return `<div class="card">${meetHead(m)}<div class="info" style="margin-top:8px"><b>${yes.length}</b> asisten · <b>${no.length}</b> no pueden · <b>${pend.length}</b> sin responder</div>
       ${ui.mOpen===m.id?`<div class="note"><b>Asisten:</b> ${nm(yes)}</div><div class="note"><b>No pueden:</b> ${nm(no)}</div><div class="note"><b>Sin responder:</b> ${nm(pend)}</div>`:''}
-      <div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="m-open" data-v="${m.id}">${ui.mOpen===m.id?'Ocultar respuestas':'Ver respuestas'}</button>
-      ${m.from===p.id||p.admin?(ui.mDel===m.id?`<button class="btn warnb sm" data-a="m-del-yes" data-v="${m.id}">Sí, cancelar reunión</button><button class="btn ghost sm" data-a="m-del-no">No</button>`:`<button class="btn ghost sm" data-a="m-del" data-v="${m.id}">Cancelar reunión</button>`):''}</div></div>`}).join('')}</div>`;
+      <div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="m-open" data-v="${esc(m.id)}">${ui.mOpen===m.id?'Ocultar respuestas':'Ver respuestas'}</button>
+      ${m.from===p.id||p.admin?(ui.mDel===m.id?`<button class="btn warnb sm" data-a="m-del-yes" data-v="${esc(m.id)}">Sí, cancelar reunión</button><button class="btn ghost sm" data-a="m-del-no">No</button>`:`<button class="btn ghost sm" data-a="m-del" data-v="${esc(m.id)}">Cancelar reunión</button>`):''}</div></div>`}).join('')}</div>`;
   return h}
 /* ---- notificaciones al celular ---- */
 function pushOut(ids,title,body,url){if(!SESSION||!ids||!ids.length)return;try{SB.functions.invoke('push',{body:{mode:'send',to:ids,title,body,url}}).catch(()=>{})}catch(e){}}
@@ -673,7 +678,7 @@ function avAll(m){const mes=MES[m-1],av=avOf(ui.month);
 function calCard(p){return `<h3>Mi calendario</h3><div class="card">${calBody(p)}</div>`}
 const calHidden=()=>{try{return localStorage.getItem('lb-calhide')==='1'}catch(e){return!!ui.calHide}};
 function calBanner(p){if(ui.calHide||calHidden())return'';
-  return `<div class="card" style="margin:6px 0 14px"><div class="dayhead"><b>Lleva tus labores a tu calendario</b><button class="x" data-a="cal-hide" aria-label="Cerrar">✕</button></div><div style="margin-top:4px">${calBody(p)}</div><div class="info" style="margin-top:8px">Si lo cierras, lo encuentras en tu foto ⋮ → Ajustes.</div></div>`}
+  return `<div class="card" style="margin:6px 0 14px"><div class="dayhead"><b>Lleva tus labores a tu calendario</b><button class="x" data-a="cal-hide" aria-label="Cerrar">✕</button></div><div style="margin-top:4px">${calBody(p)}</div><div class="info" style="margin-top:8px">Si lo cierras, lo encuentras después en <b>Ajustes</b> (${DESK()?'menú de la izquierda':'toca tu foto arriba a la derecha'}).</div></div>`}
 function calBody(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userAgent);
   let h=`<div class="info" style="margin:0">Tus labores y reuniones aparecen solas en tu calendario${ios?'':' de Google'} y se actualizan si cambia el horario (puede tardar unas horas).</div>`;
   if(!c)h+=`<button class="btn sm" data-a="cal-get" style="margin-top:10px">Conectar con mi calendario</button>${ui.calErr?`<div class="info" style="color:var(--warn)">${esc(ui.calErr)}</div>`:''}`;
@@ -689,19 +694,19 @@ function calBody(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userA
 function predPick(p,ym,dates){const ok=dates.filter(d=>!p.blocked.includes(d)&&slotsAt(d).some(z=>/_pred$/.test(z.k)&&p.roles.includes(z.role)));if(!ok.length)return'';
   const cur=(p.predPref||{})[ym]||'';
   return `<label class="field" style="margin-top:12px">Fecha en que prefieres traducir la predicación <span class="info" style="display:inline;margin:0">(opcional)</span>
-    <select data-c="pred-pref" data-v="${ym}"><option value="">Me da igual</option>${ok.map(d=>`<option value="${d}" ${d===cur?'selected':''}>${fmt(d)}</option>`).join('')}</select></label>
+    <select data-c="pred-pref" data-v="${esc(ym)}"><option value="">Me da igual</option>${ok.map(d=>`<option value="${d}" ${d===cur?'selected':''}>${fmt(d)}</option>`).join('')}</select></label>
     <div class="info" style="margin-top:-6px">Si se puede, te ponemos la predicación ese día. Si no, otro día.</div>`}
 function misAv(p){if(!p.roles||!p.roles.length)return'';let h='';
   for(const ym of Object.keys(state.avReqs||{}).sort()){const av=avOf(ym);if(ym<today.slice(0,7)||today>av.deadline)continue;const mes=MES[+ym.slice(5,7)-1];const done=av.done&&av.done[p.id];
     if(ui.avOpen===ym){const dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,n=dates.filter(d=>p.blocked.includes(d)).length;
       h+=`<div class="card" style="margin-bottom:14px"><b>Tu disponibilidad de ${mes}</b><div class="info" style="margin:4px 0 10px">Presiona los días que <b>no puedes</b> servir. Los días que dejes sin presionar quedan disponibles.</div>
-        <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${dates.map(d=>`<button class="tog avd" data-a="avday" data-v="${d}" aria-pressed="${p.blocked.includes(d)}" aria-label="${fmt(d)}">${pd(d).getDate()}</button>`).join('')}</div>
+        <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${dates.map(d=>`<button class="tog avd" data-a="avday" data-v="${esc(d)}" aria-pressed="${p.blocked.includes(d)}" aria-label="${fmt(d)}">${pd(d).getDate()}</button>`).join('')}</div>
         <div class="info" style="margin-top:8px">${n?`No puedes ${n} ${n===1?'día':'días'}.`:'Puedes todos los días.'}</div>
         ${predPick(p,ym,dates)}
-        <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="av-done" data-v="${ym}">Enviar mi disponibilidad</button><button class="btn ghost sm" data-a="av-close">Cerrar</button></div></div>`;continue}
-    if(done){h+=`<div class="info" style="margin-bottom:12px">Enviaste tu disponibilidad de ${mes}. <button class="btn ghost sm" data-a="av-open" data-v="${ym}">Cambiar</button></div>`;continue}
+        <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="av-done" data-v="${esc(ym)}">Enviar mi disponibilidad</button><button class="btn ghost sm" data-a="av-close">Cerrar</button></div></div>`;continue}
+    if(done){h+=`<div class="info" style="margin-bottom:12px">Enviaste tu disponibilidad de ${mes}. <button class="btn ghost sm" data-a="av-open" data-v="${esc(ym)}">Cambiar</button></div>`;continue}
     h+=`<div class="card ask" style="margin-bottom:14px"><b>Disponibilidad de ${mes}</b><div class="info" style="margin-top:4px">Marca los días que no puedes servir${today<=av.deadline?` antes del <b>${fmt(av.deadline)}</b>`:''}.</div>
-      <button class="btn sm" data-a="av-open" data-v="${ym}" style="margin-top:8px">Marcar mis días</button></div>`}
+      <button class="btn sm" data-a="av-open" data-v="${esc(ym)}" style="margin-top:8px">Marcar mis días</button></div>`}
   return h}
 /* ---- Invitación a Leipzig: desde el miércoles antes, cada uno marca «Yo iré»; los de púlpito ven quiénes van ---- */
 const seesLzGoing=p=>!!p&&(p.admin||p.pastor||(p.roles||[]).includes('pulpito'));
@@ -712,20 +717,20 @@ function lzInvite(p){const l=state.leipzig.filter(x=>x.date>=today&&!svcGone(x.d
   const go=(l.going||[]).includes(p.id),trav=!!p.leipzig;
   return `<div class="card lzinv"><div class="dkeye" style="color:var(--gold)">Invitación</div><b class="lzt">Visita a Leipzig · ${DOWL(l.date)}</b>
     <div class="info" style="margin-top:4px">Predicación: ${esc(l.teaching||'por definir')}</div>
-    ${trav?'<div class="note" style="margin-top:8px">Tú viajas ese día.</div>':go?`<div class="inline" style="margin-top:10px"><span class="lzok">✓ Vas a Leipzig</span><button class="btn ghost sm" data-a="lz-go" data-v="${l.id}|0">Ya no puedo ir</button></div>`:`<div class="inline" style="margin-top:10px"><button class="btn sm" data-a="lz-go" data-v="${l.id}|1">Yo iré</button></div>`}
+    ${trav?'<div class="note" style="margin-top:8px">Tú viajas ese día.</div>':go?`<div class="inline" style="margin-top:10px"><span class="lzok">✓ Vas a Leipzig</span><button class="btn ghost sm" data-a="lz-go" data-v="${esc(l.id)}|0">Ya no puedo ir</button></div>`:`<div class="inline" style="margin-top:10px"><button class="btn sm" data-a="lz-go" data-v="${esc(l.id)}|1">Yo iré</button></div>`}
     ${seesLzGoing(p)?`<div class="note" style="margin-top:10px">${lzGoingLine(l)}</div>`:''}</div>`}
 /* ---- ¿Hay transmisión el domingo? (lo responde el pastor desde la notificación o aquí) ---- */
 // Las transmisiones siempre son en domingo: se agrega al próximo domingo que no tenga una
 function trFree(){const x=pd(nextSun());let d=ds(x);while(svcGone(d)||state.trans.some(t=>t.date===d)){x.setDate(x.getDate()+7);d=ds(x)}return d}
 const nextSun=()=>{const x=pd(today);x.setDate(x.getDate()+((7-x.getDay())%7));return ds(x)};
-function trAnswer(d,a){state.transNo=(state.transNo||[]).filter(x=>x!==d);
+function trAnswer(d,a){if(!d||svcGone(d)){ui.trQ=null;ui.flash='Ese domingo ya pasó: no se cambió nada.';return}state.transNo=(state.transNo||[]).filter(x=>x!==d);
   if(a==='si'){if(!state.trans.some(t=>t.date===d))state.trans.push({id:uid(),date:d,link:'',note:''});ui.flash=`Anotado: hay transmisión el ${fmt(d)}. Cuando tengas el enlace, agrégalo en la pestaña Pastor.`}
   else{state.trans=state.trans.filter(t=>t.date!==d);state.transNo.push(d);ui.flash=`Anotado: no hay transmisión el ${fmt(d)}.`}
   ui.trQ=null}
 function trAsk(p){if(!(p.pastor||p.admin))return'';const w=pd(today).getDay();const d=ui.trQ||((w===5||w===6)?nextSun():null);if(!d||d<today)return'';
   const yes=state.trans.some(t=>t.date===d),no=(state.transNo||[]).includes(d);if((yes||no)&&!ui.trQ)return'';
   return `<div class="card trask"><b>¿Hay transmisión internacional el ${fmt(d)}?</b>${yes||no?`<div class="info" style="margin-top:4px">Ya respondiste: <b>${yes?'sí hay':'no hay'}</b>. Puedes cambiarlo.</div>`:'<div class="info" style="margin-top:4px">Si la hay, ese día no se da introducción y el tema pasa al siguiente culto.</div>'}
-    <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="tr-ans" data-v="${d}|si">Sí, hay transmisión</button><button class="btn ghost sm" data-a="tr-ans" data-v="${d}|no">No hay</button></div></div>`}
+    <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="tr-ans" data-v="${esc(d)}|si">Sí, hay transmisión</button><button class="btn ghost sm" data-a="tr-ans" data-v="${esc(d)}|no">No hay</button></div></div>`}
 function vMis(p){const top=trAsk(p)+lzInvite(p)+misAv(p)+avisos(p)+misMeets(p)+misMsgs(p);return `<h2>Hola, ${esc(p.name.split(' ')[0])}</h2>`+installHint()+pushCard()+top+(top?'<h3>Tus labores</h3>':'')+misList(p)}
 /* ---- vista de escritorio (PC): panel de inicio ---- */
 const DESK=()=>!!(window.matchMedia&&matchMedia('(min-width:1024px)').matches);
@@ -738,7 +743,7 @@ function dkAgenda(p){const off=ui.dkWeek||0;const mon=pd(mondayOf(today));mon.se
   const sel=ui.dkDay&&days.includes(ui.dkDay)?ui.dkDay:(days.includes(today)?today:days[0]);
   const items=myItems(p);const tm=teachMap();
   const strip=days.map(d=>{const x=pd(d),it=items[d],mine=it&&it.slots.length,ev=it&&!mine&&(it.notes.length||it.attend);
-    return `<button class="dkday ${d===today?'today':''}" data-a="dk-day" data-v="${d}" aria-pressed="${d===sel}"><span>${DOWS[x.getDay()]}</span><b>${x.getDate()}</b><i class="${mine?'on':ev?'ev':''}"></i></button>`}).join('');
+    return `<button class="dkday ${d===today?'today':''}" data-a="dk-day" data-v="${esc(d)}" aria-pressed="${d===sel}"><span>${DOWS[x.getDay()]}</span><b>${x.getDate()}</b><i class="${mine?'on':ev?'ev':''}"></i></button>`}).join('');
   const it=items[sel];const w=pd(sel).getDay(),[sn,st]=SVC[w];
   let det=`<div class="dkdet-h"><b>${DOWL(sel)}</b><span>${esc(sn)} · ${st}${transOn(sel)?' · Transmisión':''}${leipOn(sel)?' · Visita a Leipzig':''}</span></div>`;
   if(it&&(it.slots.length||it.notes.length||it.attend))det+=`<div class="dkmine">${itemCard(sel,it,tm)}</div>`;
@@ -756,7 +761,7 @@ function dkAvAdmin(p){if(!p.admin)return'';const ks=Object.keys(state.avReqs||{}
   return `<section class="card dkcard ${pend.length&&today<=av.deadline?'dkwarn':''}"><h4>Disponibilidad de ${mes}</h4>
     <div class="dkbig"><b>${done.length} de ${all.length}</b> ya la enviaron</div><div class="info">${today<=av.deadline?'Responden hasta el '+fmt(av.deadline):'El plazo terminó el '+fmt(av.deadline)}</div>
     ${pend.length?`<div class="note"><b>Faltan:</b> ${pend.map(i=>esc((person(i)||{}).name||'')).join(', ')}</div>`:''}
-    <div class="inline" style="margin-top:10px">${pend.length&&today<=av.deadline?`<button class="btn sm" data-a="av-remind" data-v="${ym}">Recordar a los que faltan</button>`:''}<button class="btn ghost sm" data-a="dk-hor" data-v="${ym}">Ver horario</button></div></section>`}
+    <div class="inline" style="margin-top:10px">${pend.length&&today<=av.deadline?`<button class="btn sm" data-a="av-remind" data-v="${esc(ym)}">Recordar a los que faltan</button>`:''}<button class="btn ghost sm" data-a="dk-hor" data-v="${esc(ym)}">Ver horario</button></div></section>`}
 function dkTeach(p){const n=dkNextTeach();if(!n)return'';const as=schedOf(n.d)||{},pr=davidDay(n.d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul);
   const langs=p.admin||p.pastor?['de','en']:tradLangs(p);
   return `<section class="card dkcard dkteach"><div class="dkeye">Próxima enseñanza · ${fmt(n.d)}</div><h4 class="dkt">${esc(n.t.title)}</h4>
@@ -767,7 +772,7 @@ function dkNotifs(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice(
   return `<section class="card dkcard"><div class="dkhead"><h4>Avisos</h4><button class="linkbtn" data-a="bell">Ver todos</button></div>
     ${ns.length?`<div class="dknot">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}</div>${ns.some(n=>!n.read.includes(p.id))?'<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>':''}`:'<div class="info">Sin avisos.</div>'}</section>`}
 function dkQuick(p){const L={cal:'Ver calendario',disp:'Mis días para servir',hor:'Horario del mes',ens:p.admin||p.pastor?'Enseñanzas (pastor)':'Predicaciones',per:'Personas'};
-  const it=tabsFor(p).filter(t=>t[0]!=='mis').map(([k])=>`<button class="dkq" data-a="tab" data-v="${k}">${ICON[k]}<span>${L[k]}</span>${ARROW}</button>`).join('');
+  const it=tabsFor(p).filter(t=>t[0]!=='mis').map(([k])=>`<button class="dkq" data-a="tab" data-v="${esc(k)}">${ICON[k]}<span>${L[k]}</span>${ARROW}</button>`).join('');
   return `<section class="card dkcard"><h4>Accesos rápidos</h4><div class="dkql">${it}<button class="dkq" data-a="tab" data-v="aj">${ICON.aj}<span>Ajustes y mi calendario</span>${ARROW}</button></div></section>`}
 function vDash(p){const items=myItems(p);for(const d in items)if(svcGone(d))delete items[d];
   const fut=Object.keys(items).sort().filter(d=>items[d].slots.length);
@@ -775,7 +780,7 @@ function vDash(p){const items=myItems(p);for(const d in items)if(svcGone(d))dele
   const h=new Date().getHours(),hi=h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';const td=pd(today);
   const areas=myAreas(p);
   const top=trAsk(p)+lzInvite(p)+misAv(p)+avisos(p,true)+misMeets(p)+misMsgs(p);
-  const stat=(n,t,s,a,v)=>`<button class="card dkstat" data-a="${a}" data-v="${v||''}"><div class="dkst-n">${n}</div><div><b>${t}</b><small>${s}</small></div>${ARROW}</button>`;
+  const stat=(n,t,s,a,v)=>`<button class="card dkstat" data-a="${a}" data-v="${esc(v||'')}"><div class="dkst-n">${n}</div><div><b>${t}</b><small>${s}</small></div>${ARROW}</button>`;
   return `<div class="dkgrid"><div class="dkmain">
     <section class="card dkhero"><div><div class="dkeye">Mi espacio · Labores Berlín</div><h1>${hi}, ${esc(p.name.split(' ')[0])}</h1>
       <p>Tus labores, avisos y fechas de servicio en un mismo lugar.</p>
@@ -790,7 +795,7 @@ function vDash(p){const items=myItems(p);for(const d in items)if(svcGone(d))dele
 function teamIds(area){return state.people.filter(x=>area==='all'||x.roles.some(r=>ROLEAREA[r]===area)||(area==='pulpito'&&x.pastor)).map(x=>x.id)}
 function msgsFor(p,ym){const a=myAreas(p);return state.msgs.filter(m=>m.month===ym&&(m.area==='all'||a.includes(m.area)||m.from===p.id))}
 function msgCard(m,del){const f=person(m.from),[y,mo]=m.month.split('-').map(Number);
-  return `<div class="card"><div class="dayhead"><span class="msgfrom">${esc(f?f.name:'Púlpito')}${f&&f.pastor?' · Pastor':''}</span>${del?`<button class="x" data-a="msg-del" data-v="${m.id}" aria-label="Borrar mensaje">✕</button>`:''}</div><div class="dayhead"><span class="info" style="margin:0;display:flex;align-items:center;gap:6px"><i class="dot" style="--c:var(${m.area==='all'?'--gold':AREAC[m.area]})"></i>${m.area==='all'?'Para todos':'Equipo de '+AREAN[m.area].toLowerCase()} · ${MES[mo-1]}</span></div>
+  return `<div class="card"><div class="dayhead"><span class="msgfrom">${esc(f?f.name:'Púlpito')}${f&&f.pastor?' · Pastor':''}</span>${del?`<button class="x" data-a="msg-del" data-v="${esc(m.id)}" aria-label="Borrar mensaje">✕</button>`:''}</div><div class="dayhead"><span class="info" style="margin:0;display:flex;align-items:center;gap:6px"><i class="dot" style="--c:var(${m.area==='all'?'--gold':AREAC[m.area]})"></i>${m.area==='all'?'Para todos':'Equipo de '+AREAN[m.area].toLowerCase()} · ${MES[mo-1]}</span></div>
     <div class="pre" style="margin-top:8px">${linkify(m.text)}</div></div>`}
 function misMsgs(p){const ms=[...new Set([today.slice(0,7),defaultMonth()])].flatMap(ym=>msgsFor(p,ym));
   return ms.length?`<h3 style="margin-top:4px">Mensajes del mes</h3><div class="list">${ms.map(m=>msgCard(m,false)).join('')}</div>`:''}
@@ -805,7 +810,7 @@ function msgBlock(p){const ms=state.msgs.filter(m=>m.month===ui.month),mo=+ui.mo
 function vCal(p){
   const tabs=[['cal','Mi mes']];if(myAreas(p).length)tabs.push(['equipo','Mi equipo']);
   if(!tabs.some(t=>t[0]===ui.mv))ui.mv='cal';
-  const h=`<h2>Calendario</h2>${calBanner(p)}${tabs.length>1?`<div class="filters" style="padding:4px 0 6px">${tabs.map(([k,l])=>`<button class="f" data-a="mv" data-v="${k}" aria-pressed="${ui.mv===k}">${l}</button>`).join('')}</div>`:''}`;
+  const h=`<h2>Calendario</h2>${calBanner(p)}${tabs.length>1?`<div class="filters" style="padding:4px 0 6px">${tabs.map(([k,l])=>`<button class="f" data-a="mv" data-v="${esc(k)}" aria-pressed="${ui.mv===k}">${l}</button>`).join('')}</div>`:''}`;
   return h+(ui.mv==='equipo'?misTeam:misCal)(p);
 }
 function misCal(p){
@@ -814,7 +819,7 @@ function misCal(p){
   const lead=(pd(dates[0]).getDay()+6)%7;
   let h=monthNav()+`<div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
   for(const d of dates){const it=items[d];const areas=it?[...new Set(it.slots.map(s=>s.area))]:[];
-    h+=`<button class="cd ${areas.length?'':'free'} ${d===today?'today':''}" data-a="selday" data-v="${d}" aria-pressed="${ui.sel===d}"><b>${pd(d).getDate()}${it&&it.notes.length?'<i class="nt"></i>':''}</b>${areas.slice(0,2).map(a=>`<span class="lab" style="--c:var(${AREAC[a]})">${SHORT[a]}</span>`).join('')+(it&&it.attend?'<span class="lab" style="--c:var(--gold)">Alabanza</span>':'')}${areas.length>2?`<span class="more">+${areas.length-2}</span>`:''}</button>`}
+    h+=`<button class="cd ${areas.length?'':'free'} ${d===today?'today':''}" data-a="selday" data-v="${esc(d)}" aria-pressed="${ui.sel===d}"><b>${pd(d).getDate()}${it&&it.notes.length?'<i class="nt"></i>':''}</b>${areas.slice(0,2).map(a=>`<span class="lab" style="--c:var(${AREAC[a]})">${SHORT[a]}</span>`).join('')+(it&&it.attend?'<span class="lab" style="--c:var(--gold)">Alabanza</span>':'')}${areas.length>2?`<span class="more">+${areas.length-2}</span>`:''}</button>`}
   h+='</div>';
   const n=dates.filter(d=>items[d]&&items[d].slots.length).length;
   h+=`<div class="info" style="margin:10px 0">${n?`${n} ${n===1?'día':'días'} con labor este mes. Toca un día para ver el detalle.`:'No tienes labores este mes.'}</div>`;
@@ -847,18 +852,18 @@ function vDisp(p){
   const ask=late?`La disponibilidad de <b>${MES[(+nx.slice(5,7))%12]}</b> se pide el ${AVDAY} de ${nmes}.`:`La disponibilidad de <b>${nmes}</b> se pide el ${AVDAY} de ${MES[+today.slice(5,7)-1]}.`;
   const st=open||`<div class="info" style="margin-bottom:12px">${av||late?`El horario de <b>${nmes}</b> ya se está armando. Si surge algo, avisa desde tu labor con «No puedo». `:''}${ask} Te llega un aviso.</div>`;
   const byM={};for(const d of p.blocked.filter(d=>d>=today).sort())(byM[d.slice(0,7)]=byM[d.slice(0,7)]||[]).push(d);
-  return `<h2>Mi disponibilidad</h2><p class="lead">El horario de cada mes se arma con esto.</p>
+  return `<h2>Mis días para servir</h2><p class="lead">El horario de cada mes se arma con esto.</p>
   <h3>Mes por mes</h3>${st}
   <h3>Días que puedo servir</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses. Las fechas sueltas se marcan arriba, mes por mes.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
-     <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${w}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
+     <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${esc(w)}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
   <h3>Fechas en que no puedo</h3><div class="card">
    <div class="inline"><input id="blk" type="date" min="${today}"><button class="btn sm" data-a="block">Agregar</button></div>
-   <div style="margin-top:8px">${Object.entries(byM).map(([ym,ds_])=>{const o=!!(ui.blkOpen||{})[ym],mes=MES[+ym.slice(5,7)-1];return `<button class="mfold" data-a="blk-fold" data-v="${ym}" aria-expanded="${o}"><span><b>${mes[0].toUpperCase()+mes.slice(1)}</b> · ${ds_.length} ${ds_.length===1?'fecha':'fechas'}</span><span class="chev">${o?'▾':'▸'}</span></button>`+(o?ds_.map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${d}" aria-label="Quitar">✕</button></div>`).join(''):'')}).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
+   <div style="margin-top:8px">${Object.entries(byM).map(([ym,ds_])=>{const o=!!(ui.blkOpen||{})[ym],mes=MES[+ym.slice(5,7)-1];return `<button class="mfold" data-a="blk-fold" data-v="${esc(ym)}" aria-expanded="${o}"><span><b>${mes[0].toUpperCase()+mes.slice(1)}</b> · ${ds_.length} ${ds_.length===1?'fecha':'fechas'}</span><span class="chev">${o?'▾':'▸'}</span></button>`+(o?ds_.map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${esc(d)}" aria-label="Quitar">✕</button></div>`).join(''):'')}).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
 }
 
 /* ---- panel del mes (filas) y menú ⋯ del horario ---- */
 function monthPanel(p,m,RO){const ym=ui.month,mes=MES[m-1];
-  const row=(k,ic,t,v)=>`<button class="mrow" data-a="mrow" data-v="${k}"><span class="mic">${ic}</span><span class="mt">${t}</span><span class="mv">${v}</span>${ARROW}</button>`;
+  const row=(k,ic,t,v)=>`<button class="mrow" data-a="mrow" data-v="${esc(k)}"><span class="mic">${ic}</span><span class="mt">${t}</span><span class="mv">${v}</span>${ARROW}</button>`;
   const ms=state.msgs.filter(x=>x.month===ym).length,mt=state.meets.filter(x=>x.date>=today).length;
   let r='';
   if(!RO){const av=avOf(ym),all=servers();const done=av?all.filter(i=>av.done&&av.done[i]).length:0;
@@ -895,7 +900,7 @@ function vHor(p){const RO=!p.admin;
     ${pill?`<div class="stline"><span class="mbonly">${pill}</span><span class="info" style="margin:0">${pubd?'Todos ven el horario de '+MES[m-1]+'.':'Los hermanos todavía no lo ven. Ajusta y publícalo.'}</span></div>`:''}`;
   if(ui.regen)h+=`<div class="confirm">Se reemplazan todos los cambios de ${MES[m-1]}. <button class="btn warnb sm" data-a="gen">Sí, generar de nuevo</button><button class="btn ghost sm" data-a="regen-no">Cancelar</button></div>`;
   h+=monthPanel(p,m,RO);
-  h+=`<div class="filters"><button class="f" data-a="view" data-v="grid" aria-pressed="${ui.view==='grid'}">Tabla</button><button class="f" data-a="view" data-v="cards" aria-pressed="${ui.view==='cards'}">Por día</button><span style="width:1px;background:var(--line);flex:none"></span>${[['all','Todo'],...Object.entries(AREAN)].map(([k,l])=>`<button class="f" data-a="area" data-v="${k}" aria-pressed="${ui.area===k}">${l}</button>`).join('')}</div>`;
+  h+=`<div class="filters"><button class="f" data-a="view" data-v="grid" aria-pressed="${ui.view==='grid'}">Tabla</button><button class="f" data-a="view" data-v="cards" aria-pressed="${ui.view==='cards'}">Por día</button><span style="width:1px;background:var(--line);flex:none"></span>${[['all','Todo'],...Object.entries(AREAN)].map(([k,l])=>`<button class="f" data-a="area" data-v="${esc(k)}" aria-pressed="${ui.area===k}">${l}</button>`).join('')}</div>`;
   if(!sched)return h+`<div class="card empty-state" style="margin-top:12px">Todavía no hay horario para ${MES[m-1]}. ${RO?'El administrador lo publica pronto.':'Revisa que las enseñanzas, transmisiones y viajes a Leipzig estén cargados, y luego genera el horario.'}</div>`;
   let empties=0,conf=0;const tm=teachMap();const weeks={};
   for(const d of monthDates(ui.month))(weeks[mondayOf(d)]=weeks[mondayOf(d)]||[]).push(d);
@@ -913,7 +918,7 @@ function vHor(p){const RO=!p.admin;
 function dayCard(d,as,tm){
   const w=pd(d).getDay(),slots=slotsAt(d),[sn,st]=SVC[w];let e=0,c=0;
   let info='';
-  if(w===1||w===3||w===5)info=`Preámbulo ${preamb(d)+1}: <b>${PREAMB[preamb(d)]}</b>`;
+  if(w===1||w===3||w===5)info=`Preámbulo sugerido: <b>${esc(PREAMB[preamb(d)])}</b>`;
   if(w===4||w===0){const t=transOn(d);info=t?`<b>Transmisión internacional</b>${t.link?'':' · falta la información'}`:tm[d]?`Enseñanza: <b>${esc(tm[d].title)}</b>`:'Enseñanza: <b>sin asignar</b>'}
   const lz=leipOn(d);
   let rows='';
@@ -925,7 +930,7 @@ function dayCard(d,as,tm){
     if(ui.area!=='all'&&s.area!==ui.area)continue;
     const key=d+'|'+s.k;let right;
     if(!me().admin)right=`<span class="fixedn ${p&&p.id===state.me?'gn meh':''}">${p?esc(p.name):'—'}</span>`;
-    else right=`<div style="min-width:0"><button class="pick ${p?'':'empty'}" data-a="edit" data-v="${key}">${p?esc(p.name):emptyLbl(d,s.k,'Sin asignar')}</button>${warn?`<span class="warn">${esc(warn)}</span>`:''}</div>`;
+    else right=`<div style="min-width:0"><button class="pick ${p?'':'empty'}" data-a="edit" data-v="${esc(key)}">${p?esc(p.name):emptyLbl(d,s.k,'Sin asignar')}</button>${warn?`<span class="warn">${esc(warn)}</span>`:''}</div>`;
     rows+=`<div class="row"><span class="lbl"><i class="dot" style="--c:var(${AREAC[s.area]})"></i>${esc(s.l)}</span>${right}</div>`}
   if(!rows)return{h:'',e,c};
   return{e,c,h:`<div class="card"><div class="dayhead"><span class="t">${DOW[w]} ${pd(d).getDate()}</span><span class="s">${sn} · ${st}${lz?'<span class="tag gold">Leipzig</span>':''}</span></div>
@@ -969,18 +974,18 @@ function gcell(d,s,as,slots,opt={}){const key=d+'|'+s.k,p=person(as[s.k]);
   if(opt.ro)return `<span class="gn ${p&&p.id===opt.me?'meh':''}">${p?esc(p.name):'—'}</span>`;
   let warn=p?why(p,s,d,as,slots):'';
   if(p&&!warn&&(s.pair||s.pairOf)){const o=person(as[s.pair||s.pairOf]);if(o&&o.sex!==p.sex)warn='pareja mixta'}
-  return `<button class="pick g ${p?'':'empty'} ${warn?'bad':''}" data-a="edit" data-v="${key}" ${warn?`title="${esc(warn)}"`:''}>${p?esc(p.name):emptyLbl(d,s.k,'Vacío')}${warn?' · '+esc(warn):''}</button>`}
+  return `<button class="pick g ${p?'':'empty'} ${warn?'bad':''}" data-a="edit" data-v="${esc(key)}" ${warn?`title="${esc(warn)}"`:''}>${p?esc(p.name):emptyLbl(d,s.k,'Vacío')}${warn?' · '+esc(warn):''}</button>`}
 function pickSheet(){const[d,k]=ui.edit.split('|');const slots=slotsAt(d),s=slots.find(z=>z.k===k);if(!s)return'';
   const as=(state.schedules[d.slice(0,7)]||{})[d]||{},pid=as[k],others={...as};delete others[k];const ok=[],no=[];
   for(const x of state.people)if(x.roles.includes(s.role)||(s.altRole&&x.roles.includes(s.altRole))){const r=why(x,s,d,others,slots);(r?no:ok).push([x,r])}
-  const it=(x,r)=>`<button class="pk ${x.id===pid?'on':''} ${r?'no':''}" data-a="assign" data-v="${ui.edit}|${x.id}"><span>${esc(x.name)}</span>${r?`<small>${esc(r)}</small>`:''}${x.id===pid?'<b>✓</b>':''}</button>`;
+  const it=(x,r)=>`<button class="pk ${x.id===pid?'on':''} ${r?'no':''}" data-a="assign" data-v="${esc(ui.edit)}|${esc(x.id)}"><span>${esc(x.name)}</span>${r?`<small>${esc(r)}</small>`:''}${x.id===pid?'<b>✓</b>':''}</button>`;
   return `<div class="scrim" data-a="pick-x"></div><div class="sheet" role="dialog" aria-label="Elegir persona"><div class="dayhead"><div><b>${esc(s.l)}</b><small class="info" style="display:block;margin:2px 0 0">${fmt(d)}</small></div><button class="x" data-a="pick-x" aria-label="Cerrar">✕</button></div>
-   <div class="pklist">${pid?`<button class="pk clear" data-a="assign" data-v="${ui.edit}|">Dejar sin asignar</button>`:''}
+   <div class="pklist">${pid?`<button class="pk clear" data-a="assign" data-v="${esc(ui.edit)}|">Dejar sin asignar</button>`:''}
    <div class="pkh">Disponibles</div>${ok.map(([x])=>it(x,'')).join('')||'<div class="info">Nadie disponible.</div>'}
    ${no.length?`<div class="pkh">Con conflicto</div>${no.map(([x,r])=>it(x,r)).join('')}`:''}</div></div>`}
 function selectFor(d,s,as,slots){const key=d+'|'+s.k,pid=as[s.k],others={...as};delete others[s.k];const ok=[],no=[];
   for(const x of state.people)if(x.roles.includes(s.role)){const r=why(x,s,d,others,slots);(r?no:ok).push([x,r])}
-  return `<select class="cell" id="sel-${key}" data-c="cell" data-v="${key}"><option value="">— Sin asignar</option><optgroup label="Disponibles">${ok.map(([x])=>`<option value="${x.id}" ${x.id===pid?'selected':''}>${esc(x.name)}</option>`).join('')}</optgroup>${no.length?`<optgroup label="Con conflicto">${no.map(([x,r])=>`<option value="${x.id}" ${x.id===pid?'selected':''}>${esc(x.name)} (${esc(r)})</option>`).join('')}</optgroup>`:''}</select>`}
+  return `<select class="cell" id="sel-${key}" data-c="cell" data-v="${esc(key)}"><option value="">— Sin asignar</option><optgroup label="Disponibles">${ok.map(([x])=>`<option value="${esc(x.id)}" ${x.id===pid?'selected':''}>${esc(x.name)}</option>`).join('')}</optgroup>${no.length?`<optgroup label="Con conflicto">${no.map(([x,r])=>`<option value="${esc(x.id)}" ${x.id===pid?'selected':''}>${esc(x.name)} (${esc(r)})</option>`).join('')}</optgroup>`:''}</select>`}
 
 /* ---- PDF ---- */
 function saveBlob(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
@@ -1040,13 +1045,13 @@ const openReps=(kind,tid)=>(state.linkReps||[]).filter(r=>r.open&&r.kind===kind&
 function linkRep(kind,t,d,langs,owner){if(!t||!langs.length)return'';const k=kind+'|'+t.id;
   const mine=openReps(kind,t.id).filter(r=>r.by===state.me);
   let h=mine.map(r=>`<div class="repok">✓ Avisaste (${LANGN[r.lang]}): «${esc(r.note)}» · esperando corrección</div>`).join('');
-  if(ui.repOpen!==k)return `<div class="rep">${h}<button class="linkbtn" data-a="rep-open" data-v="${k}">Enlace erróneo o faltante</button></div>`;
+  if(ui.repOpen!==k)return `<div class="rep">${h}<button class="linkbtn" data-a="rep-open" data-v="${esc(k)}">${langs.some(l=>t[LINKF[l]])?'Enlace erróneo o faltante':'Avisar que falta la ficha'}</button></div>`;
   const lg=ui.repLang&&langs.includes(ui.repLang)?ui.repLang:langs[0];
   return `<div class="rep">${h}<div class="repbox"><b style="font-size:15px">Enlace erróneo o faltante</b>
-    ${langs.length>1?`<div class="inline" style="margin:8px 0 0">${langs.map(l=>`<button class="f" data-a="rep-lang" data-v="${l}" aria-pressed="${l===lg}">Ficha en ${LANGN[l]}</button>`).join('')}</div>`:`<div class="info" style="margin:4px 0 0">Ficha en ${LANGN[lg]}</div>`}
+    ${langs.length>1?`<div class="inline" style="margin:8px 0 0">${langs.map(l=>`<button class="f" data-a="rep-lang" data-v="${esc(l)}" aria-pressed="${l===lg}">Ficha en ${LANGN[l]}</button>`).join('')}</div>`:`<div class="info" style="margin:4px 0 0">Ficha en ${LANGN[lg]}</div>`}
     <textarea id="rep-note" rows="3" placeholder="Cuéntale qué pasa. Por ejemplo: el enlace de inglés abre la ficha en alemán." style="margin-top:10px;width:100%"></textarea>
     <div class="info" style="margin:6px 0 0">Le llega ${owner?'a '+esc(owner.name.replace(/\.$/,'')):'al pastor'}. Cuando lo corrija, te avisamos.</div>
-    <div class="inline" style="margin-top:12px"><button class="btn sm" data-a="rep-send" data-v="${kind}|${t.id}|${lg}|${d}|${owner?owner.id:''}">Enviar aviso</button><button class="btn ghost sm" data-a="rep-x">Cancelar</button></div></div></div>`}
+    <div class="inline" style="margin-top:12px"><button class="btn sm" data-a="rep-send" data-v="${esc(kind)}|${esc(t.id)}|${esc(lg)}|${esc(d)}|${esc(owner?owner.id:'')}">Enviar aviso</button><button class="btn ghost sm" data-a="rep-x">Cancelar</button></div></div></div>`}
 // Al corregir el enlace (o al marcarlo como resuelto), se cierran los reportes y se avisa a quienes reportaron
 function closeReps(kind,tid,lang,why){const rs=(state.linkReps||[]).filter(r=>r.open&&r.kind===kind&&r.tid===tid&&(!lang||r.lang===lang));if(!rs.length)return 0;
   const t=kind==='l'?state.leipzig.find(x=>x.id===tid):state.teachings.find(x=>x.id===tid);const nm=(me()||{}).name||'El pastor';
@@ -1057,9 +1062,9 @@ function closeReps(kind,tid,lang,why){const rs=(state.linkReps||[]).filter(r=>r.
   return rs.length}
 function repsCard(p){if(!(p.admin||p.pastor))return'';const rs=(state.linkReps||[]).filter(r=>r.open);if(!rs.length)return'';
   return `<div class="card ask" style="margin:6px 0 12px"><b>Avisos de fichas (${rs.length})</b>${rs.map(r=>{const t=r.kind==='l'?state.leipzig.find(x=>x.id===r.tid):state.teachings.find(x=>x.id===r.tid);const who=person(r.by);
-    return `<div class="repitem"><div><b>${r.kind==='l'?'Leipzig':esc(t?t.title:'')}</b> · ${fmt(r.d)} · ficha en ${LANGN[r.lang]}</div><div>«${esc(r.note)}»</div><small class="info">${esc(who?who.name:'')} · ${ago(r.ts)}</small><div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="rep-done" data-v="${r.id}">Ya lo corregí</button></div></div>`}).join('')}
+    return `<div class="repitem"><div><b>${r.kind==='l'?'Leipzig':esc(t?t.title:'')}</b> · ${fmt(r.d)} · ficha en ${LANGN[r.lang]}</div><div>«${esc(r.note)}»</div><small class="info">${esc(who?who.name:'')} · ${ago(r.ts)}</small><div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="rep-done" data-v="${esc(r.id)}">Ya lo corregí</button></div></div>`}).join('')}
     <div class="info" style="margin-top:8px">Al cambiar el enlace con el lápiz, se marca solo como corregido y se le avisa a quien reportó.</div></div>`}
-const pdfLink=(kind,t,langs=['de','en'])=>{const ls=t?langs.filter(l=>t[LINKF[l]]):[];if(!ls.length)return'';
+const pdfLink=(kind,t,langs=['de','en'])=>{const ls=t?langs.filter(l=>t[LINKF[l]]):[];if(!ls.length)return langs.length?`<div class="info" style="margin-top:6px">Ficha: todavía no está.</div>`:'';
   return `<div class="inline" style="margin-top:6px;flex-wrap:wrap">${ls.map(l=>`<a class="pdfl lnk" href="${esc(t[LINKF[l]])}" target="_blank" rel="noopener">Ficha en ${LANGN[l]}</a>`).join('')}</div>`};
 const tradLangs=p=>p?['de','en'].filter(l=>(p.roles||[]).includes('trad_'+l)):[];
 // Leipzig: los que viajan ven las dos fichas (alemán e inglés); el resto del equipo de traducción, la de su idioma.
@@ -1073,7 +1078,7 @@ async function dlPdf(kv){const[kind,id,l='de']=kv.split('|');const t=pdfList(kin
 const transOnDay=(p,d)=>{const as=schedOf(d)||{};return slotsAt(d).some(s=>s.area==='trad'&&as[s.k]===p.id)};
 let AS=null;
 function pdfCtl(kind,t){return `<div class="fich">${['de','en'].map(l=>{const f=t[LANGF[l]],k=t.id+'|'+l,L=LANGN[l][0].toUpperCase()+LANGN[l].slice(1);
-  return `<span class="fl">${L}</span><div class="fc">${f?`<button class="pdfl dl" data-a="dlpdf" data-v="${kind}|${t.id}|${l}">${esc(f.name)}</button>${AS?`<button class="linkbtn" style="font-size:14px" data-a="pdfdel" data-v="${kind}|${t.id}|${l}">Quitar</button>`:''}`:ui.upl===k?'<span class="info" style="margin:0">Subiendo…</span>':AS?`<label class="btn ghost sm" style="cursor:pointer">Adjuntar<input type="file" accept="application/pdf" hidden id="pf-${t.id}-${l}" data-c="pdf" data-v="${kind}|${t.id}|${l}"></label>`:'<span class="info" style="margin:0">Sin ficha</span>'}</div>`}).join('')}</div>`}
+  return `<span class="fl">${L}</span><div class="fc">${f?`<button class="pdfl dl" data-a="dlpdf" data-v="${esc(kind)}|${esc(t.id)}|${esc(l)}">${esc(f.name)}</button>${AS?`<button class="linkbtn" style="font-size:14px" data-a="pdfdel" data-v="${esc(kind)}|${esc(t.id)}|${esc(l)}">Quitar</button>`:''}`:ui.upl===k?'<span class="info" style="margin:0">Subiendo…</span>':AS?`<label class="btn ghost sm" style="cursor:pointer">Adjuntar<input type="file" accept="application/pdf" hidden id="pf-${t.id}-${l}" data-c="pdf" data-v="${esc(kind)}|${esc(t.id)}|${esc(l)}"></label>`:'<span class="info" style="margin:0">Sin ficha</span>'}</div>`}).join('')}</div>`}
 const pdfList=kind=>kind==='l'?state.leipzig:kind==='pd'?(state.privDocs=state.privDocs||[]):state.teachings;
 async function uploadPdf(kv,file){const[kind,id,l='de']=kv.split('|');const t=pdfList(kind).find(x=>x.id===id);if(!t||!file||!AS)return;
   if(file.type!=='application/pdf'){ui.uplMsg='La ficha debe ser un PDF.';render();return}
@@ -1082,7 +1087,7 @@ async function uploadPdf(kv,file){const[kind,id,l='de']=kv.split('|');const t=pd
   ui.upl=null;render()}
 function cronograma(p){const tm=teachMap(),it=[];const allT=p.admin||p.pastor||p.roles.includes('pulpito');const pastor=state.people.find(x=>x.pastor);
   for(const d in tm)if(!svcGone(d)){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<b>${esc(tm[d].title)}</b>${pdfLink('t',tm[d],tradLangs(p))}${linkRep('t',tm[d],d,tradLangs(p),slotsAt(d).some(z=>z.k==='predica')?pr:null)}`,s:`Predica: ${esc(pr?pr.name:'—')}`})}
-  for(const t of state.trans)if(!svcGone(t.date))it.push({d:t.date,h:'<b>Transmisión internacional</b>',s:t.link?`<div class="pre">${linkify(t.link)}</div>`:'La información aún no está.'});
+  for(const t of state.trans)if(!svcGone(t.date))it.push({d:t.date,h:'<b>Transmisión internacional</b>',s:t.link?`<div class="pre">${linkify(t.link)}</div>`:'Aún sin datos (enlace y hora).'});
   for(const l of state.leipzig)if(!svcGone(l.date))it.push({d:l.date,h:'<b>Visita a Leipzig</b>',s:`Predicación: ${esc(l.teaching||'por definir')}${seesLzGoing(p)?'<br>'+lzGoingLine(l):''}${pdfLink('l',l,lzLangs(p))}${lzLangs(p).length?linkRep('l',l,l.date,lzLangs(p),null):''}`});
   it.sort((a,b)=>a.d<b.d?-1:1);
   if(!it.length)return'<div class="card empty-state">Todavía no hay predicaciones programadas.</div>';
@@ -1095,25 +1100,25 @@ function vEns(p){
     for(const l of state.leipzig)if(l.date>=today&&l.date<=sun){const miss=[!l.teaching&&'el título',!l.linkDe&&'el enlace en alemán',!l.linkEn&&'el enlace en inglés'].filter(Boolean);if(miss.length)out.push(`Leipzig ${fmt(l.date)}: falta ${miss.join(', ')}`)}
     if(w>=5||w===0){if(!transOn(sun)&&w!==0)out.push(`¿Hay transmisión internacional el ${fmt(sun)}? Si la hay, agrégala abajo.`)}
     return out})();
-  return `<h2>Enseñanzas y viajes</h2>${repsCard(me())}${dupSummary()}${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas, menos las fijas (con el alfiler azul). La del día que predica David queda fija sola.</p>
+  return `<h2>Pastor · enseñanzas y viajes</h2>${repsCard(me())}${dupSummary()}${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas, menos las fijas (con el alfiler azul). La del día que predica David queda fija sola.</p>
   <h3>Enseñanzas en orden</h3>${ui.uplMsg?`<div class="banner warnbn">${esc(ui.uplMsg)}</div>`:''}<div class="card">
-   <label class="field">Empiezan desde<input id="t-start" type="date" value="${state.teachStart}" data-c="t-start"></label>
+   <label class="field">Empiezan desde<input id="t-start" type="date" value="${esc(state.teachStart)}" data-c="t-start"></label>
    ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id]))).sort((a,b)=>(dateOf[a.id]||'9')<(dateOf[b.id]||'9')?-1:1);const mov=fut.filter(t=>!isPinned(t));
      const last=fut.length?dateOf[fut[fut.length-1].id]:'';
      let h=past.length?`<button class="mfold" data-a="t-past" aria-expanded="${!!ui.tPast}"><span><b>Ya pasaron</b> · ${past.length}</span><span class="chev">${ui.tPast?'▾':'▸'}</span></button>${ui.tPast?past.map(t=>`<div class="li"><div class="main" style="opacity:.6"><b>${esc(t.title)}</b><small>${fmt(dateOf[t.id])}</small></div></div>`).join(''):''}`:'';
-     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}${ui.edName==='t|'+t.id?'':tActs(t,mov)}</div>${isPinned(t)?`<div class="pinnote">Fija en esta fecha${davidDay(dateOf[t.id])?' (predica David)':''}: no se corre si se agrega una transmisión.</div>`:''}${dupWarn(t.id)}${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${t.id}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
+     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}${ui.edName==='t|'+t.id?'':tActs(t,mov)}</div>${isPinned(t)?`<div class="pinnote">Fija en esta fecha${davidDay(dateOf[t.id])?' (predica David)':''}: no se corre si se agrega una transmisión.</div>`:''}${dupWarn(t.id)}${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${esc(t.id)}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
      ${linkPair('tl',t,dateOf[t.id]?needLangs(dateOf[t.id]):['de','en'])}</div></div>`).join('')||'<div class="info" style="padding:8px 0">No hay enseñanzas por venir. Agrega las siguientes abajo.</div>';
      if(last)h+=`<div class="info" style="margin-top:8px">Hay enseñanzas cargadas hasta el <b>${fmt(last)}</b>. Para seguir después, agrega más abajo y se acomodan solas en los siguientes jueves y domingos.</div>`;
      return h})()}
    <div class="inline" style="margin-top:10px"><input id="t-new" type="text" placeholder="Título de la enseñanza"><button class="btn sm" data-a="t-add">Agregar</button></div></div>
   <h3>Transmisiones internacionales</h3><div class="card">
-   ${state.trans.filter(t=>!svcGone(t.date)).sort((a,b)=>a.date<b.date?-1:1).map(t=>ui.trEdit===t.id?`<div class="li" style="display:block"><b>${fmt(t.date)}</b><textarea id="tre-${t.id}" rows="5" style="margin-top:6px" data-c="tr-text" data-v="${t.id}">${esc(t.link)}</textarea><button class="btn sm" data-a="tr-done" style="margin-top:6px">Listo</button></div>`:`<div class="li"><div class="main"><b>${fmt(t.date)}</b><small class="pre">${t.link?linkify(t.link):'Sin información todavía'}${t.note?'\n'+esc(t.note):''}</small></div><button class="x" data-a="tr-edit" data-v="${t.id}">Editar</button><button class="x" data-a="tr-del" data-v="${t.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}${(()=>{const past=state.trans.filter(t=>svcGone(t.date)).sort((a,b)=>a.date<b.date?1:-1);return past.length?`<details class="trpast"><summary>Transmisiones pasadas (${past.length})</summary><div class="info" style="margin:6px 0 0">${past.map(t=>fmt(t.date)).join(' · ')}</div></details>`:''})()}
-   <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><textarea id="tr-link" rows="4" placeholder="Información de la transmisión (opcional, la puedes poner después). Puedes pegar el link aquí."></textarea><button class="btn sm" data-a="tr-add" data-v="${trFree()}" style="align-self:flex-start">Agregar transmisión del ${fmt(trFree())}</button></div>
+   ${state.trans.filter(t=>!svcGone(t.date)).sort((a,b)=>a.date<b.date?-1:1).map(t=>ui.trEdit===t.id?`<div class="li" style="display:block"><b>${fmt(t.date)}</b><textarea id="tre-${t.id}" rows="5" style="margin-top:6px" data-c="tr-text" data-v="${esc(t.id)}">${esc(t.link)}</textarea><button class="btn sm" data-a="tr-done" style="margin-top:6px">Listo</button></div>`:`<div class="li"><div class="main"><b>${fmt(t.date)}</b><small class="pre">${t.link?linkify(t.link):'Sin información todavía'}${t.note?'\n'+esc(t.note):''}</small></div><button class="x" data-a="tr-edit" data-v="${esc(t.id)}">Editar</button><button class="x" data-a="tr-del" data-v="${esc(t.id)}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}${(()=>{const past=state.trans.filter(t=>svcGone(t.date)).sort((a,b)=>a.date<b.date?1:-1);return past.length?`<details class="trpast"><summary>Transmisiones pasadas (${past.length})</summary><div class="info" style="margin:6px 0 0">${past.map(t=>fmt(t.date)).join(' · ')}</div></details>`:''})()}
+   <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><textarea id="tr-link" rows="4" placeholder="Información de la transmisión (opcional, la puedes poner después). Puedes pegar el link aquí."></textarea><button class="btn sm" data-a="tr-add" data-v="${esc(trFree())}" style="align-self:flex-start">Agregar transmisión del ${fmt(trFree())}</button></div>
    <div class="info" style="margin-top:6px">Este texto lo ven el pastor y los de púlpito en sus labores. Los links se pueden tocar.</div></div>
   <h3>Visitas a Leipzig</h3><div class="card">
-   ${state.leipzig.slice().sort((a,b)=>a.date<b.date?-1:1).map(l=>`<div class="li"><div class="main"><b>${fmt(l.date)}</b>${nameEd('lz',l.id,l.teaching||'','Predicación por definir',false)}${linkPair('ll',l,['de','en'])}<small class="info" style="display:block;margin-top:6px">${lzGoingLine(l)}</small></div><button class="x" data-a="lz-del" data-v="${l.id}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}
+   ${state.leipzig.slice().sort((a,b)=>a.date<b.date?-1:1).map(l=>`<div class="li"><div class="main"><b>${fmt(l.date)}</b>${nameEd('lz',l.id,l.teaching||'','Predicación por definir',false)}${linkPair('ll',l,['de','en'])}<small class="info" style="display:block;margin-top:6px">${lzGoingLine(l)}</small></div><button class="x" data-a="lz-del" data-v="${esc(l.id)}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}
    <div class="inline" style="margin-top:10px"><input id="lz-date" type="date" value="${esc(ui.lzD||'')}"><input id="lz-t" type="text" placeholder="Predicación que se dará (obligatorio)" value="${esc(ui.lzT||'')}" ${ui.lzErr?'class="bad"':''}><button class="btn sm" data-a="lz-add">Agregar</button></div>${ui.lzErr?`<div class="info" style="color:var(--warn);margin-top:6px">${esc(ui.lzErr)}</div>`:''}
-   <div class="info" style="margin-top:6px">Viajan: ${esc(state.people.filter(x=>x.leipzig).map(x=>x.name).join(' y ')||'nadie marcado')}. Ese día no se les asigna nada en Berlín. Lo ven púlpito y traducción.</div></div>`;
+   <div class="info" style="margin-top:6px">Viajan: ${esc(yList(state.people.filter(x=>x.leipzig&&!x.deleted).map(x=>x.name))||'nadie marcado').replace(/\.$/,'')}. Ese día no se les asigna nada en Berlín. Lo ven púlpito y traducción.</div></div>`;
 }
 
 // Búsqueda por nombre en Personas (sin tildes ni mayúsculas)
@@ -1134,32 +1139,36 @@ function vPer(){
   h+=`<div class="psearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="per-q" type="search" placeholder="Buscar por nombre" value="${esc(ui.perQ||'')}" aria-label="Buscar por nombre" autocomplete="off"></div>`;
   h+='<div class="card">';
   for(const x of state.people.filter(z=>!z.deleted)){
-    h+=`<div class="li prow" style="display:block" data-n="${esc(normQ(x.name))}" ${q&&!normQ(x.name).includes(q)?'hidden':''}>${x.id!==state.me?`<button class="peye" data-a="viewas" data-v="${x.id}" aria-label="Ver la app como ${esc(x.name)}" title="Ver la app como ${esc(x.name.split(' ')[0])}">${IC_EYE}<span>Ver</span></button>`:''}<button class="pbtn" data-a="open" data-v="${x.id}" style="display:flex;gap:12px;align-items:flex-start;width:100%;padding-right:${x.id!==state.me?'64px':'0'}">${avatar(x,44)}<div style="flex:1;min-width:0;text-align:left"><b>${esc(x.name)}</b>${x.admin?'<span class="tag gold">Admin</span>':''}${x.pastor?'<span class="tag gold">Pastor</span>':''}${x.phone?`<small class="info" style="display:block;margin-top:2px">${esc(x.phone)}</small>`:''}${x.deleted?'':`<small class="info" style="display:block">${x.privacy?'Privacidad aceptada el '+fmt(ds(new Date(x.privacy.ts))):'Privacidad: pendiente'}</small>`}
+    h+=`<div class="li prow" style="display:block" data-n="${esc(normQ(x.name))}" ${q&&!normQ(x.name).includes(q)?'hidden':''}>${x.id!==state.me?`<button class="peye" data-a="viewas" data-v="${esc(x.id)}" aria-label="Ver la app como ${esc(x.name)}" title="Ver la app como ${esc(x.name.split(' ')[0])}">${IC_EYE}<span>Ver</span></button>`:''}<button class="pbtn" data-a="open" data-v="${esc(x.id)}" style="display:flex;gap:12px;align-items:flex-start;width:100%;padding-right:${x.id!==state.me?'64px':'0'}">${avatar(x,44)}<div style="flex:1;min-width:0;text-align:left"><b>${esc(x.name)}</b>${x.admin?'<span class="tag gold">Admin</span>':''}${x.pastor?'<span class="tag gold">Pastor</span>':''}${x.phone?`<small class="info" style="display:block;margin-top:2px">${esc(x.phone)}</small>`:''}${x.deleted?'':`<small class="info" style="display:block">${x.privacy?'Privacidad aceptada el '+fmt(ds(new Date(x.privacy.ts))):'Privacidad: pendiente'}</small>`}
       <div class="chips" style="margin-top:4px">${x.roles.map(r=>chip(ROLEAREA[r],ROLES[r])).join('')||'<span class="info">Sin labores</span>'}</div></div></button>`;
     if(ui.open===x.id){h+=`<div style="margin-top:10px">
-      <label class="field">Nombre<input id="pn-${x.id}" type="text" value="${esc(x.name)}" data-c="p-name" data-v="${x.id}"></label>
-      <label class="field">Correo para entrar a la app<input id="pe-${x.id}" type="email" placeholder="correo@ejemplo.com" value="${esc(x.email||'')}" data-c="p-email" data-v="${x.id}"></label>
-      <div class="inline" style="margin-bottom:10px"><label class="field" style="margin:0">Sexo<select id="ps-${x.id}" data-c="p-sex" data-v="${x.id}"><option value="M" ${x.sex==='M'?'selected':''}>Hombre</option><option value="F" ${x.sex==='F'?'selected':''}>Mujer</option></select></label>
-      <label class="field" style="margin:0">Teléfono<input id="pb-${x.id}" type="tel" inputmode="tel" placeholder="+49 …" value="${esc(x.phone||'')}" data-c="p-phone" data-v="${x.id}"></label></div>
-      <div class="info">Labores</div><div class="checks">${Object.entries(ROLES).map(([r,l])=>`<label><input type="checkbox" id="pr-${x.id}-${r}" data-c="p-role" data-v="${x.id}|${r}" ${x.roles.includes(r)?'checked':''}>${l}</label>`).join('')}</div>
-      <div class="info">Permisos</div><div class="checks">${[['admin','Administrador'],['pastor','Pastor'],['leipzig','Viaja a Leipzig'],['freeAlab','Un día de alabanza libre por semana']].map(([f,l])=>`<label><input type="checkbox" id="pf-${x.id}-${f}" data-c="p-flag" data-v="${x.id}|${f}" ${x[f]?'checked':''}>${l}</label>`).join('')}</div>
-      <div class="inline" style="margin-bottom:10px">${x.id!==state.me?`<button class="btn ghost sm" data-a="viewas" data-v="${x.id}">Ver la app como ${esc(x.name.split(' ')[0])}</button>`:''}</div>
-      ${ui.delp===x.id?`<div class="confirm">¿Quitar a ${esc(x.name)} del gestor? <button class="btn warnb sm" data-a="delp-yes" data-v="${x.id}">Sí, quitar</button><button class="btn ghost sm" data-a="delp-no">Cancelar</button></div>`:`<button class="btn ghost sm" data-a="delp" data-v="${x.id}" ${x.id===state.me?'disabled':''}>Quitar persona</button>`}
+      <label class="field">Nombre<input id="pn-${x.id}" type="text" value="${esc(x.name)}" data-c="p-name" data-v="${esc(x.id)}"></label>
+      <label class="field">Correo para entrar a la app<input id="pe-${x.id}" type="email" placeholder="correo@ejemplo.com" value="${esc(x.email||'')}" data-c="p-email" data-v="${esc(x.id)}"></label>
+      <div class="inline" style="margin-bottom:10px"><label class="field" style="margin:0">Sexo<select id="ps-${x.id}" data-c="p-sex" data-v="${esc(x.id)}"><option value="M" ${x.sex==='M'?'selected':''}>Hombre</option><option value="F" ${x.sex==='F'?'selected':''}>Mujer</option></select></label>
+      <label class="field" style="margin:0">Teléfono<input id="pb-${x.id}" type="tel" inputmode="tel" placeholder="+49 …" value="${esc(x.phone||'')}" data-c="p-phone" data-v="${esc(x.id)}"></label></div>
+      <div class="info">Labores</div><div class="checks">${Object.entries(ROLES).map(([r,l])=>`<label><input type="checkbox" id="pr-${x.id}-${r}" data-c="p-role" data-v="${esc(x.id)}|${esc(r)}" ${x.roles.includes(r)?'checked':''}>${l}</label>`).join('')}</div>
+      <div class="info">Permisos</div><div class="checks">${[['admin','Administrador'],['pastor','Pastor'],['leipzig','Viaja a Leipzig'],['freeAlab','Un día de alabanza libre por semana']].map(([f,l])=>`<label><input type="checkbox" id="pf-${x.id}-${f}" data-c="p-flag" data-v="${esc(x.id)}|${esc(f)}" ${x[f]?'checked':''}>${l}</label>`).join('')}</div>
+      <div class="inline" style="margin-bottom:10px">${x.id!==state.me?`<button class="btn ghost sm" data-a="viewas" data-v="${esc(x.id)}">Ver la app como ${esc(x.name.split(' ')[0])}</button>`:''}</div>
+      ${ui.delp===x.id?`<div class="confirm">¿Quitar a ${esc(x.name)}? Sale de sus próximas labores (se reasignan y se avisa a quien entra) y se borran sus datos. <button class="btn warnb sm" data-a="delp-yes" data-v="${esc(x.id)}">Sí, quitar</button><button class="btn ghost sm" data-a="delp-no">Cancelar</button></div>`:`<button class="btn ghost sm" data-a="delp" data-v="${esc(x.id)}" ${x.id===state.me?'disabled':''}>Quitar persona</button>`}
       </div>`}
     h+='</div>'}
   const nm=q?state.people.filter(z=>!z.deleted&&normQ(z.name).includes(q)).length:1;
   h+=`<div id="per-none" class="info" style="padding:12px 4px" ${nm?'hidden':''}>Nadie con ese nombre.</div>`;
   h+=`</div><h3>Invitar a una persona nueva</h3><div class="card"><div class="inline"><input id="np-name" type="text" placeholder="Nombre y apellido"><select id="np-sex"><option value="M">Hombre</option><option value="F">Mujer</option></select><button class="btn sm" data-a="addp">Agregar</button></div>
-    <div class="info" style="margin-top:6px">En la versión final le llega una invitación para crear su usuario y completar sus datos.</div></div>`;
+    <div class="info" style="margin-top:6px">Después abre su ficha y escribe su correo. Con ese correo la persona toca «Crear cuenta» en la app y entra.</div></div>`;
   return h;
 }
 
 /* ---------- acciones ---------- */
+// «Ver como» otra persona: solo para mirar. Estas acciones no cambian nada guardado.
+const VIEWOK=new Set(['logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
+const viewOnly=()=>{ui.flash=`Estás viendo la app como ${(me()||{}).name||'otra persona'}: solo para mirar. Toca «Volver a mi cuenta» para hacer cambios.`;ui.panel=null;render()};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
+  if(ui.viewAs&&!VIEWOK.has(a)){viewOnly();return}
   if(ui.hmenu&&!['hmenu','hmenu-x'].includes(a))ui.hmenu=false;
   if(a==='tab'||a==='month'){ui.mrow=null}
   switch(a){
-  case'logout':if(ui.viewAs){ui.viewAs=null;resolveMe();ui.tab='per';break}SB.auth.signOut();return;
+  case'logout':if(ui.viewAs){ui.viewAs=null;resolveMe();ui.tab='per';break}dropSub().finally(()=>SB.auth.signOut());return;
   case'viewas':ui.viewAs=v;resolveMe();ui.tab='mis';scrollTo(0,0);break;
   case'auth-mode':ui.authMode=v;ui.authMsg='';break;
   case'auth-newpass':{const pw=$('au-pass').value;SB.auth.updateUser({password:pw}).then(r=>{if(r.error){ui.authMsg=AUTHERR(r.error);ui.authOk=false}else{ui.authMode='login';ui.authMsg='';if(r.data&&r.data.user){SESSION={...SESSION,user:r.data.user};loadData()}}render()});return}
@@ -1178,7 +1187,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'panel-x':ui.panel=null;break;
   case'out-yes':outReq(v);ui.panel=null;break;
   case'late-yes':late(v,($('late-msg').value||'').trim());ui.panel=null;break;
-  case'acc':accept(v);break;
+  case'acc':t.disabled=true;refetch().catch(()=>{}).then(()=>{resolveMe();accept(v);save();render()});return;
   case'dec':decline(v);break;
   case'pdf':savePdf(ui.month);return;
   case'dlpdf':dlPdf(v);return;
@@ -1203,7 +1212,9 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'm-del-yes':{const m=state.meets.find(x=>x.id===v);if(m){notify(invitees(m),`Se canceló la reunión «${m.title}» del ${fmt(m.date)}.`);state.meets=state.meets.filter(x=>x.id!==v)}ui.mDel=null;break}
   case'rsvp':{const[id,val]=v.split('|');const m=state.meets.find(x=>x.id===id);if(m)m.rsvp[p.id]=val;break}
   case'readall':for(const n of state.notifs)if(n.to.includes(p.id)&&!n.read.includes(p.id))n.read.push(p.id);break;
-  case'gen':generate(ui.month);ui.regen=false;break;
+  case'gen':{const ym=ui.month,old=JSON.parse(JSON.stringify(state.schedules[ym]||{})),before={};for(const d of monthDates(ym))before[d]=old[d]||{};
+    generate(ym);for(const d in old)if(d<today||svcGone(d))state.schedules[ym][d]=old[d];
+    const n=schedDiffNotify(before);ui.regen=false;ui.flash=isPub(ym)?`Horario generado de nuevo (los días que ya pasaron no cambian).${n?` Se avisó a ${n} ${n===1?'persona':'personas'} de sus cambios.`:''}`:'Horario generado de nuevo.';break}
   case'publish':{state.published=state.published||{};state.published[ui.month]=Date.now();const mes=MES[+ui.month.slice(5,7)-1];
     notify(servers(),`Ya está publicado el horario de ${mes}. Revisa tus labores.`,{push:{title:`Horario de ${mes}`,body:'Ya puedes ver tus labores del mes en la app.'}});break}
   case'unpublish':if(state.published)delete state.published[ui.month];break;
@@ -1235,7 +1246,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'cal-hide':ui.calHide=true;try{localStorage.setItem('lb-calhide','1')}catch(e){}break;
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
   case'lz-go':{const[id,on]=v.split('|');const l=state.leipzig.find(x=>x.id===id);if(!l)break;l.going=(l.going||[]).filter(x=>x!==state.me);if(on==='1'){l.going.push(state.me);ui.flash=`Anotado: vas a Leipzig el ${fmt(l.date)}.`}else ui.flash='Anotado: ya no vas.';break}
-  case'n-go':{const n=state.notifs.find(x=>x.id===v);if(!n)return;if(!n.read.includes(state.me)){n.read.push(state.me);save()}nGo(goFor(n,p));return}
+  case'n-go':{const n=state.notifs.find(x=>x.id===v);if(!n)return;if(!ui.viewAs&&!n.read.includes(state.me)){n.read.push(state.me);save()}nGo(goFor(n,p));return}
   case'rep-open':ui.repOpen=v;ui.repLang=null;render();return;
   case'rep-lang':ui.repLang=v;{const n=($('rep-note')||{}).value;render();const x=$('rep-note');if(x&&n)x.value=n}return;
   case'rep-x':ui.repOpen=null;render();return;
@@ -1255,7 +1266,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'dk-week':ui.dkWeek=v==='0'?0:(ui.dkWeek||0)+(+v);ui.dkDay=null;render();return;
   case'dk-go':{const el=$(v);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
   case'dk-hor':ui.month=v;ui.tab='hor';scrollTo(0,0);render();return;
-  case'bell':ui.menu=false;ui.bell=true;ui.bellNew=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).map(n=>n.id);for(const n of state.notifs)if(ui.bellNew.includes(n.id))n.read.push(p.id);break;
+  case'bell':ui.menu=false;ui.bell=true;ui.bellNew=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).map(n=>n.id);if(!ui.viewAs)for(const n of state.notifs)if(ui.bellNew.includes(n.id))n.read.push(p.id);break;
   case'sheet-x':ui.menu=false;ui.bell=false;ui.bellNew=[];break;
   case'photo-del':delete p.photo;break;
   case'cal-get':ui.calErr='';SB.functions.invoke('push',{body:{mode:'caltoken'}}).then(r=>{if(r.error||!r.data||!r.data.me)ui.calErr='No se pudo crear el enlace. Inténtalo de nuevo.';else ui.cal=r.data;render()}).catch(()=>{ui.calErr='No se pudo crear el enlace. Revisa tu conexión.';render()});return;
@@ -1287,7 +1298,16 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'open':ui.open=ui.open===v?null:v;ui.delp=null;break;
   case'delp':ui.delp=v;break;
   case'delp-no':ui.delp=null;break;
-  case'delp-yes':{const x=person(v);if(x&&x.email)SB.from('members').delete().eq('email',x.email.toLowerCase()).then(()=>{});}state.people=state.people.filter(x=>x.id!==v);ui.delp=null;ui.open=null;break;
+  case'delp-yes':{const x=person(v);if(!x)break;
+    // Se marca como borrada (como «Borrar mi cuenta»): sale de las labores que vienen, deja de recibir avisos y se borran sus datos.
+    const dates=[];for(const ym in state.schedules)for(const d in state.schedules[ym])if(d>=today&&!svcGone(d)&&Object.values(state.schedules[ym][d]||{}).includes(v))dates.push(d);
+    const bf=snapDays(dates);
+    SB.from('members').delete().eq('person_id',v).then(()=>{},()=>{});SB.from('push_subs').delete().eq('person_id',v).then(()=>{},()=>{});
+    if(PRIVTBL)SB.from('private_info').delete().eq('person_id',v).then(()=>{},()=>{});delete PRIV[v];
+    Object.assign(x,{name:'Persona eliminada',email:'',phone:'',roles:[],days:[],blocked:[],admin:false,pastor:false,leipzig:false,deleted:Date.now()});for(const f of ['photo','predPref','privacy','avoidSlots','favorSlots','avoidDays','noSlots','maxOne','introNotWith','freeAlab','pref'])delete x[f];
+    for(const k in state.fixed||{})for(const w in state.fixed[k])if(state.fixed[k][w]===v)delete state.fixed[k][w];
+    for(const d of dates){const ym=d.slice(0,7),as=state.schedules[ym][d];for(const k in as)if(as[k]===v){delete as[k];refill(ym,d,k)}}
+    const n=schedDiffNotify(bf);ui.flash=`Persona quitada.${dates.length?` Sus labores de las próximas fechas se reasignaron${n?` y se avisó a ${n} ${n===1?'persona':'personas'}`:''}.`:''}`;ui.delp=null;ui.open=null;break}
   case'addp':{const n=$('np-name').value.trim();if(!n)return;const id=uid();state.people.push(P(id,n,$('np-sex').value,[]));ui.open=id;break}
   case't-add':{const n=$('t-new').value.trim();if(!n)return;const id=uid();state.teachings.push({id,title:n});dupFlash(id);break}
   case'pdfdel':{const[kd,iv,l='de']=v.split('|');const x=pdfList(kd).find(z=>z.id===iv),fk=LANGF[l];if(x&&x[fk]){const aid=x[fk].id;delete x[fk];if(AS)AS.delete(aid).catch(()=>{})}break}
@@ -1302,26 +1322,27 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'tr-done':ui.trEdit=null;break;
   case'tr-del':state.trans=state.trans.filter(t=>t.id!==v);break;
   case'lz-add':{const d=$('lz-date').value,tt=$('lz-t').value.trim();if(!d||!tt){ui.lzErr=!d&&!tt?'Elige la fecha y escribe la predicación.':!d?'Elige la fecha.':'Escribe el título de la predicación.';ui.lzD=d;ui.lzT=tt;break}ui.lzErr='';ui.lzD='';ui.lzT='';state.leipzig.push({id:uid(),date:d,teaching:tt});
-    const th=ds(new Date(pd(d).getTime()-2*864e5));fixDate(th);fixDate(d);break}
+    const th=ds(new Date(pd(d).getTime()-2*864e5)),bf=snapDays([th,d]);fixDate(th);fixDate(d);const n=schedDiffNotify(bf);if(n)ui.flash=`Visita agregada. Se avisó a ${n} ${n===1?'persona':'personas'} de cambios en su labor.`;break}
   case'lz-del':{const l=state.leipzig.find(t=>t.id===v);state.leipzig=state.leipzig.filter(t=>t.id!==v);
-    if(l){fixDate(ds(new Date(pd(l.date).getTime()-2*864e5)));fixDate(l.date)}break}
+    if(l){const th=ds(new Date(pd(l.date).getTime()-2*864e5)),bf=snapDays([th,l.date]);fixDate(th);fixDate(l.date);const n=schedDiffNotify(bf);if(n)ui.flash=`Visita quitada. Se avisó a ${n} ${n===1?'persona':'personas'} de cambios en su labor.`}break}
   default:return}
   save();render()});
 document.addEventListener('change',e=>{const t=e.target.closest('[data-c]');if(!t)return;const c=t.dataset.c,v=t.dataset.v||'',p=me();
+  if(ui.viewAs&&!['md','md-area'].includes(c)){viewOnly();return}
   switch(c){
   case'cell':{const[d,k]=v.split('|');const ym=d.slice(0,7);const as=state.schedules[ym][d]=state.schedules[ym][d]||{};if(t.value)as[k]=t.value;else delete as[k];ui.edit=null;break}
   case'me-name':if(t.value.trim())p.name=t.value.trim();break;
-  case'me-phone':p.phone=t.value.trim();break;
+  case'me-phone':p.phone=t.value.trim();savePriv(p);break;
   case'pd-up':{const f=t.files&&t.files[0];if(!f||!AS)return;if(f.type!=='application/pdf'){ui.uplMsg='Debe ser un PDF.';render();return}ui.upl='pd';ui.uplMsg='';render();
     AS.upload(f).then(r=>{state.privDocs=state.privDocs||[];state.privDocs.push({id:uid(),name:f.name,ts:Date.now(),pdf:{id:r.id,name:f.name}});ui.upl=null;save();render()}).catch(e=>{ui.upl=null;ui.uplMsg=e&&e.code==='too_large'?'El PDF es muy grande (máximo 20 MB).':'No se pudo guardar. Intenta de nuevo.';render()});return}
   case'lz-name':{const l=state.leipzig.find(x=>x.id===v);if(l)l.teaching=t.value.trim();break}
   case't-name':{const x=state.teachings.find(z=>z.id===v);if(x&&t.value.trim())x.title=t.value.trim();break}
   case'pred-pref':{p.predPref=p.predPref||{};if(t.value)p.predPref[v]=t.value;else delete p.predPref[v];break}
   case'photo':{const f=t.files&&t.files[0];if(!f)return;const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const S=128,c=document.createElement('canvas');c.width=c.height=S;const k=Math.min(im.width,im.height),g=c.getContext('2d');g.drawImage(im,(im.width-k)/2,(im.height-k)/2,k,k,0,0,S,S);URL.revokeObjectURL(u);p.photo=c.toDataURL('image/jpeg',.72);save();render()};im.onerror=()=>{ui.toast='No se pudo leer esa imagen.';render()};im.src=u;return}
-  case'p-email':{const x=person(v),old=x.email||'';x.email=t.value.trim();syncMember(x,old);break}
+  case'p-email':{const x=person(v),old=x.email||'';x.email=t.value.trim();syncMember(x,old);savePriv(x);break}
   case'p-name':if(t.value.trim())person(v).name=t.value.trim();break;
   case'p-sex':person(v).sex=t.value;break;
-  case'p-phone':person(v).phone=t.value.trim();break;
+  case'p-phone':{const x=person(v);x.phone=t.value.trim();savePriv(x);break}
   case'p-role':{const[id,r]=v.split('|');const x=person(id);x.roles=t.checked?[...new Set([...x.roles,r])]:x.roles.filter(y=>y!==r);break}
   case'p-flag':{const[id,f]=v.split('|');person(id)[f]=t.checked;syncMember(person(id));break}
   case'tr-text':{const x=state.trans.find(z=>z.id===v);if(x)x.link=t.value.trim();ui.trEdit=null;break}
@@ -1339,10 +1360,10 @@ function resolveMe(){const em=((SESSION&&SESSION.user&&SESSION.user.email)||'').
     upload:async f=>{const path=Date.now()+'-'+f.name.replace(/[^\w.\-]+/g,'_');const{error}=await SB.storage.from('fichas').upload(path,f,{contentType:'application/pdf'});if(error)throw error;return{id:path}},
     delete:async path=>{await SB.storage.from('fichas').remove([path])}}:null}
 const realMe=()=>{const em=((SESSION&&SESSION.user&&SESSION.user.email)||'').toLowerCase();return (MYPID&&person(MYPID))||state.people.find(x=>(x.email||'').toLowerCase()===em&&em)};
-function adopt(j,ver){if(typeof j!=='string')return;if(ver)VER=ver;if(j===lastJson)return;
+function adopt(j,ver){if(typeof j!=='string')return;if(ver&&ver<VER)return;if(ver)VER=ver;if(j===lastJson)return;
   let r;try{r=JSON.parse(j)}catch(e){return}
   const pending=lastJson!==null&&sharedJson()!==lastJson,m=state.me;
-  state=pending&&BASE?merge3(BASE,sharedObj(),r):r;state.me=m;BASE=r;lastJson=j;
+  state=pending&&BASE?merge3(BASE,sharedObj(),r):r;state.me=m;BASE=r;lastJson=j;storeBase();applyPriv();
   state.reqs=state.reqs||[];state.notifs=state.notifs||[];state.msgs=state.msgs||[];state.meets=state.meets||[];
   if(migrate()||pending)save();
   try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}}
@@ -1350,21 +1371,26 @@ async function loadData(){SYNC='loading';render();
   const em=SESSION.user.email.toLowerCase();
   try{const m=await SB.from('members').select('person_id').eq('email',em).maybeSingle();MYPID=m.data?m.data.person_id:null}catch(e){}
   const{data,error}=await SB.from('app_state').select('json,version').eq('id','main').maybeSingle();
-  if(error){SYNC='error';READY=true;render();return}
+  if(error){SYNC=navigator.onLine===false?'local':'error';READY=true;render();clearTimeout(lTimer);lTimer=setTimeout(()=>{if(SESSION&&!LOADED)loadData()},10000);return}
+  await loadPriv();
   if(data&&data.json)adopt(data.json,data.version);
-  SYNC='ok';READY=true;resolveMe();render();
+  LOADED=true;SYNC='ok';READY=true;resolveMe();render();
+  await movePriv();
   autoDraft();
   if(sharedJson()!==lastJson)push();
   ensureSub(false);
-  if(!CH)CH=SB.channel('estado').on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'id=eq.main'},pl=>{if(pl.new&&pl.new.json&&!writing){adopt(pl.new.json,pl.new.version);resolveMe();render()}}).subscribe();}
+  if(!CH)CH=SB.channel('estado').on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'id=eq.main'},pl=>{if(!(pl.new&&pl.new.json))return;if(writing){skipped=true;return}adopt(pl.new.json,pl.new.version);resolveMe();softRender()}).subscribe();}
 async function syncMember(p,oldEmail){try{
   if(oldEmail&&oldEmail.toLowerCase()!==(p.email||'').toLowerCase())await SB.from('members').delete().eq('email',oldEmail.toLowerCase());
   if(p.email)await SB.from('members').upsert({email:p.email.toLowerCase(),person_id:p.id,is_admin:!!p.admin,can_upload:!!(p.admin||p.pastor)})}catch(e){}}
-SB.auth.onAuthStateChange((ev,s)=>{if(ev==='PASSWORD_RECOVERY'){ui.authMode='newpass';SESSION=s;render();return}
+SB.auth.onAuthStateChange((ev,s)=>{if(window.__MOVED)return;if(ev==='PASSWORD_RECOVERY'){ui.authMode='newpass';SESSION=s;render();return}
   const had=SESSION&&SESSION.user&&SESSION.user.id;SESSION=s;
   if(s&&s.user&&had!==s.user.id){READY=false;loadData()}
-  if(!s){READY=false;MYPID=null;state.me=null;render()}});
-(async()=>{const{data}=await SB.auth.getSession();SESSION=data.session;if(SESSION)loadData();else render()})();
+  if(!s){READY=false;LOADED=false;MYPID=null;state.me=null;VER=0;lastJson=null;BASE=null;PRIV={};try{localStorage.removeItem(LS);localStorage.removeItem(BASEK)}catch(e){}render()}});
+/* Al salir: este aparato deja de recibir los avisos de esta cuenta. */
+async function dropSub(){try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();
+  if(sub){await SB.from('push_subs').delete().eq('endpoint',sub.endpoint);await sub.unsubscribe()}}catch(e){}}
+(async()=>{if(window.__MOVED)return;const{data}=await SB.auth.getSession();SESSION=data.session;if(SESSION)loadData();else render()})();
 /* instalar */
 let INSTALL=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();INSTALL=e;render()});
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

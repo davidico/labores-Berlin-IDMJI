@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **7.6**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **7.7**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v82`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v83`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -42,6 +42,7 @@ supabase/
   functions/push/index.ts   Función Edge (Deno/TypeScript): avisos, calendario ICS, borrar cuenta
   push.sql                  pg_cron: llama a la función cada 30 min
   schema.sql                Tablas
+  seguridad.sql             private_info, reglas por persona, guardia del estado (solo admin), historial
 netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 ```
 
@@ -51,7 +52,10 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 
 - **Frontend:** `render()` reconstruye `#app` con template strings a partir de `state` y `ui`. Cada pestaña es una función `vMis`, `vCal`, `vDisp`, `vHor`, `vEns`, `vPer`, `vAj`; en PC (≥1024 px) `vMis` se reemplaza por `vDash` (panel de escritorio) y el menú pasa a la izquierda.
 - **Datos:** Supabase. Todo el estado compartido es **un solo documento JSON** en la tabla `app_state` (fila `id='main'`, columnas `json` y `version`). Se guarda con control de versión (`save()` → `push()`), y llega en tiempo real a los demás (Realtime). Funciona bien para ~22 usuarios; si crece, separar en tablas.
-- **Otras tablas:** `members` (email ↔ person_id, is_admin), `push_subs` (suscripciones Web Push), `push_log` (para no repetir avisos), bucket `fichas` (casi en desuso; ahora las fichas son enlaces de Drive).
+- **Datos privados:** teléfono y correo van en la tabla `private_info` (solo admin y la propia persona). Cuando el admin entra, `movePriv()` los pasa allí y marca `state.privMoved`; desde entonces `sharedObj()` los quita del estado compartido y `applyPriv()` los vuelve a poner en memoria. Si la tabla no existe, todo sigue como antes.
+- **Guardia del estado (`seguridad.sql`):** un trigger rechaza (código 42501) que alguien que no es admin cambie admin/pastor/roles, `fixed`, `published` o quite personas; guarda las últimas 150 versiones en `app_state_history`.
+- **Sincronización:** el último estado sincronizado se guarda en `localStorage` (`labores-berlin-v1-base`) para unir cambios pendientes al volver; al volver a la app se hace `refetch()`; Realtime no redibuja mientras alguien escribe (`softRender()`).
+- **Otras tablas:** `members` (email ↔ person_id, is_admin; cada uno ve solo su fila), `push_subs` (suscripciones Web Push), `push_log` (para no repetir avisos), bucket `fichas` (casi en desuso; ahora las fichas son enlaces de Drive).
 - **Auth:** Supabase email + contraseña. Nunca ver ni pedir contraseñas.
 - **Función `push`** (Verify JWT desactivado; se valida por dentro), modos:
   - `{"mode":"daily"}` → la llama pg_cron cada 30 min; ejecuta `monthly()`, `pastorReminders()`, `todayReminder()`, `introReminders()`, `leipzigInvite()`, `daily()`. Cada aviso se deduplica con `once(clave)` o `push_log`.
@@ -91,7 +95,9 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 - **Gabriela:** ve «Alabanza (vas tú)» los Lun/Mié/Vie en que David no tiene labor (no se le asigna nada).
 - **Fichas:** enlaces de Drive por enseñanza y por idioma. Todo el equipo de alemán ve el de alemán y todo el de inglés el de inglés (por reemplazos de último momento). Leipzig: solo el equipo de traducción; quienes viajan ven los dos.
 - **Ofrendas:** «pareja 1 / pareja 2» y cada uno ve a su pareja (sin teléfono: el teléfono solo lo ve el admin).
-- **Avisos por cambios del admin:** solo en meses publicados y fechas futuras; se avisa a quien entra y a quien sale.
+- **Avisos por cambios del admin:** solo en meses publicados y fechas futuras; se avisa a quien entra y a quien sale (asignar, Leipzig, volver a generar, quitar persona → `schedDiffNotify()`). «Volver a generar» no toca los días que ya pasaron.
+- **Quitar persona:** se marca `deleted` (no se borra del arreglo), sale de las labores que vienen (se rellenan) y se borran sus filas en members, push_subs y private_info.
+- **«Ver como»:** solo para mirar; las acciones que guardan están bloqueadas (`VIEWOK`).
 
 ## Notificaciones automáticas (hora de Berlín)
 
@@ -117,7 +123,8 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 
 ## Convenciones de UI (las pidió el usuario)
 
-- Texto ≥ 16 px; áreas táctiles ≥ 44 px (enlaces ≥ 40 px).
+- Tamaños de letra según buenas prácticas: texto principal 16 px, notas 15 px, secundario 14 px, etiquetas en mayúsculas y números de aviso nunca menos de 12 px. Áreas táctiles ≥ 44 px (enlaces ≥ 40 px).
+- «No puedo ir» y «Llego tarde» quedan siempre visibles en cada tarjeta (no esconderlos en un menú).
 - Espaciado en pasos de 8 px; **16 px entre contenido y botones**.
 - Una acción principal por pantalla; lo poco usado o delicado en menú ⋯ o con confirmación.
 - Estado como etiqueta (● Publicado / ● Borrador), filas que dicen cómo va («2 de 22 enviaron ›»).
@@ -133,6 +140,10 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 No hay tests automáticos. Se prueba con **Playwright (Python)** cargando `public/` con un Supabase falso y datos de prueba, ejecutando acciones con `page.evaluate` y sacando capturas (390×844 celular, 1440×1000 PC). Patrón útil: `ui.viewAs='<id>'; resolveMe(); ui.tab='mis'; render()` para ver la app como otra persona. Para la función: quitar los `import`, transpilar con esbuild y correr con un cliente Supabase falso, simulando horas (`run('2026-11-13T14:00:00Z')`).
 
 ## Pendientes
+
+- [ ] **David:** correr `supabase/seguridad.sql` en Supabase (SQL Editor) y desplegar la función `push` de la versión 7.7 (SHA-256 `d03fa78e…b35956`).
+- [ ] Confirmar si los jueves se necesita la ficha en inglés (hoy la pestaña Pastor la pide siempre).
+- [ ] Pendiente de seguridad: cualquier miembro todavía puede escribir horarios y avisos en el estado compartido (se puede recuperar con `app_state_history`); separarlo en tablas lo resolvería del todo.
 
 - [ ] Borrar el proyecto viejo de Cloudflare `labores-berlin-idmji` (fin de noviembre).
 - [ ] Quitar el nombre de la iglesia del documento VVT.

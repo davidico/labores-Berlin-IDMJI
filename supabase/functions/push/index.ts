@@ -1,6 +1,6 @@
 // Función "push" de Supabase: envía notificaciones al celular.
 // - mode "send": la app avisa a ciertas personas (solo miembros registrados pueden usarla).
-// - mode "daily": recordatorio de la noche antes (lo llama la tarea programada cada 30 minutos; envía una sola vez por día, a las 20:30 de Berlín).
+// - mode "daily": recordatorio de la noche antes (lo llama la tarea programada cada 30 minutos; envía una sola vez por día, a las 20:30 de Berlín; la de las 21:00 es reintento).
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 
@@ -22,6 +22,7 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 const ERRORS: string[] = [];
 // deno-lint-ignore no-explicit-any
 async function sendTo(ids: string[], title: string, body: string, url = '/', actions?: any[]) {
+  ids = [...new Set(ids)];
   if (!ids.length) return 0;
   const { data } = await SB.from('push_subs').select('endpoint,sub').in('person_id', ids);
   let sent = 0;
@@ -66,7 +67,7 @@ function berlin(d: Date) {
 // deno-lint-ignore no-explicit-any
 function invitees(st: any, m: any): string[] {
   // deno-lint-ignore no-explicit-any
-  const people: any[] = st.people || [];
+  const people: any[] = (st.people || []).filter((p: any) => !p.deleted);
   if ((m.areas || []).includes('all')) return people.map((p) => p.id);
   return people.filter((p) => (p.roles || []).some((r: string) => (m.areas || []).includes(ROLEAREA[r])) || ((m.areas || []).includes('pulpito') && p.pastor)).map((p) => p.id);
 }
@@ -74,15 +75,32 @@ function invitees(st: any, m: any): string[] {
 const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const AV = { send: 15, remind: 20, deadline: 22, close: 23, hour: 10 };
 const once = async (key: string) => !(await SB.from('push_log').insert({ day: key })).error;
+// Libera una clave de push_log para que la siguiente ejecución lo reintente.
+const unlog = async (key: string) => { await SB.from('push_log').delete().eq('day', key); };
+// Prepara un aviso tras gastar la clave: si devuelve null o falla, se libera la clave (no se pierde el aviso).
+async function prep<T>(key: string, fn: () => Promise<T | null>): Promise<T | null> {
+  try { const r = await fn(); if (r == null) await unlog(key); return r; } catch (e) { await unlog(key); throw e; }
+}
 const uid = () => Math.random().toString(36).slice(2, 9);
+// deno-lint-ignore no-explicit-any
+async function readState(): Promise<any | null> {
+  const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
+  return data ? JSON.parse(data.json) : null;
+}
+// Ids que existen y no están borrados
+// deno-lint-ignore no-explicit-any
+const alive = (st: any) => new Set<string>((st.people || []).filter((x: any) => x && !x.deleted).map((x: any) => x.id));
 // deno-lint-ignore no-explicit-any
 async function editState(fn: (st: any) => void) {
   for (let i = 0; i < 5; i++) {
+    if (i) await new Promise((r) => setTimeout(r, 150 * i));
     const { data } = await SB.from('app_state').select('json,version').eq('id', 'main').maybeSingle();
     if (!data) return null;
     const st = JSON.parse(data.json);
     fn(st);
-    const { data: up } = await SB.from('app_state').update({ json: JSON.stringify(st), version: data.version + 1, updated_at: new Date().toISOString() })
+    const out = JSON.stringify(st);
+    if (out === data.json) return st; // sin cambios: no se escribe
+    const { data: up } = await SB.from('app_state').update({ json: out, version: data.version + 1, updated_at: new Date().toISOString() })
       .eq('id', 'main').eq('version', data.version).select('version');
     if (up && up.length) return st;
   }
@@ -103,30 +121,32 @@ async function monthly() {
   const fmtDl = `${AV.deadline} de ${MES[Number(p.month) - 1]}`;
   if (day === AV.send && await once(`av-send-${ym}`)) {
     let to: string[] = [];
-    const st = await editState((st) => {
+    const st = await prep(`av-send-${ym}`, () => editState((st) => {
       st.avReqs = st.avReqs || {};
       if (st.avReqs[ym]) return;
       st.avReqs[ym] = { deadline, ts: Date.now(), done: {}, auto: true };
       to = servers(st);
       addNotif(st, to, `Marca los días que no puedes servir en ${mes}, antes del ${fmtDl}. Está arriba en Labores.`);
-    });
-    if (st && to.length) await sendTo(to, `Disponibilidad de ${mes}`, `Marca los días que no puedes antes del ${fmtDl}.`, '/?go=disp');
+    }));
+    if (!st) return { error: 'sin datos', ym };
+    if (to.length) await sendTo(to, `Disponibilidad de ${mes}`, `Marca los días que no puedes antes del ${fmtDl}.`, '/?go=disp');
     return { sent: 'pedido', ym };
   }
   if (day === AV.remind && await once(`av-remind-${ym}`)) {
     let pend: string[] = [];
-    await editState((st) => {
+    const st = await prep(`av-remind-${ym}`, () => editState((st) => {
       const av = (st.avReqs || {})[ym];
       if (!av) return;
       pend = servers(st).filter((i) => !(av.done && av.done[i]));
       if (pend.length) addNotif(st, pend, `Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmtDl}.`);
-    });
+    }));
+    if (!st) return { error: 'sin datos', ym };
     if (pend.length) await sendTo(pend, `Falta tu disponibilidad de ${mes}`, `Márcala antes del ${fmtDl}.`, '/?go=disp');
     return { sent: 'recordatorio', ym, n: pend.length };
   }
   if (day === AV.close && await once(`av-close-${ym}`)) {
     let admins: string[] = [], txt = '';
-    await editState((st) => {
+    const st = await prep(`av-close-${ym}`, () => editState((st) => {
       const av = (st.avReqs || {})[ym];
       if (!av) return;
       // deno-lint-ignore no-explicit-any
@@ -134,7 +154,8 @@ async function monthly() {
       const all = servers(st), done = all.filter((i) => av.done && av.done[i]).length;
       txt = `Cerró la disponibilidad de ${mes}: ${done} de ${all.length} respondieron. Abre Horario para revisar el borrador y publicarlo.`;
       addNotif(st, admins, txt);
-    });
+    }));
+    if (!st) return { error: 'sin datos', ym };
     if (admins.length) await sendTo(admins, `Disponibilidad de ${mes} cerrada`, txt, '/?go=hor');
     return { sent: 'cierre', ym };
   }
@@ -176,7 +197,7 @@ async function pastorReminders() {
   if (!data) return { error: 'sin datos' };
   const st = JSON.parse(data.json);
   // deno-lint-ignore no-explicit-any
-  const pastors: string[] = (st.people || []).filter((x: any) => x.pastor).map((x: any) => x.id);
+  const pastors: string[] = (st.people || []).filter((x: any) => x.pastor && !x.deleted).map((x: any) => x.id);
   if (!pastors.length) return { skipped: true, noPastor: true };
   const lines: string[] = [];
   let title = '';
@@ -208,7 +229,7 @@ async function pastorReminders() {
     if ((st.trans || []).some((t: any) => t.date === sun) || (st.transNo || []).includes(sun)) return { ok: 'ya respondió', sun };
     if (!(await once(`pastor-${today}`))) return { skipped: true, already: today };
     const q = `¿Hay transmisión internacional el ${fmtD(sun)}?`;
-    await editState((s2) => addNotif(s2, pastors, `${q} Responde Sí o No en Labores.`));
+    if (!(await prep(`pastor-${today}`, () => editState((s2) => addNotif(s2, pastors, `${q} Responde Sí o No en Labores.`))))) return { error: 'sin datos' };
     const sent = await sendTo(pastors, 'Transmisión del domingo', `${q} Toca para responder Sí o No.`, `/?tr=${sun}`,
       [{ action: 'tr-si', title: 'Sí, hay' }, { action: 'tr-no', title: 'No hay' }]);
     return { sent, sun };
@@ -217,7 +238,7 @@ async function pastorReminders() {
   if (!(await once(`pastor-${today}`))) return { skipped: true, already: today };
   const body = lines.join('\n');
   const note = dow >= 5 ? `${title}: ${lines.join(' · ')}` : `${title}: ${lines.join(' · ')}. Pon los enlaces a más tardar el miércoles en la pestaña Pastor.`;
-  await editState((s2) => addNotif(s2, pastors, note));
+  if (!(await prep(`pastor-${today}`, () => editState((s2) => addNotif(s2, pastors, note))))) return { error: 'sin datos' };
   const sent = await sendTo(pastors, title, body, '/?go=ens');
   return { sent, lines };
 }
@@ -242,7 +263,7 @@ async function leipzigInvite() {
   if (!to.length) return { skipped: true, nobody: true };
   if (!(await once(`lz-${sat}-${today}`))) return { skipped: true, already: today };
   const pred = l.teaching ? ` Predicación: ${l.teaching}.` : '';
-  await editState((s2) => addNotif(s2, to, `Invitación: visita a Leipzig el sábado ${fmtD(sat).split(' ')[1]}.${pred} Si vas, toca «Yo iré» en Labores.`));
+  if (!(await prep(`lz-${sat}-${today}`, () => editState((s2) => addNotif(s2, to, `Invitación: visita a Leipzig el sábado ${fmtD(sat).split(' ')[1]}.${pred} Si vas, toca «Yo iré» en Labores.`))))) return { error: 'sin datos' };
   const sent = await sendTo(to, 'Invitación a Leipzig', `Visita el sábado ${fmtD(sat).split(' ')[1]}.${pred} Si vas, toca «Yo iré» en la app.`, '/?go=lz');
   return { sent, sat };
 }
@@ -266,13 +287,13 @@ async function introReminders() {
   // deno-lint-ignore no-explicit-any
   if ((st.trans || []).some((t: any) => t.date === d)) return { skipped: true, trans: d };
   const pid: string | undefined = ((st.schedules?.[d.slice(0, 7)] || {})[d] || {}).pul;
-  if (!pid) return { skipped: true, noIntro: d };
+  if (!pid || !alive(st).has(pid)) return { skipped: true, noIntro: d };
   if (st.intro?.[d]?.cita) return { ok: 'ya puso la cita', d };
   if (!(await once(`intro-${d}-${today}`))) return { skipped: true, already: today };
   const when = d === today ? 'hoy' : `el ${fmtD(d)}`;
   const title = `Tu introducción ${d === today ? 'de hoy' : 'del ' + fmtD(d)}`;
   const body = `Pon la cita bíblica que leerás (y el enlace del testimonio, si tienes) en Labores, para que los intérpretes se preparen.`;
-  await editState((s2) => addNotif(s2, [pid], `Das la introducción ${when}: pon la cita bíblica que leerás (y el enlace del testimonio, si tienes) para que los intérpretes se preparen.`));
+  if (!(await prep(`intro-${d}-${today}`, () => editState((s2) => addNotif(s2, [pid], `Das la introducción ${when}: pon la cita bíblica que leerás (y el enlace del testimonio, si tienes) para que los intérpretes se preparen.`))))) return { error: 'sin datos' };
   const sent = await sendTo([pid], title, body, `/?go=ic&d=${d}`);
   return { sent, d, pid };
 }
@@ -282,17 +303,17 @@ async function todayReminder() {
   const p = berlin(new Date());
   if (Number(p.hour) !== 8) return { skipped: true };
   const date = `${p.year}-${p.month}-${p.day}`;
-  const { error: dup } = await SB.from('push_log').insert({ day: `hoy-${date}` });
-  if (dup) return { skipped: true, already: date };
-  const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
-  if (!data) return { error: 'sin datos' };
-  const st = JSON.parse(data.json);
+  // Primero se lee el estado; la clave se gasta solo si de verdad hay que avisar.
+  const st = await readState();
+  if (!st) return { error: 'sin datos' };
   if (!(st.published && st.published[date.slice(0, 7)])) return { skipped: true, unpublished: true };
+  if (!(await once(`hoy-${date}`))) return { skipped: true, already: date };
+  const ok = alive(st);
   const as: Record<string, string> = (st.schedules?.[date.slice(0, 7)] || {})[date] || {};
   const dow = new Date(date + 'T12:00:00Z').getUTCDay();
   const [sn, hr] = SVC[dow];
   const by: Record<string, Set<string>> = {};
-  for (const [k, pid] of Object.entries(as)) if (pid) (by[pid] ??= new Set()).add(LBL[k] || k);
+  for (const [k, pid] of Object.entries(as)) if (pid && ok.has(pid)) (by[pid] ??= new Set()).add(LBL[k] || k);
   let sent = 0;
   for (const [pid, set] of Object.entries(by)) sent += await sendTo([pid], `Hoy te toca: ${[...set].join(', ')}`, `${sn} a las ${hr}.`);
   // deno-lint-ignore no-explicit-any
@@ -305,21 +326,23 @@ async function todayReminder() {
 async function daily() {
   const now = new Date();
   const p = berlin(now);
-  // Aviso de lo que toca mañana: a las 20:30 (la tarea programada corre cada 30 minutos).
-  if (Number(p.hour) !== 20 || Number(p.minute) < 30) return { skipped: true, hour: p.hour, minute: p.minute };
+  // Aviso de lo que toca mañana: a las 20:30 (la tarea programada corre cada 30 minutos); la de las 21:00 sirve de reintento.
+  const h = Number(p.hour), mi = Number(p.minute);
+  if (!((h === 20 && mi >= 30) || (h === 21 && mi < 30))) return { skipped: true, hour: p.hour, minute: p.minute };
   const q = berlin(new Date(now.getTime() + 24 * 3600e3));
   const date = `${q.year}-${q.month}-${q.day}`;
+  const st = await readState();
+  if (!st) return { error: 'sin datos' };
+  // Meses en borrador: no se avisa (y la clave no se gasta).
+  if (!(st.published && st.published[date.slice(0, 7)])) return { skipped: true, unpublished: true };
   // Solo una vez por día, aunque alguien llame a la función más veces.
-  const { error: dup } = await SB.from('push_log').insert({ day: date });
-  if (dup) return { skipped: true, already: date };
-  const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
-  if (!data) return { error: 'sin datos' };
-  const st = JSON.parse(data.json);
+  if (!(await once(date))) return { skipped: true, already: date };
+  const ok = alive(st);
   const as: Record<string, string> = (st.schedules?.[date.slice(0, 7)] || {})[date] || {};
   const dow = new Date(date + 'T12:00:00Z').getUTCDay();
   const [sn, hr] = SVC[dow];
   const by: Record<string, Set<string>> = {};
-  for (const [k, pid] of Object.entries(as)) (by[pid] ??= new Set()).add(LBL[k] || k);
+  for (const [k, pid] of Object.entries(as)) if (pid && ok.has(pid)) (by[pid] ??= new Set()).add(LBL[k] || k);
   let sent = 0;
   for (const [pid, set] of Object.entries(by)) sent += await sendTo([pid], `Mañana te toca: ${[...set].join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.`);
   // deno-lint-ignore no-explicit-any
@@ -337,7 +360,11 @@ async function sig(id: string) {
   const b = new Uint8Array(await crypto.subtle.sign('HMAC', HK, enc.encode(id)));
   return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 24);
 }
-const icsTxt = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const icsTxt = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
+// Comparación en tiempo constante (la firma del enlace)
+const sameStr = (a: string, b: string) => { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; };
+const isDate = (d: unknown): d is string => typeof d === 'string' && /^\d{4}-\d\d-\d\d$/.test(d);
+const uidSafe = (s: unknown) => String(s ?? '').replace(/[^\w-]/g, '');
 function fold(l: string) {
   const out: string[] = [];
   const b = enc.encode(l);
@@ -353,7 +380,7 @@ const lt = (date: string, hm: string) => date.replace(/-/g, '') + 'T' + hm.repla
 function plus(hm: string, min: number) { const [h, m] = hm.split(':').map(Number); const t = h * 60 + m + min; return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; }
 const ORDERK = Object.keys(LBL);
 async function calendar(pid: string, t: string) {
-  if (!pid || !t || t !== await sig(pid)) return new Response('Enlace no válido', { status: 403 });
+  if (!pid || !t || !sameStr(t, await sig(pid))) return new Response('Enlace no válido', { status: 403 });
   const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
   if (!data) return new Response('sin datos', { status: 500 });
   const st = JSON.parse(data.json);
@@ -361,7 +388,7 @@ async function calendar(pid: string, t: string) {
   // deno-lint-ignore no-explicit-any
   const people: any[] = st.people || [];
   const me = people.find((x) => x.id === pid);
-  if (!all && !me) return new Response('Enlace no válido', { status: 403 });
+  if (!all && (!me || me.deleted)) return new Response('Enlace no válido', { status: 403 });
   const nm = (id: string) => (people.find((x) => x.id === id) || {}).name || id;
   const p0 = berlin(new Date());
   const from = `${p0.year}-${p0.month}-01`.slice(0, 7);
@@ -369,14 +396,17 @@ async function calendar(pid: string, t: string) {
   const L: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Labores Berlin//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     `X-WR-CALNAME:${all ? 'Labores Berlín · todos' : 'Mis labores · Berlín'}`, 'X-WR-TIMEZONE:Europe/Berlin', 'REFRESH-INTERVAL;VALUE=DURATION:PT6H', 'X-PUBLISHED-TTL:PT6H', ...VTZ];
   const ev = (uid: string, date: string, hm: string, mins: number, sum: string, desc: string) => {
-    L.push('BEGIN:VEVENT', `UID:${uid}@labores-berlin`, `DTSTAMP:${stamp}`, `DTSTART;TZID=Europe/Berlin:${lt(date, hm)}`, `DTEND;TZID=Europe/Berlin:${lt(date, plus(hm, mins))}`,
+    // Si el final pasa de la medianoche, DTEND va al día siguiente (nunca antes que DTSTART).
+    const [h0, m0] = hm.split(':').map(Number), endDate = h0 * 60 + m0 + mins >= 1440 ? plusDays(date, 1) : date;
+    L.push('BEGIN:VEVENT', `UID:${uid}@labores-berlin`, `DTSTAMP:${stamp}`, `DTSTART;TZID=Europe/Berlin:${lt(date, hm)}`, `DTEND;TZID=Europe/Berlin:${lt(endDate, plus(hm, mins))}`,
       `SUMMARY:${icsTxt(sum)}`, `LOCATION:${icsTxt('Pistoriusstraße 114, Berlin')}`);
     if (desc) L.push(`DESCRIPTION:${icsTxt(desc)}`);
     L.push('END:VEVENT');
   };
   for (const ym of Object.keys(st.schedules || {}).sort()) {
     if (ym < from || !(st.published && st.published[ym])) continue;
-    for (const [date, as] of Object.entries(st.schedules[ym] as Record<string, Record<string, string>>).sort()) {
+    for (const [date, as] of Object.entries((st.schedules[ym] || {}) as Record<string, Record<string, string>>).sort()) {
+      if (!isDate(date) || !as || typeof as !== 'object') continue;
       const dow = new Date(date + 'T12:00:00Z').getUTCDay();
       const [sn, hr] = SVC[dow];
       const ks = Object.keys(as).filter((k) => as[k]).sort((a, b) => ORDERK.indexOf(a) - ORDERK.indexOf(b));
@@ -385,83 +415,110 @@ async function calendar(pid: string, t: string) {
         ev(`${date}-todos`, date, hr, 120, `${sn} · labores`, ks.map((k) => `${LBL[k] || k}: ${nm(as[k])}`).join('\n'));
       } else {
         const mine = [...new Set(ks.filter((k) => as[k] === pid).map((k) => LBL[k] || k))];
-        if (mine.length) ev(`${date}-${pid}`, date, hr, 120, `Labor: ${mine.join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.\nVer en la app: https://labores-berlin.pages.dev`);
+        if (mine.length) ev(`${date}-${uidSafe(pid)}`, date, hr, 120, `Labor: ${mine.join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.\nVer en la app: https://labores-berlin.pages.dev`);
         // Gabriela: los días de alabanza en que David no tiene labor, va ella a la alabanza (sin labor).
         if (pid === 'gabriela' && !mine.length && [1, 3, 5].includes(dow) && !Object.values(as).includes('david'))
-          ev(`${date}-alab-${pid}`, date, hr, 120, 'Alabanza (vas tú)', 'Ese día vas tú a la alabanza. No tienes labor.');
+          ev(`${date}-alab-${uidSafe(pid)}`, date, hr, 120, 'Alabanza (vas tú)', 'Ese día vas tú a la alabanza. No tienes labor.');
       }
     }
   }
   // deno-lint-ignore no-explicit-any
   for (const m of (st.meets || []) as any[]) {
-    if (!m.date || m.date.slice(0, 7) < from) continue;
+    if (!isDate(m.date) || m.date.slice(0, 7) < from) continue;
     if (!all && !invitees(st, m).includes(pid)) continue;
     const hm = /^\d{1,2}:\d{2}$/.test(m.time || '') ? m.time.padStart(5, '0') : '';
     const sum = `Reunión: ${m.title || ''}`;
-    if (hm) ev(`meet-${m.id || m.date}-${pid}`, m.date, hm, 60, sum, m.place || '');
-    else L.push('BEGIN:VEVENT', `UID:meet-${m.id || m.date}-${pid}@labores-berlin`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${m.date.replace(/-/g, '')}`, `SUMMARY:${icsTxt(sum)}`, ...(m.place ? [`DESCRIPTION:${icsTxt(m.place)}`] : []), 'END:VEVENT');
+    const mu = `meet-${uidSafe(m.id) || m.date}-${uidSafe(pid) || 'todos'}`;
+    if (hm && Number(hm.slice(0, 2)) < 24 && Number(hm.slice(3)) < 60) ev(mu, m.date, hm, 60, sum, m.place || '');
+    else L.push('BEGIN:VEVENT', `UID:${mu}@labores-berlin`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${m.date.replace(/-/g, '')}`, `SUMMARY:${icsTxt(sum)}`, ...(m.place ? [`DESCRIPTION:${icsTxt(m.place)}`] : []), 'END:VEVENT');
   }
   L.push('END:VCALENDAR');
   return new Response(L.map(fold).join('\r\n') + '\r\n', { headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' } });
 }
 
+// Enlace al tocar el aviso: solo /?n=…, /?go=…, /?d=… (valores cortos y simples); si no, la portada.
+const okUrl = (u: unknown) => typeof u === 'string' && /^\/\?(?:(?:n|go|d)=[\w.-]{1,80})(?:&(?:n|go|d)=[\w.-]{1,80})*$/.test(u) ? u : '/';
+const RL = { max: 40, mins: 10 };
+
 Deno.serve(async (req) => {
+  ERRORS.length = 0;
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method === 'GET') { const q = new URL(req.url).searchParams; return calendar(q.get('p') || '', q.get('t') || ''); }
   // deno-lint-ignore no-explicit-any
   const b: any = await req.json().catch(() => ({}));
-  if (b.mode === 'daily') return json({ monthly: await monthly(), pastor: await pastorReminders(), today: await todayReminder(), intro: await introReminders(), leipzig: await leipzigInvite(), daily: await daily() });
-  if (b.mode === 'ping') {
-    // Prueba: envía un aviso solo a los administradores.
-    const { data } = await SB.from('app_state').select('json').eq('id', 'main').maybeSingle();
-    // deno-lint-ignore no-explicit-any
-    const admins = data ? (JSON.parse(data.json).people || []).filter((x: any) => x.admin).map((x: any) => x.id) : [];
-    ERRORS.length = 0;
-    const sent = await sendTo(admins, 'Prueba de Labores Berlín', 'Si ves esto, las notificaciones funcionan.');
-    return json({ sent, errors: ERRORS });
+  if (b.mode === 'daily') {
+    // Limpieza de filas viejas del límite de frecuencia
+    try { await SB.from('push_log').delete().like('day', 'rl:%').lt('sent_at', new Date(Date.now() - 864e5).toISOString()); } catch (e) { console.error('limpieza rl', e); }
+    // Cada tarea por separado: si una falla, las demás siguen.
+    const safe = async (f: () => Promise<unknown>) => { try { return await f(); } catch (e) { console.error(e); return { error: String(e) }; } };
+    return json({ monthly: await safe(monthly), pastor: await safe(pastorReminders), today: await safe(todayReminder), intro: await safe(introReminders), leipzig: await safe(leipzigInvite), daily: await safe(daily) });
   }
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
   const { data: u } = await SB.auth.getUser(token);
   const email = u?.user?.email?.toLowerCase();
   if (!email) return json({ error: 'no autorizado' }, 401);
-  const { data: m } = await SB.from('members').select('person_id').eq('email', email).maybeSingle();
+  const { data: m } = await SB.from('members').select('person_id,is_admin').eq('email', email).maybeSingle();
   if (!m) return json({ error: 'no es miembro' }, 403);
+  if (b.mode === 'ping') {
+    // Prueba (solo administradores): envía un aviso a los administradores.
+    if (!m.is_admin) return json({ error: 'solo admin' }, 403);
+    const st = await readState();
+    // deno-lint-ignore no-explicit-any
+    const admins = st ? (st.people || []).filter((x: any) => x.admin && !x.deleted).map((x: any) => x.id) : [];
+    const sent = await sendTo(admins, 'Prueba de Labores Berlín', 'Si ves esto, las notificaciones funcionan.');
+    return json({ sent, errors: ERRORS });
+  }
   if (b.mode === 'delete-me') {
     // Borrar mi cuenta: se borran los datos personales y la cuenta de acceso.
     const pid = m.person_id;
     const today = (() => { const p = berlin(new Date()); return `${p.year}-${p.month}-${p.day}`; })();
-    await SB.from('push_subs').delete().eq('person_id', pid);
-    let name = '';
-    await editState((st) => {
+    const st = await editState((st) => {
       // deno-lint-ignore no-explicit-any
       const p = (st.people || []).find((x: any) => x.id === pid);
       if (!p) return;
-      name = p.name;
-      Object.assign(p, { name: 'Persona eliminada', email: '', phone: '', photo: undefined, roles: [], days: [], blocked: [], predPref: undefined, privacy: undefined, deleted: Date.now(), admin: false, pastor: false });
-      delete p.photo; delete p.predPref; delete p.privacy;
+      Object.assign(p, { name: 'Persona eliminada', email: '', phone: '', roles: [], days: [], blocked: [], deleted: Date.now(), admin: false, pastor: false });
+      for (const k of ['photo', 'predPref', 'privacy', 'sex', 'avoidSlots', 'favorSlots', 'avoidDays', 'leipzig', 'noSlots', 'maxOne', 'introNotWith', 'freeAlab']) delete p[k];
       const freed: string[] = [];
-      for (const ym of Object.keys(st.schedules || {})) for (const [d, as] of Object.entries(st.schedules[ym] as Record<string, Record<string, string>>)) {
-        if (d < today) continue;
+      for (const ym of Object.keys(st.schedules || {})) for (const [d, as] of Object.entries((st.schedules[ym] || {}) as Record<string, Record<string, string>>)) {
+        if (d < today || !as) continue;
         for (const k of Object.keys(as)) if (as[k] === pid) { delete as[k]; freed.push(d); }
       }
+      // Quitar su id de visitas, disponibilidad, reuniones, avisos y asignaciones fijas
       // deno-lint-ignore no-explicit-any
-      const admins = (st.people || []).filter((x: any) => x.admin && x.id !== pid).map((x: any) => x.id);
-      if (admins.length) addNotif(st, admins, `${name} borró su cuenta.${freed.length ? ` Quedaron labores sin asignar: ${[...new Set(freed)].sort().join(', ')}. Revisa el horario.` : ''}`);
+      for (const l of (st.leipzig || []) as any[]) if (Array.isArray(l.going)) l.going = l.going.filter((x: string) => x !== pid);
+      // deno-lint-ignore no-explicit-any
+      for (const av of Object.values(st.avReqs || {}) as any[]) if (av && av.done) delete av.done[pid];
+      // deno-lint-ignore no-explicit-any
+      for (const mt of (st.meets || []) as any[]) if (mt && mt.rsvp) delete mt.rsvp[pid];
+      // deno-lint-ignore no-explicit-any
+      for (const n of (st.notifs || []) as any[]) { if (Array.isArray(n.to)) n.to = n.to.filter((x: string) => x !== pid); if (Array.isArray(n.read)) n.read = n.read.filter((x: string) => x !== pid); }
+      // deno-lint-ignore no-explicit-any
+      for (const f of Object.values(st.fixed || {}) as any[]) if (f && typeof f === 'object') for (const k of Object.keys(f)) if (f[k] === pid) delete f[k];
+      // deno-lint-ignore no-explicit-any
+      const admins = (st.people || []).filter((x: any) => x.admin && !x.deleted && x.id !== pid).map((x: any) => x.id);
+      if (admins.length) addNotif(st, admins, `Una persona borró su cuenta en la app.${freed.length ? ` Quedaron labores sin asignar: ${[...new Set(freed)].sort().join(', ')}. Revisa el horario.` : ''}`);
     });
-    await SB.from('members').delete().eq('email', email);
+    if (!st) return json({ ok: false });
+    await SB.from('push_subs').delete().eq('person_id', pid);
+    await SB.from('members').delete().eq('person_id', pid);
+    try { await SB.from('private_info').delete().eq('person_id', pid); } catch (_) { /* la tabla puede no existir todavía */ }
     const { error } = await SB.auth.admin.deleteUser(u!.user!.id);
     return json({ ok: !error });
   }
   if (b.mode === 'caltoken') {
     const base = `${Deno.env.get('SUPABASE_URL')}/functions/v1/push`;
-    const { data: adm } = await SB.from('members').select('is_admin').eq('email', email).maybeSingle();
     const out: Record<string, string> = { me: `${base}?p=${encodeURIComponent(m.person_id)}&t=${await sig(m.person_id)}` };
-    if (adm?.is_admin) out.all = `${base}?p=${encodeURIComponent('*todos')}&t=${await sig('*todos')}`;
+    if (m.is_admin) out.all = `${base}?p=${encodeURIComponent('*todos')}&t=${await sig('*todos')}`;
     return json(out);
   }
-  const to = (Array.isArray(b.to) ? b.to : []).filter((x: unknown) => typeof x === 'string').slice(0, 200);
-  // El enlace al tocar la notificación: solo rutas internas de la app (/?n=… o /?go=…)
-  const url = typeof b.url === 'string' && /^\/\?[\w=&%.-]{1,200}$/.test(b.url) ? b.url : '/';
-  const sent = await sendTo(to, String(b.title || 'Labores Berlín').slice(0, 120), String(b.body || '').slice(0, 500), url);
+  // Límite de frecuencia: máximo 40 envíos cada 10 minutos por persona.
+  const rlPre = `rl:${m.person_id}:`;
+  await SB.from('push_log').insert({ day: `${rlPre}${Date.now()}:${uid()}` });
+  const { count } = await SB.from('push_log').select('day', { count: 'exact', head: true }).like('day', `${rlPre}%`).gt('sent_at', new Date(Date.now() - RL.mins * 60e3).toISOString());
+  if ((count ?? 0) > RL.max) return json({ sent: 0, limited: true }, 429);
+  const st = await readState();
+  const ok = st ? alive(st) : new Set<string>();
+  const to = [...new Set((Array.isArray(b.to) ? b.to : []).filter((x: unknown) => typeof x === 'string' && ok.has(x)) as string[])].slice(0, 200);
+  const sent = await sendTo(to, String(b.title || 'Labores Berlín').slice(0, 120), String(b.body || '').slice(0, 500), okUrl(b.url));
   return json({ sent });
 });
