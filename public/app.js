@@ -136,7 +136,8 @@ const me=()=>person(state.me);
 let today=ds(new Date());
 /* Un culto deja de mostrarse 2 h 30 min después de empezar (10:00 → 12:30, 18:30 → 21:00). */
 const GONE_MIN=150;
-function svcGone(d){if(d<today)return true;if(d>today)return false;const t=(SVC[pd(d).getDay()]||[0,'23:59'])[1].split(':').map(Number),n=new Date();return n.getHours()*60+n.getMinutes()>=t[0]*60+t[1]+GONE_MIN}
+// Cultos de la tarde (18:00/18:30): a las 20:00 ya pasaron. Domingo 10:00: a las 12:30.
+function svcGone(d){if(d<today)return true;if(d>today)return false;const t=(SVC[pd(d).getDay()]||[0,'23:59'])[1].split(':').map(Number),n=new Date();const end=t[0]>=17?20*60:t[0]*60+t[1]+GONE_MIN;return n.getHours()*60+n.getMinutes()>=end}
 const quiet=()=>!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){today=ds(new Date());if(quiet())try{render()}catch(e){}
   // Al volver a la app: traer lo último (mientras el celular duerme no llegan los cambios en vivo)
@@ -412,7 +413,7 @@ function introPend(p){if(!p)return[];const out=[],end=ds(new Date(pd(today).getT
     if(d<today||d>end||svcGone(d)||transOn(d)||![4,0].includes(pd(d).getDay())||state.schedules[ym][d].pul!==p.id)continue;
     const x=introOf(d),cita=!x.cita,link=!x.link&&!x.noLink;if(cita||link)out.push({d,cita,link})}}
   return out.sort((a,b)=>a.d<b.d?-1:1)}
-function introNag(p){return introPend(p).map(x=>{const falta=[x.cita&&'la cita bíblica',x.link&&'el enlace del testimonio (si tienes)'].filter(Boolean).join(' y ');
+function introNag(p){return introPend(p).slice(0,1).map(x=>{const falta=[x.cita&&'la cita bíblica',x.link&&'el enlace del testimonio (si tienes)'].filter(Boolean).join(' y ');
   return `<div class="card nag"><span class="rdot" aria-hidden="true"></span><div style="flex:1;min-width:0"><b>Tu introducción del ${DOW[pd(x.d).getDay()].toLowerCase()} ${fmt(x.d).replace(/^\S+\s/,'')}</b><div class="sub2">Todavía no has puesto ${falta}.</div>
     <button class="btn sm" data-a="ic-go" data-v="${esc(x.d+'|'+(x.cita?'ic':'it'))}" style="margin-top:10px">${x.cita?'Poner la cita':'Poner el enlace'}</button>${!x.cita&&x.link?`<button class="btn ghost sm" data-a="it-none" data-v="${esc(x.d)}" style="margin:10px 0 0 8px">No tengo testimonio</button>`:''}</div></div>`}).join('')}
 function introTodo(d){const x=introOf(d),kc='ic|'+d,kl='it|'+d;
@@ -429,17 +430,19 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const preaching=it.preach||has(s=>s.k==='predica');
   const isTrad=has(s=>s.area==='trad');
   // 1. Lo que prepara esta persona
-  if(preaching&&t)todo.push(todoBox('Tu predicación',`<div class="big2">${esc(t.title)}</div>`+(tr?'':`<div class="tsec"><div class="fl2">Introducción</div>${introInfo(d,person(as.pul))}</div>`)));
+  if(preaching&&t)todo.push(todoBox('Tu predicación',`<div class="big2">${esc(t.title)}</div>`));
   if(isIntro)todo.push(introTodo(d));
   if(has(s=>s.k==='pul_ini'||s.k==='pul_fin'))todo.push(todoBox('Tu preámbulo',`<div class="big2">${esc(PREAMB[preamb(d)])}</div><div class="help">Preámbulo sugerido para la alabanza.</div>`));
   if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);todo.push(todoBox('Tu preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Preámbulo sugerido para el estudio bíblico (el mismo el martes y el sábado).</div>`))}
   if(w===0&&tr&&has(s=>s.k==='pul')){const x=preTR(d);todo.push(todoBox('Tu preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Preámbulo sugerido para la transmisión.</div>`))}
-  if(isTrad&&(w===4||w===0)&&t)todo.push(todoBox('Tu interpretación',fichaRows('t',t,tradLangs(me()))+linkRep('t',t,d,tradLangs(me()),dday?preacher:null)));
+  const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
+  if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
+  if(trPred&&(w===4||w===0)&&t)todo.push(todoBox('Interpretas la predicación',`<div class="big2">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+fichaRows('t',t,tradLangs(me()))+linkRep('t',t,d,tradLangs(me()),dday?preacher:null)));
   for(const s of it.slots)if(s.pair||s.pairOf){const o=person(as[s.pair||s.pairOf]),n=(s.l.match(/pareja \d/)||['pareja'])[0];info.push(isec(`Tu pareja (${n})`,`<div class="tv">${o?esc(o.name):'<i>Sin asignar todavía</i>'}</div>`))}
   // 2. Información del culto
   if((w===4||w===0)&&t&&!preaching&&has(s=>s.area==='pulpito'||s.area==='trad')){
-    info.unshift(isec('Enseñanza del culto',`<div class="tv">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`));
-    if(isTrad&&!tr)info.splice(1,0,isec('Introducción',introInfo(d,person(as.pul))))}
+    if(!trPred)info.unshift(isec('Enseñanza del culto',`<div class="tv">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+(isTrad?fichaRows('t',t,tradLangs(me())):'')));
+    if(trPred&&!trIntro&&!tr)info.push(isec('Introducción',introInfo(d,person(as.pul))))}
   for(const n of it.notes)info.push(typeof n==='string'?isec('',n):isec(n.l,n.h));
   return `<div class="card mine v2" data-day="${esc(d)}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
@@ -509,7 +512,8 @@ function late(d,msg){const p=me(),as=schedOf(d)||{},mine=slotsAt(d).filter(s=>as
   ui.flash=`Aviso enviado a ${n} ${n===1?'persona':'personas'}.`}
 function ago(ts){const m=Math.round((Date.now()-ts)/6e4);if(m<1)return'ahora';if(m<60)return`hace ${m} min`;const h=Math.round(m/60);if(h<24)return`hace ${h} h`;const d=new Date(ts);return`${d.getDate()} ${MESS[d.getMonth()]}`}
 function pendingFor(p){return state.reqs.filter(r=>r.status==='open'&&r.date>=today&&r.cands.includes(p.id)&&!r.declined.includes(p.id))}
-function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).length}
+const nLive=n=>!(n.date&&svcGone(n.date));
+function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)&&nLive(n)).length}
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 /* ---- Tocar un aviso lleva al lugar donde se hace lo que pide ---- */
@@ -528,7 +532,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '7.9';
+const APPV = '8.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -627,7 +631,7 @@ function avisos(p,noN){let h='';
   const rq=pendingFor(p);
   if(rq.length)h+=`<div class="list" style="margin-bottom:14px">${rq.map(r=>{const f=person(r.from),s=slotOf(r.date,r.k);return `<div class="card ask" style="display:flex;gap:12px;align-items:flex-start">${f?avatar(f,44):''}<div style="flex:1;min-width:0"><div class="info" style="margin:0 0 4px">Piden reemplazo</div><b>${esc(f?f.name:'Un hermano')}</b> no puede ir el <b>${fmt(r.date)}</b> · ${esc(s.l)}. ¿Puedes ir tú?
     <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="acc" data-v="${esc(r.id)}">Sí, yo voy</button><button class="btn ghost sm" data-a="dec" data-v="${esc(r.id)}">No puedo</button></div></div></div>`}).join('')}</div>`;
-  const ns=noN?[]:state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).slice(0,8);
+  const ns=noN?[]:state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)&&nLive(n)).slice(0,8);
   if(ns.length){const un=ns.filter(n=>!n.read.includes(p.id)).length;
     h+=`<h3 style="margin-top:4px">Avisos${un?` <span class="tag">${un} ${un===1?'nuevo':'nuevos'}</span>`:''}</h3><div class="card">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}
     ${un?`<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>`:''}</div>`}
@@ -1135,12 +1139,12 @@ async function uploadPdf(kv,file){const[kind,id,l='de']=kv.split('|');const t=pd
   try{const r=await AS.upload(file);const old=t[LANGF[l]];t[LANGF[l]]={id:r.id,name:file.name};save();if(old&&old.id!==r.id)AS.delete(old.id).catch(()=>{})}catch(e){ui.uplMsg=e&&e.code==='too_large'?'La ficha es muy grande (máximo 20 MB).':'No se pudo subir la ficha. Intenta de nuevo.'}
   ui.upl=null;render()}
 function cronograma(p){const tm=teachMap(),it=[];const allT=p.admin||p.pastor||p.roles.includes('pulpito');const pastor=state.people.find(x=>x.pastor);
-  for(const d in tm)if(!svcGone(d)){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<b>${esc(tm[d].title)}</b>${pdfLink('t',tm[d],tradLangs(p))}${linkRep('t',tm[d],d,tradLangs(p),slotsAt(d).some(z=>z.k==='predica')?pr:null)}`,s:`Predica: ${esc(pr?pr.name:'—')}`})}
+  for(const d in tm)if(!svcGone(d)){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<div class="big2">${esc(tm[d].title)}</div><div class="sub2">Predica: <b>${esc(pr?pr.name:'—')}</b></div>${pdfLink('t',tm[d],tradLangs(p))}${linkRep('t',tm[d],d,tradLangs(p),slotsAt(d).some(z=>z.k==='predica')?pr:null)}`,s:''})}
   for(const t of state.trans)if(!svcGone(t.date))it.push({d:t.date,h:'<b>Transmisión internacional</b>',s:t.link?`<div class="pre">${linkify(t.link)}</div>`:'Aún sin datos (enlace y hora).'});
-  for(const l of state.leipzig)if(!svcGone(l.date))it.push({d:l.date,h:'<b>Visita a Leipzig</b>',s:`Predicación: ${esc(l.teaching||'por definir')}${seesLzGoing(p)?'<br>'+lzGoingLine(l):''}${pdfLink('l',l,lzLangs(p))}${lzLangs(p).length?linkRep('l',l,l.date,lzLangs(p),null):''}`});
+  for(const l of state.leipzig)if(!svcGone(l.date))it.push({d:l.date,h:`<div class="il2">Visita a Leipzig</div><div class="big2">${esc(l.teaching||'Predicación por definir')}</div>${seesLzGoing(p)?`<div class="sub2">${lzGoingLine(l)}</div>`:''}${pdfLink('l',l,lzLangs(p))}${lzLangs(p).length?linkRep('l',l,l.date,lzLangs(p),null):''}`,s:''});
   it.sort((a,b)=>a.d<b.d?-1:1);
   if(!it.length)return'<div class="card empty-state">Todavía no hay predicaciones programadas.</div>';
-  return `<div class="list">${it.map(x=>{const dd=pd(x.d),w=dd.getDay();return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0"><div class="svc">${DOW[w]} <small>${SVC[w][1]}</small></div><div style="margin-top:4px">${x.h}</div><div class="info" style="margin-top:2px">${x.s}</div></div></div>`}).join('')}</div>`}
+  return `<div class="list">${it.map(x=>{const dd=pd(x.d),w=dd.getDay();return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0"><div class="svc">${DOW[w]} <small>${SVC[w][1]}</small></div><div style="margin-top:4px">${x.h}</div>${x.s?`<div class="info" style="margin-top:2px">${x.s}</div>`:''}</div></div>`}).join('')}</div>`}
 function vEns(p){
   if(!(p.admin||p.pastor))return `<h2>Predicaciones</h2><p class="lead">Lo que se predica en los próximos jueves y domingos, las transmisiones y las visitas a Leipzig.</p>${cronograma(p)}`;
   const tm=teachMap();const dateOf={};for(const d in tm)dateOf[tm[d].id]=d;
@@ -1155,7 +1159,7 @@ function vEns(p){
    ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id]))).sort((a,b)=>(dateOf[a.id]||'9')<(dateOf[b.id]||'9')?-1:1);const mov=fut.filter(t=>!isPinned(t));
      const last=fut.length?dateOf[fut[fut.length-1].id]:'';
      let h=past.length?`<button class="mfold" data-a="t-past" aria-expanded="${!!ui.tPast}"><span><b>Ya pasaron</b> · ${past.length}</span><span class="chev">${ui.tPast?'▾':'▸'}</span></button>${ui.tPast?past.map(t=>`<div class="li"><div class="main" style="opacity:.6"><b>${esc(t.title)}</b><small>${fmt(dateOf[t.id])}</small></div></div>`).join(''):''}`:'';
-     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}</div><div class="tline"><span class="tdate">${dateOf[t.id]?DOW[pd(dateOf[t.id]).getDay()]+' '+fmt(dateOf[t.id]).replace(/^\S+\s/,''):'Sin fecha'}</span>${ui.edName==='t|'+t.id?'':tActs(t,mov)}</div>${isPinned(t)?`<div class="pinnote">Fija en esta fecha${davidDay(dateOf[t.id])?' (predica David)':''}: no se corre si se agrega una transmisión.</div>`:''}${dupWarn(t.id)}${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${esc(t.id)}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
+     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}</div><div class="tline"><span class="tdate">${dateOf[t.id]?DOW[pd(dateOf[t.id]).getDay()]+' '+fmt(dateOf[t.id]).replace(/^\S+\s/,''):'Sin fecha'}</span>${ui.edName==='t|'+t.id?'':tActs(t,mov)}</div>${isPinned(t)?`<div class="pinnote">Fija en esta fecha${davidDay(dateOf[t.id])?' (predica David)':''}: no se corre si se agrega una transmisión.</div>`:''}${dupWarn(t.id)}${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${esc(t.id)}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}${(()=>{const d=dateOf[t.id];if(!d)return'';return `<div class="sub2">Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b></div>`})()}
      ${linkPair('tl',t,dateOf[t.id]?needLangs(dateOf[t.id]):['de','en'])}</div></div>`).join('')||'<div class="info" style="padding:8px 0">No hay enseñanzas por venir. Agrega las siguientes abajo.</div>';
      if(last)h+=`<div class="info" style="margin-top:8px">Hay enseñanzas cargadas hasta el <b>${fmt(last)}</b>. Para seguir después, agrega más abajo y se acomodan solas en los siguientes jueves y domingos.</div>`;
      return h})()}
@@ -1165,7 +1169,7 @@ function vEns(p){
    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><textarea id="tr-link" rows="4" placeholder="Información de la transmisión (opcional, la puedes poner después). Puedes pegar el link aquí."></textarea><button class="btn sm" data-a="tr-add" data-v="${esc(trFree())}" style="align-self:flex-start">Agregar transmisión del ${fmt(trFree())}</button></div>
    <div class="info" style="margin-top:6px">Este texto lo ven el pastor y los de púlpito en sus labores. Los links se pueden tocar.</div></div>
   <h3>Visitas a Leipzig</h3><div class="card">
-   ${state.leipzig.slice().sort((a,b)=>a.date<b.date?-1:1).map(l=>`<div class="li"><div class="main"><b>${fmt(l.date)}</b>${nameEd('lz',l.id,l.teaching||'','Predicación por definir',false)}${linkPair('ll',l,['de','en'])}<small class="info" style="display:block;margin-top:6px">${lzGoingLine(l)}</small></div><button class="x" data-a="lz-del" data-v="${esc(l.id)}" aria-label="Quitar">✕</button></div>`).join('')||'<div class="info">Ninguna programada.</div>'}
+   ${state.leipzig.filter(l=>!svcGone(l.date)).sort((a,b)=>a.date<b.date?-1:1).map(l=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('lz',l.id,l.teaching||'','Predicación por definir',true)}</div><div class="tline"><span class="tdate">${DOW[pd(l.date).getDay()]} ${fmt(l.date).replace(/^\S+\s/,'')}</span>${ui.edName==='lz|'+l.id?'':`<div class="tacts"><button class="ta del" data-a="lz-del" data-v="${esc(l.id)}" aria-label="Quitar esta visita">${IC_DEL}</button></div>`}</div><div class="sub2">${lzGoingLine(l)}</div>${linkPair('ll',l,['de','en'])}</div></div>`).join('')||'<div class="info">Ninguna visita programada.</div>'}
    <div class="inline" style="margin-top:10px"><input id="lz-date" type="date" value="${esc(ui.lzD||'')}"><input id="lz-t" type="text" placeholder="Predicación que se dará (obligatorio)" value="${esc(ui.lzT||'')}" ${ui.lzErr?'class="bad"':''}><button class="btn sm" data-a="lz-add">Agregar</button></div>${ui.lzErr?`<div class="info" style="color:var(--warn);margin-top:6px">${esc(ui.lzErr)}</div>`:''}
    <div class="info" style="margin-top:6px">Viajan: ${esc(yList(state.people.filter(x=>x.leipzig&&!x.deleted).map(x=>x.name))||'nadie marcado').replace(/\.$/,'')}. Ese día no se les asigna nada en Berlín. Lo ven púlpito y traducción.</div></div>`;
 }
