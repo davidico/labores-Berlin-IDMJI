@@ -399,12 +399,12 @@ const penBtn=(k,lbl)=>`<button class="pen big" data-a="ne-edit" data-v="${esc(k)
 const todoBox=(title,body)=>`<div class="todo"><div class="tl">${title}</div>${body}</div>`;
 const isec=(l,h,c)=>`<div class="isec">${l?`<div class="il${c?' '+c:''}">${l}</div>`:''}${h}</div>`;
 // Fichas de interpretación como filas: ✓ si está el enlace, «!» si todavía no está
-function fichaRows(kind,t,langs){if(!t||!langs.length)return'';return langs.map(l=>t[LINKF[l]]?ckRow('done',`Ficha en ${LANGN[l]}`,xlink(t[LINKF[l]],'Ver la ficha')):ckRow('todo',`Ficha en ${LANGN[l]}`,'<div class="fv empty">Todavía no está</div>')).join('')}
+function fichaRows(kind,t,langs){if(!t||!langs.length)return'';return `<div class="fichs">${langs.map(l=>t[LINKF[l]]?`<div>${xlink(t[LINKF[l]],`Ficha en ${LANGN[l]}`)}</div>`:`<div class="fv empty">Ficha en ${LANGN[l]}: todavía no está</div>`).join('')}</div>`}
 // Lo que puso quien da la introducción (para quien predica y los intérpretes)
-function introInfo(d,ip){const x=introOf(d);
+function introInfo(d,ip,test=true){const x=introOf(d);
   return `<div class="tv">${ip?esc(ip.name):'Sin asignar'}</div><div class="kv"><span>Tema</span>${esc(INTROT[introTema(d)])}</div>`+
     `<div class="kv"><span>Cita bíblica</span>${x.cita?esc(x.cita):'<i>todavía no la puso</i>'}</div>`+
-    `<div class="kv"><span>Testimonio</span>${x.link?xlink(x.link,'Ver el testimonio'):x.noLink?'No hay testimonio':'<i>todavía no lo puso</i>'}</div>`}
+    (test?`<div class="kv"><span>Testimonio</span>${x.link?xlink(x.link,'Ver el testimonio'):x.noLink?'No hay testimonio':'<i>todavía no lo puso</i>'}</div>`:'')}
 // Quien da la introducción: cita (obligatoria), testimonio (opcional) y tema sugerido
 /* Recordatorio para quien da la introducción, solo el mismo día: falta la cita o el enlace del testimonio.
    El testimonio no es obligatorio: con «No tengo testimonio» deja de recordarse. */
@@ -438,14 +438,12 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
   if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
   const trP=has(s=>s.area==='trad'&&/_pred$/.test(s.k)),trT=has(s=>s.area==='trad'&&/_test$/.test(s.k)),xi=introOf(d);
-  // Quien interpreta los testimonios ve el enlace del testimonio dentro de su cuadro
-  const testRow=trT&&!tr?ckRow(xi.link?'done':'opt','Testimonio',xi.link?xlink(xi.link,'Ver el testimonio'):`<div class="fv empty">${xi.noLink?'No hay testimonio':'Todavía no hay enlace'}</div>`):'';
-  if(trPred&&(w===4||w===0)&&t)todo.push(todoBox(trP&&trT?'Interpretas la predicación y los testimonios':trT?'Interpretas los testimonios':'Interpretas la predicación',`<div class="big2">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+fichaRows('t',t,tradLangs(me()))+testRow+linkRep('t',t,d,tradLangs(me()),dday?preacher:null)));
+  if(trPred&&(w===4||w===0)&&t)todo.push(todoBox(trP&&trT?'Interpretas la predicación y los testimonios':trT?'Interpretas los testimonios':'Interpretas la predicación',`<div class="big2">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+fichaRows('t',t,tradLangs(me()))+linkRep('t',t,d,tradLangs(me()),dday?preacher:null)));
   for(const s of it.slots)if(s.pair||s.pairOf){const o=person(as[s.pair||s.pairOf]),n=(s.l.match(/pareja \d/)||['pareja'])[0];info.push(isec(`Tu pareja (${n})`,`<div class="tv">${o?esc(o.name):'<i>Sin asignar todavía</i>'}</div>`))}
   // 2. Información del culto
   if((w===4||w===0)&&t&&!preaching&&has(s=>s.area==='pulpito'||s.area==='trad')){
     if(!trPred)info.unshift(isec('Enseñanza del culto',`<div class="tv">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+(isTrad?fichaRows('t',t,tradLangs(me())):'')));
-    if(trPred&&!trIntro&&!tr)info.push(isec('Introducción',introInfo(d,person(as.pul))))}
+    if(trPred&&!trIntro&&!tr)info.push(isec('Introducción',introInfo(d,person(as.pul),false)))}
   for(const n of it.notes)info.push(typeof n==='string'?isec('',n):isec(n.l,n.h));
   return `<div class="card mine v2" data-day="${esc(d)}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
@@ -542,7 +540,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '8.7';
+const APPV = '8.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
