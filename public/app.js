@@ -479,7 +479,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${g.d}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${n.id}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${n.id}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '7.5';
+const APPV = '7.6';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1081,9 +1081,9 @@ async function uploadPdf(kv,file){const[kind,id,l='de']=kv.split('|');const t=pd
   try{const r=await AS.upload(file);const old=t[LANGF[l]];t[LANGF[l]]={id:r.id,name:file.name};save();if(old&&old.id!==r.id)AS.delete(old.id).catch(()=>{})}catch(e){ui.uplMsg=e&&e.code==='too_large'?'La ficha es muy grande (máximo 20 MB).':'No se pudo subir la ficha. Intenta de nuevo.'}
   ui.upl=null;render()}
 function cronograma(p){const tm=teachMap(),it=[];const allT=p.admin||p.pastor||p.roles.includes('pulpito');const pastor=state.people.find(x=>x.pastor);
-  for(const d in tm)if(!svcGone(d)){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<b>${esc(tm[d].title)}</b>${pdfLink('t',tm[d],tradLangs(p))}`,s:`Predica: ${esc(pr?pr.name:'—')}`})}
+  for(const d in tm)if(!svcGone(d)){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<b>${esc(tm[d].title)}</b>${pdfLink('t',tm[d],tradLangs(p))}${linkRep('t',tm[d],d,tradLangs(p),slotsAt(d).some(z=>z.k==='predica')?pr:null)}`,s:`Predica: ${esc(pr?pr.name:'—')}`})}
   for(const t of state.trans)if(!svcGone(t.date))it.push({d:t.date,h:'<b>Transmisión internacional</b>',s:t.link?`<div class="pre">${linkify(t.link)}</div>`:'La información aún no está.'});
-  for(const l of state.leipzig)if(!svcGone(l.date))it.push({d:l.date,h:'<b>Visita a Leipzig</b>',s:`Predicación: ${esc(l.teaching||'por definir')}${seesLzGoing(p)?'<br>'+lzGoingLine(l):''}${pdfLink('l',l,lzLangs(p))}`});
+  for(const l of state.leipzig)if(!svcGone(l.date))it.push({d:l.date,h:'<b>Visita a Leipzig</b>',s:`Predicación: ${esc(l.teaching||'por definir')}${seesLzGoing(p)?'<br>'+lzGoingLine(l):''}${pdfLink('l',l,lzLangs(p))}${lzLangs(p).length?linkRep('l',l,l.date,lzLangs(p),null):''}`});
   it.sort((a,b)=>a.d<b.d?-1:1);
   if(!it.length)return'<div class="card empty-state">Todavía no hay predicaciones programadas.</div>';
   return `<div class="list">${it.map(x=>{const dd=pd(x.d),w=dd.getDay();return `<div class="card mine"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0"><div class="svc">${DOW[w]} <small>${SVC[w][1]}</small></div><div style="margin-top:4px">${x.h}</div><div class="info" style="margin-top:2px">${x.s}</div></div></div>`}).join('')}</div>`}
