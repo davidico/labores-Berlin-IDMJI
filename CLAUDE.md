@@ -63,7 +63,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
   - `GET ?p=<persona>&t=<firma>` → calendario ICS personal (HMAC con `VAPID_PRIVATE_KEY+':cal'`; `*todos` = calendario completo para admin).
   - `caltoken`, `delete-me` (borra cuenta y anonimiza), `ping`.
   - web-push con `{ TTL: 43200, urgency: 'high' }`.
-- **Desplegar la función:** no hay CLI configurada. Se hace desde el panel de Supabase (Edge Functions → push → Code): reemplazar el código, «Deploy updates», confirmar. **Mantener `supabase/functions/push/index.ts` idéntico a lo desplegado** (comparar SHA-256). El repo NO despliega la función solo.
+- **Desplegar la función:** sin CLI. Con un token de Supabase (guardado como secreto del entorno `labores-Berlin-IDMJI` de Claude Code, host `api.supabase.com`) se puede usar la Management API (`/v1/projects/hooqurezzjbzcgjtuqnn/functions/deploy?slug=push`, `verify_jwt:false`; SQL con `/database/query`). Si no, desde el panel de Supabase (Edge Functions → push → Code): reemplazar el código, «Deploy updates», confirmar. **Mantener `supabase/functions/push/index.ts` idéntico a lo desplegado** (comparar SHA-256). El repo NO despliega la función solo.
 
 ## Modelo de datos (`state`)
 
@@ -147,7 +147,8 @@ No hay tests automáticos. Se prueba con **Playwright (Python)** cargando `publi
 
 ## Pendientes
 
-- [ ] **David:** correr `supabase/seguridad.sql` en Supabase (SQL Editor) y desplegar la función `push` de la versión 7.7 (SHA-256 `d03fa78e…b35956`).
+- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 39 en Supabase, SHA-256 `d03fa78e…b35956`) el 12 nov 2026. Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
+- [ ] Subir a 60 s el tiempo de espera de la llamada de pg_cron (`timeout_milliseconds := 60000` en `push.sql`): la de las 20:30 del 12 nov quedó sin respuesta por tardar más de 5 s.
 - [ ] Confirmar si los jueves se necesita la ficha en inglés (hoy la pestaña Pastor la pide siempre).
 - [ ] Pendiente de seguridad: cualquier miembro todavía puede escribir horarios y avisos en el estado compartido (se puede recuperar con `app_state_history`); separarlo en tablas lo resolvería del todo.
 
