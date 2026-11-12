@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **7.8**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **7.9**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v84`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v85`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -125,6 +125,9 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 
 - Tamaños de letra según buenas prácticas: texto principal 16 px, notas 15 px, secundario 14 px, etiquetas en mayúsculas y números de aviso nunca menos de 12 px. Áreas táctiles ≥ 44 px (enlaces ≥ 40 px).
 - **Tarjetas de Labores (`itemCard`, diseño «C»):** cabecera (fecha, culto, chips); arriba un cuadro dorado `todoBox` con lo que prepara esa persona según su labor (Tu predicación · Tu introducción con ✓/! de cita y testimonio · Tu preámbulo · Tu interpretación con las fichas); debajo secciones con etiqueta (`isec`: Enseñanza del culto, Introducción, Tu pareja, Transmisión, Leipzig, Reunión). Las notas de `myItems` son objetos `{l, h}`.
+- **Recordatorio de la introducción (`introPend`/`introNag`):** a quien da la introducción en los próximos 8 días y le falta la cita o el enlace del testimonio: aviso rojo arriba de Labores, número rojo en la pestaña y en el ícono de la app (`appBadge`, Badging API) y «!» rojo en la tarjeta. El testimonio no es obligatorio: «No tengo testimonio» guarda `intro[fecha].noLink`.
+- **Enlaces externos (`xlink`):** texto que dice qué es («Ficha en alemán», «Ver el testimonio»), subrayado y con flecha ↗; nunca «LINK / Abrir». Si falta: punto rojo + «falta» + botón «Agregar enlace».
+- **Pestaña Pastor, enseñanzas:** título + lápiz; debajo, en una línea, la fecha a la izquierda y las acciones (fijar, subir/bajar, quitar) pequeñas a la derecha.
 - «No puedo ir» y «Llego tarde» quedan siempre visibles en cada tarjeta (no esconderlos en un menú).
 - Espaciado en pasos de 8 px; **16 px entre contenido y botones**.
 - Una acción principal por pantalla; lo poco usado o delicado en menú ⋯ o con confirmación.

@@ -443,6 +443,32 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .isec .pre{font-size:16px}
 .mine.v2 .acts{margin-top:16px}.mine.v2 .acts .btn{flex:1;min-height:48px;font-size:17px}
 .mine.v2 .panel{margin-top:16px}
+
+/* Recordatorio de la introducción y puntos rojos */
+.card.nag{display:flex;gap:12px;align-items:flex-start;margin:6px 0 14px;border:1.5px solid var(--red);background:color-mix(in srgb,var(--red) 7%,var(--surface))}
+.card.nag b{font-size:17px}
+.rdot{width:12px;height:12px;border-radius:50%;background:var(--red);flex:none;margin-top:6px;box-shadow:0 0 0 4px color-mix(in srgb,var(--red) 22%,transparent)}
+.dot.todo{background:var(--red);color:#fff}
+.bdg,.hbd{background:var(--red)!important;color:#fff!important}
+:root{--red:#d33b3b}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--red:#ff6b6b}}
+:root[data-theme="dark"]{--red:#ff6b6b}
+
+/* Enlaces que se abren fuera: texto que dice qué es, subrayado y con flecha */
+.xl{display:inline-flex;align-items:center;gap:6px;min-height:40px;font-weight:600;font-size:16px;color:var(--navy);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;overflow-wrap:anywhere}
+.xl .ext{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* Pastor: lista de enseñanzas */
+.thead .nrow b{font-size:18px;line-height:1.3}
+.tline{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 4px}
+.tdate{font-size:15px;font-weight:700;color:var(--ink)}
+.tline .tacts{margin-left:auto;gap:6px}
+.tline .ta{width:36px;height:36px}.tline .ta svg{width:18px;height:18px}
+.tline .tseg{border-radius:10px}
+.fich2{margin-top:10px;border-top:1px solid var(--line);padding-top:6px}
+.frow{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.frow.ed{display:block;padding:6px 0}
+.fmiss{display:inline-flex;align-items:center;gap:8px;font-size:16px;color:var(--muted)}
+.rdot.sm{width:8px;height:8px;margin:0;box-shadow:none}
 </style>
 <script src="go.js"></script>
 </head>

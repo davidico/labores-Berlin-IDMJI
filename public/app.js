@@ -357,6 +357,7 @@ function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clea
   if(!READY){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div><div class="card empty-state">Cargando tus labores…</div></div>`;return}
   if(!p){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div><button class="who" data-a="logout">Salir</button></div>
     <h2>Tu correo aún no está registrado</h2><p class="lead">Entraste como <b>${esc(SESSION.user.email)}</b>, pero ese correo no está asignado a ningún hermano. Pide al administrador que lo agregue en Personas y vuelve a entrar.</p></div>`;return}
+  appBadge(p);
   const tabs=tabsFor(p);if(ui.tab!=='aj'&&!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
   {const r=realMe();if(r&&!privOk(r)){let pend='';try{pend=localStorage.getItem('lb-priv')||''}catch(e){}const pe=pend.split('|');if(pe[0]===window.PRIV_V&&(!pe[2]||pe[2]===((SESSION&&SESSION.user.email)||'').toLowerCase())){r.privacy={v:window.PRIV_V,ts:+pend.split('|')[1]||Date.now()};try{localStorage.removeItem('lb-priv')}catch(e){}save()}}}
   const gate=!ui.viewAs&&!privOk(realMe());
@@ -365,9 +366,12 @@ function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clea
   $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''} ${dash?'dash':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
     ${hdr(p)}</div>${ui.viewAs?`<div class="viewas">Viendo como <b>${esc(p.name)}</b><button class="linkbtn" data-a="logout">Volver a mi cuenta</button></div>`:''}
     ${ui.upd?`<div class="banner ok" style="display:flex;align-items:center;justify-content:space-between;gap:10px">Hay una versión nueva (${esc(ui.upd)}).<button class="btn sm" data-a="upd">Actualizar</button></div>`:''}${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div><div class="pg">${body}</div></div>
-    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length:0;return `<button data-a="tab" data-v="${esc(k)}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.flash?`<div class="toast" role="status">${esc(ui.flash)}</div>`:''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}`;
+    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length+introPend(p).length:0;return `<button data-a="tab" data-v="${esc(k)}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.flash?`<div class="toast" role="status">${esc(ui.flash)}</div>`:''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
+/* Número rojo en el ícono de la app instalada: avisos sin leer + cosas por hacer (reemplazos, reuniones, introducción). */
+let BADGE=-1;function appBadge(p){if(ui.viewAs||!('setAppBadge' in navigator))return;const n=unreadFor(p)+pendingFor(p).length+introPend(p).length;if(n===BADGE)return;BADGE=n;
+  try{(n?navigator.setAppBadge(n):navigator.clearAppBadge()).catch(()=>{})}catch(e){}}
 const chip=(area,label)=>`<span class="chip" style="--c:var(${AREAC[area]})">${esc(label)}</span>`;
 
 const SHORT={pulpito:'Púlpito',puerta:'Puerta',sonido:'Sonido',trad:'Traduc.',ofr:'Ofrend.',mic:'Micróf.'};
@@ -394,18 +398,28 @@ const penBtn=(k,lbl)=>`<button class="pen big" data-a="ne-edit" data-v="${esc(k)
 const todoBox=(title,body)=>`<div class="todo"><div class="tl">${title}</div>${body}</div>`;
 const isec=(l,h)=>`<div class="isec">${l?`<div class="il">${l}</div>`:''}${h}</div>`;
 // Fichas de interpretación como filas: ✓ si está el enlace, «!» si todavía no está
-function fichaRows(kind,t,langs){if(!t||!langs.length)return'';return langs.map(l=>t[LINKF[l]]?ckRow('done',`Ficha en ${LANGN[l]}`,`<a class="pdfl lnk" href="${esc(t[LINKF[l]])}" target="_blank" rel="noopener">Abrir la ficha</a>`):ckRow('todo',`Ficha en ${LANGN[l]}`,'<div class="fv empty">Todavía no está</div>')).join('')}
+function fichaRows(kind,t,langs){if(!t||!langs.length)return'';return langs.map(l=>t[LINKF[l]]?ckRow('done',`Ficha en ${LANGN[l]}`,xlink(t[LINKF[l]],'Ver la ficha')):ckRow('todo',`Ficha en ${LANGN[l]}`,'<div class="fv empty">Todavía no está</div>')).join('')}
 // Lo que puso quien da la introducción (para quien predica y los intérpretes)
 function introInfo(d,ip){const x=introOf(d);
   return `<div class="tv">${ip?esc(ip.name):'Sin asignar'}</div><div class="kv"><span>Tema</span>${esc(INTROT[introTema(d)])}</div>`+
     `<div class="kv"><span>Cita bíblica</span>${x.cita?esc(x.cita):'<i>todavía no la puso</i>'}</div>`+
-    (x.link?`<div class="kv"><span>Testimonio</span><a class="pdfl lnk" href="${esc(x.link)}" target="_blank" rel="noopener">Abrir</a></div>`:'')}
+    (x.link?`<div class="kv"><span>Testimonio</span>${xlink(x.link,'Ver el testimonio')}</div>`:'')}
 // Quien da la introducción: cita (obligatoria), testimonio (opcional) y tema sugerido
+/* Recordatorio para quien da la introducción en los próximos 8 días: falta la cita o el enlace del testimonio.
+   El testimonio no es obligatorio: con «No tengo testimonio» deja de recordarse. */
+function introPend(p){if(!p)return[];const out=[],end=ds(new Date(pd(today).getTime()+8*864e5));
+  for(const ym in state.schedules){if(!canSeeMonth(p,ym))continue;for(const d in state.schedules[ym]){
+    if(d<today||d>end||svcGone(d)||transOn(d)||![4,0].includes(pd(d).getDay())||state.schedules[ym][d].pul!==p.id)continue;
+    const x=introOf(d),cita=!x.cita,link=!x.link&&!x.noLink;if(cita||link)out.push({d,cita,link})}}
+  return out.sort((a,b)=>a.d<b.d?-1:1)}
+function introNag(p){return introPend(p).map(x=>{const falta=[x.cita&&'la cita bíblica',x.link&&'el enlace del testimonio (si tienes)'].filter(Boolean).join(' y ');
+  return `<div class="card nag"><span class="rdot" aria-hidden="true"></span><div style="flex:1;min-width:0"><b>Tu introducción del ${DOW[pd(x.d).getDay()].toLowerCase()} ${fmt(x.d).replace(/^\S+\s/,'')}</b><div class="sub2">Todavía no has puesto ${falta}.</div>
+    <button class="btn sm" data-a="ic-go" data-v="${esc(x.d+'|'+(x.cita?'ic':'it'))}" style="margin-top:10px">${x.cita?'Poner la cita':'Poner el enlace'}</button>${!x.cita&&x.link?`<button class="btn ghost sm" data-a="it-none" data-v="${esc(x.d)}" style="margin:10px 0 0 8px">No tengo testimonio</button>`:''}</div></div>`}).join('')}
 function introTodo(d){const x=introOf(d),kc='ic|'+d,kl='it|'+d;
   const cita=ui.edName===kc?`<div class="fl2" style="margin-top:8px">Cita bíblica que leerás</div>${nameEd('ic',d,x.cita||'','Por ejemplo: Juan 3:16')}`
     :ckRow(x.cita?'done':'todo','Cita bíblica que leerás',x.cita?`<div class="fv">${esc(x.cita)}</div>`:'<div class="fv empty">Falta ponerla</div>',penBtn(kc,x.cita?'Cambiar la cita':'Poner la cita'));
   const tes=ui.edName===kl?`<div class="fl2" style="margin-top:8px">Testimonio (si tienes)</div>${linkEd('it',d,x.link,'Pega aquí el enlace del testimonio')}`
-    :ckRow(x.link?'done':'opt','Testimonio (si tienes)',x.link?`<a class="pdfl lnk" href="${esc(x.link)}" target="_blank" rel="noopener">Abrir</a>`:'<div class="fv empty">Sin enlace</div>',penBtn(kl,x.link?'Cambiar el enlace':'Poner el enlace'));
+    :ckRow(x.link?'done':x.noLink?'opt':'todo','Testimonio (si tienes)',x.link?xlink(x.link,'Ver el testimonio'):x.noLink?'<div class="fv empty">Sin testimonio</div>':`<div class="fv empty">Falta el enlace</div><button class="linkbtn" data-a="it-none" data-v="${esc(d)}" style="font-size:15px;min-height:40px;padding:0">No tengo testimonio</button>`,penBtn(kl,x.link?'Cambiar el enlace':'Poner el enlace'));
   return todoBox('Tu introducción',cita+tes+`<div class="tsec"><div class="fl2">Tema sugerido</div><div class="tv">${esc(INTROT[introTema(d)])}</div></div><div class="help">Los intérpretes ven la cita y el testimonio para prepararse.</div>`)}
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const as=schedOf(d)||{},has=f=>it.slots.some(f),todo=[],info=[];
@@ -514,7 +528,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '7.8';
+const APPV = '7.9';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -563,7 +577,12 @@ function privDocsCard(){const ds_=state.privDocs||[];
    ${ui.uplMsg?`<div class="info" style="color:var(--warn)">${esc(ui.uplMsg)}</div>`:''}
    <div class="info" style="margin-top:8px">Solo tú ves esta sección. Guarda aquí los PDF (por ejemplo el contrato de Cloudflare descargado o el registro en PDF).</div></div>`}
 const PENCIL='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
-const linkPair=(kind,t,langs)=>`<div class="fich">${langs.map(l=>`<span class="fl">${l==='de'?'Alemán':'Inglés'}</span><div class="fc" style="display:block">${linkEd(kind,t.id+'|'+l,t[LINKF[l]])}</div>`).join('')}</div>`;
+const EXT='<svg class="ext" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
+const xlink=(href,txt)=>`<a class="xl" href="${esc(href)}" target="_blank" rel="noopener">${txt}${EXT}</a>`;
+const linkPair=(kind,t,langs)=>`<div class="fich2">${langs.map(l=>{const k=kind+'|'+t.id+'|'+l,v=t[LINKF[l]],L=`Ficha en ${LANGN[l]}`;
+  if(ui.edName===k)return `<div class="frow ed"><span class="fl2">${L}</span>${linkEd(kind,t.id+'|'+l,v)}</div>`;
+  return v?`<div class="frow">${xlink(v,L)}<button class="pen" data-a="ne-edit" data-v="${esc(k)}" aria-label="Cambiar el enlace de la ${esc(L.toLowerCase())}">${PENCIL}</button></div>`
+    :`<div class="frow"><span class="fmiss"><span class="rdot sm" aria-hidden="true"></span>${L}: falta</span><button class="btn ghost sm" data-a="ne-edit" data-v="${esc(k)}">Agregar enlace</button></div>`}).join('')}</div>`;
 const doneTog=(kind,t)=>`<button class="sw" role="switch" aria-checked="${!!t.done}" data-a="f-done" data-v="${esc(kind)}|${esc(t.id)}" style="margin-top:4px"><span class="swl">${t.done?'Fichas subidas a Drive':'Fichas sin subir'}</span><span class="swt"><span class="swk"></span></span></button>`;
 function fichasCard(){const F=state.fichas||{};
   return `<h3>Carpetas de fichas (Drive)</h3><div class="card"><div class="info" style="margin:0 0 6px">Cada intérprete ve el enlace de su idioma en la enseñanza que le toca.</div>
@@ -571,14 +590,14 @@ function fichasCard(){const F=state.fichas||{};
 const davidDay=d=>!!(d&&slotsAt(d).some(z=>z.k==='predica'));
 /* ---- Introducción: cita bíblica y testimonio (los pone quien da la introducción; los ven los intérpretes) ---- */
 const introOf=d=>(state.intro||{})[d]||{};
-function introView(d){const x=introOf(d);return (x.cita?`<br><b>Cita bíblica:</b> ${esc(x.cita)}`:'')+(x.link?`<br><b>Testimonio:</b> <a class="pdfl lnk" href="${esc(x.link)}" target="_blank" rel="noopener">Abrir</a>`:'')}
+function introView(d){const x=introOf(d);return (x.cita?`<br><b>Cita bíblica:</b> ${esc(x.cita)}`:'')+(x.link?`<br><b>Testimonio:</b> ${xlink(x.link,'Ver el testimonio')}`:'')}
 function introEdit(d){const x=introOf(d);
   return `<div class="introed"><div class="fl">Cita bíblica que leerás</div>${nameEd('ic',d,x.cita||'','Agrega la cita, por ejemplo: Juan 3:16')}
     <div class="fl">Enlace del testimonio <span>(si tienes)</span></div>${linkEd('it',d,x.link,'Pega aquí el enlace del testimonio','<small>Sin enlace</small>')}
     <div class="fl-help">Los intérpretes lo ven para prepararse.</div></div>`}
 function linkEd(kind,id,val,ph,empty){const k=kind+'|'+id;
   if(ui.edName===k)return `<div class="inline" style="gap:6px;margin:6px 0;flex-wrap:nowrap"><input id="ne-in" type="url" inputmode="url" value="${esc(val||'')}" placeholder="${esc(ph||'Pega aquí el enlace de Drive')}" style="flex:1;min-width:0"><button class="btn sm" data-a="ne-save" data-v="${esc(k)}">Guardar</button><button class="x" data-a="ne-x" aria-label="Cancelar">✕</button></div>`;
-  return `<div class="nrow" style="margin-top:4px">${val?`<a class="pdfl lnk" href="${esc(val)}" target="_blank" rel="noopener">Abrir</a>`:(empty||'<small style="color:var(--warn)">Sin enlace</small>')}<button class="pen" data-a="ne-edit" data-v="${esc(k)}" aria-label="${val?'Editar enlace':'Agregar enlace'}">${PENCIL}</button></div>`}
+  return `<div class="nrow" style="margin-top:4px">${val?xlink(val,'Abrir el enlace'):(empty||'<small style="color:var(--warn)">Sin enlace</small>')}<button class="pen" data-a="ne-edit" data-v="${esc(k)}" aria-label="${val?'Editar enlace':'Agregar enlace'}">${PENCIL}</button></div>`}
 // Acciones de cada enseñanza, junto al lápiz: mover (grupo) y quitar (aparte, en rojo)
 const IC_UP='<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>',IC_DN='<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',IC_DEL='<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
 const IC_PIN='<svg viewBox="0 0 24 24"><path d="M9 4h6l-1 5 3 3v2H7v-2l3-3-1-5zM12 14v6"/></svg>';
@@ -761,7 +780,7 @@ function trAsk(p){if(!(p.pastor||p.admin))return'';const w=pd(today).getDay();co
   const yes=state.trans.some(t=>t.date===d),no=(state.transNo||[]).includes(d);if((yes||no)&&!ui.trQ)return'';
   return `<div class="card trask"><b>¿Hay transmisión internacional el ${fmt(d)}?</b>${yes||no?`<div class="info" style="margin-top:4px">Ya respondiste: <b>${yes?'sí hay':'no hay'}</b>. Puedes cambiarlo.</div>`:'<div class="info" style="margin-top:4px">Si la hay, ese día no se da introducción y el tema pasa al siguiente culto.</div>'}
     <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="tr-ans" data-v="${esc(d)}|si">Sí, hay transmisión</button><button class="btn ghost sm" data-a="tr-ans" data-v="${esc(d)}|no">No hay</button></div></div>`}
-function vMis(p){const top=trAsk(p)+lzInvite(p)+misAv(p)+avisos(p)+misMeets(p)+misMsgs(p);return `<h2>Hola, ${esc(p.name.split(' ')[0])}</h2>`+installHint()+pushCard()+top+(top?'<h3>Tus labores</h3>':'')+misList(p)}
+function vMis(p){const nag=introNag(p),top=trAsk(p)+lzInvite(p)+misAv(p)+avisos(p)+misMeets(p)+misMsgs(p);return `<h2>Hola, ${esc(p.name.split(' ')[0])}</h2>`+nag+installHint()+pushCard()+top+(top||nag?'<h3>Tus labores</h3>':'')+misList(p)}
 /* ---- vista de escritorio (PC): panel de inicio ---- */
 const DESK=()=>!!(window.matchMedia&&matchMedia('(min-width:1024px)').matches);
 if(window.matchMedia){const mq=matchMedia('(min-width:1024px)');const f=()=>{try{if(quiet())render()}catch(e){}};mq.addEventListener?mq.addEventListener('change',f):mq.addListener(f)}
@@ -806,10 +825,10 @@ function dkQuick(p){const L={cal:'Ver calendario',disp:'Mis días para servir',h
   return `<section class="card dkcard"><h4>Accesos rápidos</h4><div class="dkql">${it}<button class="dkq" data-a="tab" data-v="aj">${ICON.aj}<span>Ajustes y mi calendario</span>${ARROW}</button></div></section>`}
 function vDash(p){const items=myItems(p);for(const d in items)if(svcGone(d))delete items[d];
   const fut=Object.keys(items).sort().filter(d=>items[d].slots.length);
-  const un=unreadFor(p),ask=pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length+Object.keys(state.avReqs||{}).filter(ym=>{const av=avOf(ym);return ym>=today.slice(0,7)&&today<=av.deadline&&!(av.done&&av.done[p.id])&&p.roles&&p.roles.length}).length;
+  const un=unreadFor(p),ask=introPend(p).length+pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length+Object.keys(state.avReqs||{}).filter(ym=>{const av=avOf(ym);return ym>=today.slice(0,7)&&today<=av.deadline&&!(av.done&&av.done[p.id])&&p.roles&&p.roles.length}).length;
   const h=new Date().getHours(),hi=h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';const td=pd(today);
   const areas=myAreas(p);
-  const top=trAsk(p)+lzInvite(p)+misAv(p)+avisos(p,true)+misMeets(p)+misMsgs(p);
+  const top=introNag(p)+trAsk(p)+lzInvite(p)+misAv(p)+avisos(p,true)+misMeets(p)+misMsgs(p);
   const stat=(n,t,s,a,v)=>`<button class="card dkstat" data-a="${a}" data-v="${esc(v||'')}"><div class="dkst-n">${n}</div><div><b>${t}</b><small>${s}</small></div>${ARROW}</button>`;
   return `<div class="dkgrid"><div class="dkmain">
     <section class="card dkhero"><div><div class="dkeye">Mi espacio · Labores Berlín</div><h1>${hi}, ${esc(p.name.split(' ')[0])}</h1>
@@ -1095,7 +1114,7 @@ function repsCard(p){if(!(p.admin||p.pastor))return'';const rs=(state.linkReps||
     return `<div class="repitem"><div><b>${r.kind==='l'?'Leipzig':esc(t?t.title:'')}</b> · ${fmt(r.d)} · ficha en ${LANGN[r.lang]}</div><div>«${esc(r.note)}»</div><small class="info">${esc(who?who.name:'')} · ${ago(r.ts)}</small><div class="inline" style="margin-top:8px"><button class="btn ghost sm" data-a="rep-done" data-v="${esc(r.id)}">Ya lo corregí</button></div></div>`}).join('')}
     <div class="info" style="margin-top:8px">Al cambiar el enlace con el lápiz, se marca solo como corregido y se le avisa a quien reportó.</div></div>`}
 const pdfLink=(kind,t,langs=['de','en'])=>{const ls=t?langs.filter(l=>t[LINKF[l]]):[];if(!ls.length)return langs.length?`<div class="info" style="margin-top:6px">Ficha: todavía no está.</div>`:'';
-  return `<div class="inline" style="margin-top:6px;flex-wrap:wrap">${ls.map(l=>`<a class="pdfl lnk" href="${esc(t[LINKF[l]])}" target="_blank" rel="noopener">Ficha en ${LANGN[l]}</a>`).join('')}</div>`};
+  return `<div class="inline" style="margin-top:6px;flex-wrap:wrap">${ls.map(l=>xlink(t[LINKF[l]],`Ficha en ${LANGN[l]}`)).join('')}</div>`};
 const tradLangs=p=>p?['de','en'].filter(l=>(p.roles||[]).includes('trad_'+l)):[];
 // Leipzig: los que viajan ven las dos fichas (alemán e inglés); el resto del equipo de traducción, la de su idioma.
 const lzLangs=p=>p&&p.leipzig?['de','en']:tradLangs(p);
@@ -1136,7 +1155,7 @@ function vEns(p){
    ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id]))).sort((a,b)=>(dateOf[a.id]||'9')<(dateOf[b.id]||'9')?-1:1);const mov=fut.filter(t=>!isPinned(t));
      const last=fut.length?dateOf[fut[fut.length-1].id]:'';
      let h=past.length?`<button class="mfold" data-a="t-past" aria-expanded="${!!ui.tPast}"><span><b>Ya pasaron</b> · ${past.length}</span><span class="chev">${ui.tPast?'▾':'▸'}</span></button>${ui.tPast?past.map(t=>`<div class="li"><div class="main" style="opacity:.6"><b>${esc(t.title)}</b><small>${fmt(dateOf[t.id])}</small></div></div>`).join(''):''}`:'';
-     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}${ui.edName==='t|'+t.id?'':tActs(t,mov)}</div>${isPinned(t)?`<div class="pinnote">Fija en esta fecha${davidDay(dateOf[t.id])?' (predica David)':''}: no se corre si se agrega una transmisión.</div>`:''}${dupWarn(t.id)}${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${esc(t.id)}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}<small>${dateOf[t.id]?fmt(dateOf[t.id]):'sin fecha'}</small>${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
+     h+=fut.map((t,i)=>`<div class="li trow"><div class="main"><div class="thead">${nameEd('t',t.id,t.title,'',true)}</div><div class="tline"><span class="tdate">${dateOf[t.id]?DOW[pd(dateOf[t.id]).getDay()]+' '+fmt(dateOf[t.id]).replace(/^\S+\s/,''):'Sin fecha'}</span>${ui.edName==='t|'+t.id?'':tActs(t,mov)}</div>${isPinned(t)?`<div class="pinnote">Fija en esta fecha${davidDay(dateOf[t.id])?' (predica David)':''}: no se corre si se agrega una transmisión.</div>`:''}${dupWarn(t.id)}${ui.tDel===t.id?`<div class="confirm">¿Quitar esta enseñanza? Las que siguen se corren una fecha antes. <button class="btn warnb sm" data-a="t-del-ok" data-v="${esc(t.id)}">Sí, quitar</button><button class="btn ghost sm" data-a="t-del-no">Cancelar</button></div>`:''}${(()=>{const d=dateOf[t.id];if(!d)return'';const ip=person((schedOf(d)||{}).pul);return `<small>Predica: <b>${davidDay(d)?esc((person((schedOf(d)||{}).predica)||{name:'David'}).name):esc((state.people.find(x=>x.pastor&&x.roles.includes('pulpito'))||{name:'Pastor'}).name)}</b> · Introducción: <b>${ip?esc(ip.name):'sin asignar'}</b>${introView(d)}</small><small>Tema sugerido: ${esc(INTROT[introTema(d)])}</small>`})()}
      ${linkPair('tl',t,dateOf[t.id]?needLangs(dateOf[t.id]):['de','en'])}</div></div>`).join('')||'<div class="info" style="padding:8px 0">No hay enseñanzas por venir. Agrega las siguientes abajo.</div>';
      if(last)h+=`<div class="info" style="margin-top:8px">Hay enseñanzas cargadas hasta el <b>${fmt(last)}</b>. Para seguir después, agrega más abajo y se acomodan solas en los siguientes jueves y domingos.</div>`;
      return h})()}
@@ -1191,7 +1210,7 @@ function vPer(){
 
 /* ---------- acciones ---------- */
 // «Ver como» otra persona: solo para mirar. Estas acciones no cambian nada guardado.
-const VIEWOK=new Set(['logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
+const VIEWOK=new Set(['ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
 const viewOnly=()=>{ui.flash=`Estás viendo la app como ${(me()||{}).name||'otra persona'}: solo para mirar. Toca «Volver a mi cuenta» para hacer cambios.`;ui.panel=null;render()};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
   if(ui.viewAs&&!VIEWOK.has(a)){viewOnly();return}
@@ -1205,6 +1224,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'push-on':ensureSub(true);return;
   case'install':if(INSTALL){INSTALL.prompt();INSTALL=null}return;
   case'install-x':ui.hideInstall=true;try{localStorage.setItem('lb-noinstall','1')}catch(e){}break;
+  case'ic-go':{const[d,ed]=v.split('|');nGo({tab:'mis',d,ed});return}
+  case'it-none':{state.intro=state.intro||{};const x=state.intro[v]=state.intro[v]||{};x.noLink=true;ui.flash='Listo: ya no se te recuerda el testimonio.';break}
   case'tab':if(v==='aj'&&ui.tab!=='aj')ui.prevTab=ui.tab;ui.menu=false;ui.bell=false;ui.tab=v;ui.edit=null;scrollTo(0,0);break;
   case'month':{const[y,m]=ui.month.split('-').map(Number);const d=new Date(y,m-1+(+v),1);ui.month=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;ui.regen=false;break}
   case'area':ui.area=v;break;
@@ -1267,7 +1288,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'ne-edit':ui.edName=v;render();setTimeout(()=>{const i=$('ne-in');if(i){i.focus();i.select()}},30);return;
   case'ne-x':ui.edName=null;break;
   case'ne-save':{const[kd,iv,lg]=v.split('|');let val=(($('ne-in')||{}).value||'').trim();
-    if(kd==='ic'||kd==='it'){if(kd==='it'&&val&&!/^https?:\/\//i.test(val))val='https://'+val;state.intro=state.intro||{};const x=state.intro[iv]=state.intro[iv]||{};const f=kd==='ic'?'cita':'link';if(val)x[f]=val;else delete x[f];if(!x.cita&&!x.link)delete state.intro[iv];ui.edName=null;break}
+    if(kd==='ic'||kd==='it'){if(kd==='it'&&val&&!/^https?:\/\//i.test(val))val='https://'+val;state.intro=state.intro||{};const x=state.intro[iv]=state.intro[iv]||{};const f=kd==='ic'?'cita':'link';if(val)x[f]=val;else delete x[f];if(!x.cita&&!x.link&&!x.noLink)delete state.intro[iv];ui.edName=null;break}
     if(kd==='fx'){if(val&&!/^https?:\/\//i.test(val))val='https://'+val;state.fichas=state.fichas||{};if(val)state.fichas[iv]=val;else delete state.fichas[iv];ui.edName=null;break}
     if(kd==='tl'||kd==='ll'){if(val&&!/^https?:\/\//i.test(val))val='https://'+val;const x=(kd==='tl'?state.teachings:state.leipzig).find(z=>z.id===iv),f=LINKF[lg||'de'];if(x){const before=x[f];if(val)x[f]=val;else delete x[f];if(val&&val!==before&&closeReps(kd==='tl'?'t':'l',iv,lg||'de','corrigió'))ui.flash='Enlace guardado. Se avisó a quien lo había reportado.'}ui.edName=null;break}
     if(!val){const i=$('ne-in');if(i){i.placeholder='El título no puede quedar vacío';i.classList.add('bad');i.focus()}return}if(kd==='lz'){const l=state.leipzig.find(x=>x.id===iv);if(l)l.teaching=val}else{const x=state.teachings.find(z=>z.id===iv);if(x&&val){x.title=val;dupFlash(iv)}}ui.edName=null;break}
