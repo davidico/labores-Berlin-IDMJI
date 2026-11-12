@@ -380,28 +380,58 @@ function myItems(p){
     const as=state.schedules[ym][date],w=pd(date).getDay();
     for(const s of slotsAt(date))if(as[s.k]===p.id)add(date).slots.push(s);
   }
-  for(const t of state.trans)if(isPul)add(t.date).notes.push(`<b>Transmisión internacional.</b> ${svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre" style="margin-top:4px">${linkify(t.link)}</div>`:'Aún sin datos (enlace y hora).'}`);
+  for(const t of state.trans)if(isPul)add(t.date).notes.push({l:'Transmisión internacional',h:svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre">${linkify(t.link)}</div>`:'<span class="fv empty">Aún sin datos (enlace y hora)</span>'});
   if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
-  if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))&&!(items[d]&&items[d].slots.length)){const it=add(d);it.attend=true;it.notes.unshift('Ese día vas tú a la alabanza. No tienes labor.')}}
-  for(const m of myMeets(p))add(m.date).notes.push(`<b>Reunión:</b> ${esc(m.title)}${m.time?' · '+esc(m.time):''}`);
-  for(const l of state.leipzig)add(l.date).notes.push(`<b>Visita a Leipzig.</b> Predicación: ${esc(l.teaching||'por definir')}${p.leipzig?' · Viajas este día':(l.going||[]).includes(p.id)?' · Vas a ir':''}${seesLzGoing(p)?'<br>'+lzGoingLine(l):''}${pdfLink('l',l,lzLangs(p))}${lzLangs(p).length&&l.date>=today?linkRep('l',l,l.date,lzLangs(p),null):''}`);
+  if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))&&!(items[d]&&items[d].slots.length)){const it=add(d);it.attend=true;it.notes.unshift({l:'Alabanza',h:'Ese día vas tú a la alabanza. No tienes labor.'})}}
+  for(const m of myMeets(p))add(m.date).notes.push({l:'Reunión',h:`<div class="tv">${esc(m.title)}</div>${m.time?`<div class="sub2">${esc(m.time)}</div>`:''}`});
+  for(const l of state.leipzig)add(l.date).notes.push({l:'Visita a Leipzig',h:`<div class="tv">${esc(l.teaching||'Predicación por definir')}</div>${p.leipzig?'<div class="sub2">Viajas este día</div>':(l.going||[]).includes(p.id)?'<div class="sub2">Vas a ir</div>':''}${seesLzGoing(p)?`<div class="sub2">${lzGoingLine(l)}</div>`:''}${fichaRows('l',l,lzLangs(p))}${lzLangs(p).length&&l.date>=today?linkRep('l',l,l.date,lzLangs(p),null):''}`});
   return items;
 }
+/* ---- Tarjeta de un día (diseño «primero lo que te toca hacer»):
+   arriba, en dorado, lo que prepara esta persona según su labor; debajo, la información del culto en secciones. ---- */
+const ckRow=(st,label,val,btn)=>`<div class="ck"><span class="dot ${st}" aria-hidden="true">${st==='done'?'✓':st==='todo'?'!':''}</span><div class="ckm"><div class="fl2">${label}</div>${val}</div>${btn||''}</div>`;
+const penBtn=(k,lbl)=>`<button class="pen big" data-a="ne-edit" data-v="${esc(k)}" aria-label="${esc(lbl)}">${PENCIL}</button>`;
+const todoBox=(title,body)=>`<div class="todo"><div class="tl">${title}</div>${body}</div>`;
+const isec=(l,h)=>`<div class="isec">${l?`<div class="il">${l}</div>`:''}${h}</div>`;
+// Fichas de interpretación como filas: ✓ si está el enlace, «!» si todavía no está
+function fichaRows(kind,t,langs){if(!t||!langs.length)return'';return langs.map(l=>t[LINKF[l]]?ckRow('done',`Ficha en ${LANGN[l]}`,`<a class="pdfl lnk" href="${esc(t[LINKF[l]])}" target="_blank" rel="noopener">Abrir la ficha</a>`):ckRow('todo',`Ficha en ${LANGN[l]}`,'<div class="fv empty">Todavía no está</div>')).join('')}
+// Lo que puso quien da la introducción (para quien predica y los intérpretes)
+function introInfo(d,ip){const x=introOf(d);
+  return `<div class="tv">${ip?esc(ip.name):'Sin asignar'}</div><div class="kv"><span>Tema</span>${esc(INTROT[introTema(d)])}</div>`+
+    `<div class="kv"><span>Cita bíblica</span>${x.cita?esc(x.cita):'<i>todavía no la puso</i>'}</div>`+
+    (x.link?`<div class="kv"><span>Testimonio</span><a class="pdfl lnk" href="${esc(x.link)}" target="_blank" rel="noopener">Abrir</a></div>`:'')}
+// Quien da la introducción: cita (obligatoria), testimonio (opcional) y tema sugerido
+function introTodo(d){const x=introOf(d),kc='ic|'+d,kl='it|'+d;
+  const cita=ui.edName===kc?`<div class="fl2" style="margin-top:8px">Cita bíblica que leerás</div>${nameEd('ic',d,x.cita||'','Por ejemplo: Juan 3:16')}`
+    :ckRow(x.cita?'done':'todo','Cita bíblica que leerás',x.cita?`<div class="fv">${esc(x.cita)}</div>`:'<div class="fv empty">Falta ponerla</div>',penBtn(kc,x.cita?'Cambiar la cita':'Poner la cita'));
+  const tes=ui.edName===kl?`<div class="fl2" style="margin-top:8px">Testimonio (si tienes)</div>${linkEd('it',d,x.link,'Pega aquí el enlace del testimonio')}`
+    :ckRow(x.link?'done':'opt','Testimonio (si tienes)',x.link?`<a class="pdfl lnk" href="${esc(x.link)}" target="_blank" rel="noopener">Abrir</a>`:'<div class="fv empty">Sin enlace</div>',penBtn(kl,x.link?'Cambiar el enlace':'Poner el enlace'));
+  return todoBox('Tu introducción',cita+tes+`<div class="tsec"><div class="fl2">Tema sugerido</div><div class="tv">${esc(INTROT[introTema(d)])}</div></div><div class="help">Los intérpretes ven la cita y el testimonio para prepararse.</div>`)}
 function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
-  const notes=[...it.notes];
-  if((w===2||w===6)&&it.slots.some(s=>s.k==='pul'))notes.unshift(`<b>Preámbulo sugerido para el estudio bíblico:</b> ${preTxt(preEB(d))}`);
-  if(w===0&&transOn(d)&&it.slots.some(s=>s.k==='pul'))notes.unshift(`<b>Preámbulo sugerido para la transmisión:</b> ${preTxt(preTR(d))}`);
-  if((w===4||w===0)&&it.slots.some(s=>s.k==='pul')&&!transOn(d))notes.unshift(`<b>Tema sugerido para la introducción:</b> ${esc(INTROT[introTema(d)])}${introEdit(d)}`);
-  {const as=schedOf(d)||{};for(const s of it.slots)if(s.pair||s.pairOf){const o=person(as[s.pair||s.pairOf]),n=(s.l.match(/pareja \d/)||['pareja'])[0];notes.unshift(`<b>Tu pareja (${n}):</b> ${o?`<b>${esc(o.name)}</b>`:'sin asignar todavía'}`)}}
-  if(it.slots.some(s=>s.k==='pul_ini'||s.k==='pul_fin'))notes.unshift(`<b>Preámbulo sugerido para la alabanza:</b> ${esc(PREAMB[preamb(d)])}`);
-  {const preaching=it.preach||it.slots.some(s=>s.k==='predica');
-   if(preaching&&tm[d]){const as=schedOf(d)||{},ip=person(as.pul);notes.unshift(`<b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema sugerido:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`);notes.unshift(`<b>Tú predicas:</b> ${esc(tm[d].title)}`)}}
-  if((w===4||w===0)&&!it.preach&&!it.slots.some(s=>s.k==='predica')&&it.slots.some(s=>s.area==='pulpito'||s.area==='trad')&&tm[d]){const as=schedOf(d)||{},pr=davidDay(d)?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),ip=person(as.pul),tr=it.slots.some(s=>s.area==='trad');notes.unshift(`<b>Enseñanza:</b> ${esc(tm[d].title)}<br><b>Predica:</b> ${pr?esc(pr.name):'sin asignar'}`+(tr&&!transOn(d)?`<br><b>Introducción:</b> ${ip?esc(ip.name):'sin asignar'}<br><b>Tema de la introducción:</b> ${esc(INTROT[introTema(d)])}${introView(d)}`:'')+pdfLink('t',tm[d],tradLangs(me()))+(tr?linkRep('t',tm[d],d,tradLangs(me()),davidDay(d)?pr:null):''))}
-  return `<div class="card mine" data-day="${esc(d)}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
+  const as=schedOf(d)||{},has=f=>it.slots.some(f),todo=[],info=[];
+  const t=tm[d],tr=transOn(d),dday=davidDay(d);
+  const preacher=dday?person(as.predica):state.people.find(x=>x.pastor&&x.roles.includes('pulpito'));
+  const isIntro=(w===4||w===0)&&has(s=>s.k==='pul')&&!tr;
+  const preaching=it.preach||has(s=>s.k==='predica');
+  const isTrad=has(s=>s.area==='trad');
+  // 1. Lo que prepara esta persona
+  if(preaching&&t)todo.push(todoBox('Tu predicación',`<div class="big2">${esc(t.title)}</div>`+(tr?'':`<div class="tsec"><div class="fl2">Introducción</div>${introInfo(d,person(as.pul))}</div>`)));
+  if(isIntro)todo.push(introTodo(d));
+  if(has(s=>s.k==='pul_ini'||s.k==='pul_fin'))todo.push(todoBox('Tu preámbulo',`<div class="big2">${esc(PREAMB[preamb(d)])}</div><div class="help">Preámbulo sugerido para la alabanza.</div>`));
+  if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);todo.push(todoBox('Tu preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Preámbulo sugerido para el estudio bíblico (el mismo el martes y el sábado).</div>`))}
+  if(w===0&&tr&&has(s=>s.k==='pul')){const x=preTR(d);todo.push(todoBox('Tu preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Preámbulo sugerido para la transmisión.</div>`))}
+  if(isTrad&&(w===4||w===0)&&t)todo.push(todoBox('Tu interpretación',fichaRows('t',t,tradLangs(me()))+linkRep('t',t,d,tradLangs(me()),dday?preacher:null)));
+  for(const s of it.slots)if(s.pair||s.pairOf){const o=person(as[s.pair||s.pairOf]),n=(s.l.match(/pareja \d/)||['pareja'])[0];info.push(isec(`Tu pareja (${n})`,`<div class="tv">${o?esc(o.name):'<i>Sin asignar todavía</i>'}</div>`))}
+  // 2. Información del culto
+  if((w===4||w===0)&&t&&!preaching&&has(s=>s.area==='pulpito'||s.area==='trad')){
+    info.unshift(isec('Enseñanza del culto',`<div class="tv">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`));
+    if(isTrad&&!tr)info.splice(1,0,isec('Introducción',introInfo(d,person(as.pul))))}
+  for(const n of it.notes)info.push(typeof n==='string'?isec('',n):isec(n.l,n.h));
+  return `<div class="card mine v2" data-day="${esc(d)}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
-    ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}
-    ${notes.map(n=>`<div class="note">${n}</div>`).join('')}
-    ${it.slots.length&&d>=today?actions(d,it):''}</div></div>`}
+    ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}</div>
+    ${todo.length||info.length?`<div class="cbody">${todo.join('')}${info.length?`<div class="infos">${info.join('')}</div>`:''}</div>`:''}
+    ${it.slots.length&&d>=today?`<div class="cbody">${actions(d,it)}</div>`:''}</div>`}
 /* ---- avisos y reemplazos ---- */
 const schedOf=d=>(state.schedules[d.slice(0,7)]||{})[d];
 const snapDays=dates=>{const o={};for(const d of dates)o[d]={...(schedOf(d)||{})};return o};
@@ -484,7 +514,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '7.7';
+const APPV = '7.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}

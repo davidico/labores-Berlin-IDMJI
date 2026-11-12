@@ -409,6 +409,40 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .ta.pin{border:1px solid var(--line);border-radius:10px}
 .ta.pin.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .pinnote{margin:6px 0 4px;font-size:14px;color:var(--navy);font-weight:600}
+
+/* Tarjetas de Labores (diseño C: primero lo que te toca hacer) */
+.card.mine.v2{padding:16px;border-radius:16px;row-gap:0}
+.mine.v2 .dbox b{font-size:30px}
+.mine.v2 .svc{font-size:18px;line-height:1.3}.mine.v2 .svc small{font-size:16px}
+.mine.v2 .chip{font-size:15px;padding:4px 12px}
+.mine.v2 .cbody{grid-column:1/-1;min-width:0}
+.todo{margin-top:16px;padding:14px;border-radius:14px;border:1.5px solid var(--gold);background:color-mix(in srgb,var(--gold) 8%,var(--surface))}
+.todo+.todo{margin-top:12px}
+.todo .tl{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
+.ck{display:flex;align-items:center;gap:12px;min-height:52px;padding:4px 0}
+.ck+.ck{border-top:1px solid var(--line)}
+.ckm{flex:1;min-width:0}
+.dot{width:26px;height:26px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:800}
+.dot.done{background:var(--ok);color:var(--on-ok)}
+.dot.todo{background:var(--warn);color:var(--surface)}
+.dot.opt{border:2px dashed var(--muted)}
+.fl2{font-size:15px;color:var(--muted)}
+.fv{font-size:18px;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
+.fv.empty{font-weight:500;font-style:italic;color:var(--muted);font-size:17px}
+.big2{font-size:19px;font-weight:700;line-height:1.35;color:var(--ink)}
+.tv{font-size:17px;font-weight:600;line-height:1.4;color:var(--ink)}
+.sub2{font-size:16px;color:var(--muted);margin-top:2px;line-height:1.4}
+.tsec{margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
+.help{font-size:15px;color:var(--muted);margin-top:10px;line-height:1.4}
+.kv{font-size:16px;line-height:1.4;color:var(--ink);margin-top:6px}.kv span{display:block;font-size:14px;color:var(--muted)}
+.pen.big{min-width:44px;min-height:44px;background:var(--soft);color:var(--navy);border-radius:12px}
+.infos{margin-top:8px}
+.isec{padding:12px 0;border-top:1px solid var(--line);font-size:17px;line-height:1.45;color:var(--ink)}
+.infos .isec:first-child{border-top:none}
+.isec .il{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.isec .pre{font-size:16px}
+.mine.v2 .acts{margin-top:16px}.mine.v2 .acts .btn{flex:1;min-height:48px;font-size:17px}
+.mine.v2 .panel{margin-top:16px}
 </style>
 <script src="go.js"></script>
 </head>
