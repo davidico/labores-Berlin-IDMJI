@@ -514,6 +514,25 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .tog.avd.wk,.tog.avd.wk:disabled{opacity:1;background:var(--line);color:var(--muted);border-color:var(--line);text-decoration:line-through;cursor:default}
 .tog.avd.wk.past{opacity:.35}
 .card.locked .cal{opacity:.55}
+
+/* Calendario: vista de lista */
+.calhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
+.calhead .mnav{margin:0!important}
+.vtog{display:flex;gap:6px}.vtog .f{min-height:40px;padding:6px 14px;font-size:15px}
+.llist{display:grid;gap:10px}
+.lrow{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.lrow.past{opacity:.5}
+.lbtn{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;background:none;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;min-height:56px}
+.ldate{display:flex;flex-direction:column;align-items:center;min-width:40px;padding-right:12px;border-right:2px solid var(--gold)}
+.ldate b{font-family:var(--display);font-size:22px;line-height:1;color:var(--navy)}.ldate small{font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.lmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.lt{font-size:16px;font-weight:700}.lt small{font-weight:500;color:var(--muted);font-size:15px}
+.lmain .chips{margin-top:0}
+.lnote{font-size:14px;color:var(--muted)}
+.lbtn .chev{color:var(--muted);font-size:14px}
+.ldet{padding:0 10px 10px}.ldet .card.mine{border:none;padding:6px 6px 10px}
+.ldet .card.mine>.dbox,.ldet .card.mine>.dbox+div{display:none}
+.ldet .card.mine .cbody:first-of-type .todo:first-child,.ldet .card.mine .infos{margin-top:0}
 </style>
 <script src="go.js"></script>
 </head>

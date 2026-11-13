@@ -144,7 +144,7 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
   if(SESSION&&LOADED&&!writing)refetch().then(()=>{resolveMe();softRender()}).catch(()=>{})}});
 setInterval(()=>{today=ds(new Date());if(document.visibilityState==="visible"&&quiet())try{render()}catch(e){}},10*60e3);
 function defaultMonth(){const d=new Date();if(d.getDate()>20)d.setMonth(d.getMonth()+1,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
-const ui={tab:'mis',month:defaultMonth(),area:'all',view:'grid',mv:'cal',cm:defaultMonth(),sel:null,edit:null,open:null,regen:false,delp:null};
+const ui={cv:(()=>{try{return localStorage.getItem('lb-cv')||'cal'}catch(e){return 'cal'}})(),tab:'mis',month:defaultMonth(),area:'all',view:'grid',mv:'cal',cm:defaultMonth(),sel:null,edit:null,open:null,regen:false,delp:null};
 // Enlace desde la notificación de transmisión: ?tr=AAAA-MM-DD (y &a=si|no si se tocó un botón de la notificación)
 try{const q=new URLSearchParams(location.search);if(/^\d{4}-\d\d-\d\d$/.test(q.get('tr')||'')){ui.trQ=q.get('tr');ui.trA=['si','no'].includes(q.get('a'))?q.get('a'):null;ui.tab='mis'}if(q.get('n'))ui.goN=q.get('n');if(q.get('go'))ui.goQ={tab:{ic:'mis',disp:'disp',hor:'hor',ens:'ens',lz:'mis',mis:'mis'}[q.get('go')]||'mis',d:/^\d{4}-\d\d-\d\d$/.test(q.get('d')||'')?q.get('d'):null,ed:q.get('go')==='ic'?'ic':null,lz:q.get('go')==='lz'?1:0};if(q.has('tr')||q.has('n')||q.has('go'))history.replaceState(null,'',location.pathname)}catch(e){}
 
@@ -540,7 +540,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '9.5';
+const APPV = '9.6';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -880,7 +880,18 @@ function misCal(p){
   const items=myItems(p),tm=teachMap(),dates=monthDates(ui.cm);
   if(!ui.sel||ui.sel.slice(0,7)!==ui.cm)ui.sel=dates.find(d=>d>=today&&items[d]&&items[d].slots.length)||dates.find(d=>items[d])||null;
   const lead=(pd(dates[0]).getDay()+6)%7;
-  let h=monthNav()+`<div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
+  // Ver el mes como calendario o como lista (con hora y labores completas)
+  const tog=`<div class="vtog" role="group" aria-label="Vista"><button class="f" data-a="cv" data-v="cal" aria-pressed="${ui.cv!=='list'}">Calendario</button><button class="f" data-a="cv" data-v="list" aria-pressed="${ui.cv==='list'}">Lista</button></div>`;
+  if(ui.cv==='list'){const ds_=dates.filter(d=>items[d]&&!svcGone(d));
+    let l=`<div class="calhead">${monthNav()}${tog}</div>`;
+    if(!ds_.length)return l+`<div class="card info">${dates.some(d=>items[d])?'Ya pasaron todas tus labores de este mes.':'No tienes labores este mes.'}</div>`;
+    l+='<div class="llist">'+ds_.map(d=>{const it=items[d],w=pd(d).getDay(),[sn,st]=SVC[w],gone=svcGone(d),open=ui.sel===d;
+      const what=it.slots.length?it.slots.map(s=>chip(s.area,s.l)).join(''):it.attend?chip('pulpito','Alabanza (vas tú)'):it.notes.map(n=>`<span class="lnote">${esc(n.l||'Aviso')}</span>`).join('');
+      return `<div class="lrow ${gone?'past':''}"><button class="lbtn" data-a="lsel" data-v="${esc(d)}" aria-expanded="${open}"><span class="ldate"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span>
+        <span class="lmain"><span class="lt">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></span><span class="chips">${what}</span></span><span class="chev">${open?'▾':'▸'}</span></button>
+        ${open?`<div class="ldet">${itemCard(d,it,tm)}</div>`:''}</div>`}).join('')+'</div>';
+    return l}
+  let h=`<div class="calhead">${monthNav()}${tog}</div><div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
   for(const d of dates){const it=items[d];const areas=it?[...new Set(it.slots.map(s=>s.area))]:[];
     h+=`<button class="cd ${areas.length?'':'free'} ${d===today?'today':''}" data-a="selday" data-v="${esc(d)}" aria-pressed="${ui.sel===d}"><b>${pd(d).getDate()}${it&&it.notes.length?'<i class="nt"></i>':''}</b>${areas.slice(0,2).map(a=>`<span class="lab" style="--c:var(${AREAC[a]})">${SHORT[a]}</span>`).join('')+(it&&it.attend?'<span class="lab" style="--c:var(--gold)">Alabanza</span>':'')}${areas.length>2?`<span class="more">+${areas.length-2}</span>`:''}</button>`}
   h+='</div>';
@@ -1233,7 +1244,7 @@ function vPer(){
 
 /* ---------- acciones ---------- */
 // «Ver como» otra persona: solo para mirar. Estas acciones no cambian nada guardado.
-const VIEWOK=new Set(['dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
+const VIEWOK=new Set(['cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
 const viewOnly=()=>{ui.flash=`Estás viendo la app como ${(me()||{}).name||'otra persona'}: solo para mirar. Toca «Volver a mi cuenta» para hacer cambios.`;ui.panel=null;render()};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
   if(ui.viewAs&&!VIEWOK.has(a)){viewOnly();return}
@@ -1256,6 +1267,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'mv':ui.mv=v;break;
   case'cm':{const[y,m]=ui.cm.split('-').map(Number);const d=new Date(y,m-1+(+v),1);ui.cm=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;ui.sel=null;break}
   case'selday':ui.sel=v;ui.panel=null;break;
+  case'cv':ui.cv=v;try{localStorage.setItem('lb-cv',v)}catch(e){}break;
+  case'lsel':ui.sel=ui.sel===v?null:v;ui.panel=null;break;
   case'out-open':ui.panel={d:v,t:'out'};break;
   case'late-open':ui.panel={d:v,t:'late'};break;
   case'panel-x':ui.panel=null;break;
