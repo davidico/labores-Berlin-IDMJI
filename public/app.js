@@ -359,7 +359,7 @@ function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clea
   if(!p){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div><button class="who" data-a="logout">Salir</button></div>
     <h2>Tu correo aún no está registrado</h2><p class="lead">Entraste como <b>${esc(SESSION.user.email)}</b>, pero ese correo no está asignado a ningún hermano. Pide al administrador que lo agregue en Personas y vuelve a entrar.</p></div>`;return}
   appBadge(p);
-  const tabs=tabsFor(p);if(ui.tab!=='aj'&&!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
+  const tabs=tabsFor(p);if(ui.tab!=='aj'&&!(ui.tab==='disp'&&p.roles&&p.roles.length)&&!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
   {const r=realMe();if(r&&!privOk(r)){let pend='';try{pend=localStorage.getItem('lb-priv')||''}catch(e){}const pe=pend.split('|');if(pe[0]===window.PRIV_V&&(!pe[2]||pe[2]===((SESSION&&SESSION.user.email)||'').toLowerCase())){r.privacy={v:window.PRIV_V,ts:+pend.split('|')[1]||Date.now()};try{localStorage.removeItem('lb-priv')}catch(e){}save()}}}
   const gate=!ui.viewAs&&!privOk(realMe());
   let body;try{body=gate?privGate(p):{mis:DESK()?vDash:vMis,cal:vCal,disp:vDisp,hor:vHor,ens:vEns,per:vPer,aj:vAj}[ui.tab](p)}catch(e){console.error(e);body=`<div class="card" style="margin-top:10px"><b>Algo falló al mostrar esta pantalla.</b><div class="info" style="margin:6px 0 10px">Avísale al administrador. Detalle: ${esc(String(e&&e.message||e))}</div><button class="btn sm" data-a="upd">Recargar</button></div>`}
@@ -540,7 +540,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '9.4';
+const APPV = '9.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -557,6 +557,7 @@ function hdr(p){const un=unreadFor(p);
     <button class="hb menu" data-a="menu" aria-label="Menú">${avatar(p,30)}<svg class="dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></div>`}
 function menuSheet(p){return `<div class="scrim" data-a="sheet-x"></div><div class="pop menu-pop" role="menu">
   <div class="pophead">${avatar(p,40)}<div><b>${esc(p.name)}</b><small>${esc(ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||'')}</small></div></div>
+  ${p.roles&&p.roles.length?`<button role="menuitem" data-a="tab" data-v="disp">Mis días para servir</button>`:''}
   <button role="menuitem" data-a="tab" data-v="aj">Ajustes</button>
   <button role="menuitem" data-a="priv-open">Aviso de privacidad</button>
   ${ui.viewAs?'<button role="menuitem" data-a="logout">Volver a mi cuenta</button>':'<button role="menuitem" data-a="logout">Salir</button>'}</div>`}
