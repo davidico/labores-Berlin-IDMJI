@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **9.2**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **9.3**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v98`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v99`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -130,7 +130,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - **Predicaciones (`cronograma`) y Pastor:** «Predica: X» va justo debajo del título; en la lista del pastor solo se muestra quién predica (no la introducción). Leipzig en Pastor: solo las visitas que vienen, con el mismo formato que las enseñanzas.
 - **Enlaces externos (`xlink`):** texto que dice qué es («Ficha en alemán», «Ver el testimonio»), subrayado y con flecha ↗; nunca «LINK / Abrir». Si falta: punto rojo + «falta» + botón «Agregar enlace».
 - **Pestaña Pastor, enseñanzas:** una línea dorada (`.tsep`) separa la lista de «Agregar»; título + lápiz; debajo, en una línea, la fecha a la izquierda y las acciones (fijar, subir/bajar, quitar) pequeñas a la derecha.
-- **Mis días (`vDisp`):** 1) «Mis días de la semana» (interruptores fijos, `p.days`); 2) «Fechas en que no puedo»: un calendario por mes (`ui.dm`, flechas, días pasados bloqueados) que marca `p.blocked`. Si el admin pidió la disponibilidad de ese mes (`avReqs`), arriba sale el pedido y abajo «Enviar mi disponibilidad» (`av-done`). En Labores, «Marcar mis días» lleva a esta pestaña (ya no hay calendario dentro de Labores ni lista con campo de fecha).
+- **Mis días (`vDisp`):** 1) «Mis días de la semana» (interruptores fijos, `p.days`); 2) «Fechas en que no puedo»: un calendario por mes (`ui.dm`, flechas, días pasados bloqueados) que marca `p.blocked`; los días de la semana en «No puedo» salen en gris tachados y no se tocan desde el calendario. Si el admin pidió la disponibilidad de ese mes (`avReqs`), arriba sale el pedido y abajo «Enviar mi disponibilidad» (`av-done`). En Labores, «Marcar mis días» lleva a esta pestaña (ya no hay calendario dentro de Labores ni lista con campo de fecha).
 - «No puedo ir» y «Llego tarde» quedan siempre visibles en cada tarjeta (no esconderlos en un menú).
 - Espaciado en pasos de 8 px; **16 px entre contenido y botones**.
 - Una acción principal por pantalla; lo poco usado o delicado en menú ⋯ o con confirmación.
