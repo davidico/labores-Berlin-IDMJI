@@ -540,7 +540,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '9.6';
+const APPV = '9.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -885,11 +885,9 @@ function misCal(p){
   if(ui.cv==='list'){const ds_=dates.filter(d=>items[d]&&!svcGone(d));
     let l=`<div class="calhead">${monthNav()}${tog}</div>`;
     if(!ds_.length)return l+`<div class="card info">${dates.some(d=>items[d])?'Ya pasaron todas tus labores de este mes.':'No tienes labores este mes.'}</div>`;
-    l+='<div class="llist">'+ds_.map(d=>{const it=items[d],w=pd(d).getDay(),[sn,st]=SVC[w],gone=svcGone(d),open=ui.sel===d;
-      const what=it.slots.length?it.slots.map(s=>chip(s.area,s.l)).join(''):it.attend?chip('pulpito','Alabanza (vas tú)'):it.notes.map(n=>`<span class="lnote">${esc(n.l||'Aviso')}</span>`).join('');
-      return `<div class="lrow ${gone?'past':''}"><button class="lbtn" data-a="lsel" data-v="${esc(d)}" aria-expanded="${open}"><span class="ldate"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span>
-        <span class="lmain"><span class="lt">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></span><span class="chips">${what}</span></span><span class="chev">${open?'▾':'▸'}</span></button>
-        ${open?`<div class="ldet">${itemCard(d,it,tm)}</div>`:''}</div>`}).join('')+'</div>';
+    l+='<div class="card llist2">'+ds_.map(d=>{const it=items[d],w=pd(d).getDay(),[sn,st]=SVC[w];
+      const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.attend?'Alabanza (vas tú)':it.notes.map(n=>n.l||'Aviso').join(', ');
+      return `<div class="lr"><span class="ld"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span><span class="lh">${it.slots.length||it.attend?st:''}</span><span class="lw"><b>${it.slots.length||it.attend?sn:'Aviso'}</b><span>${esc(what)}</span></span></div>`}).join('')+'</div>';
     return l}
   let h=`<div class="calhead">${monthNav()}${tog}</div><div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
   for(const d of dates){const it=items[d];const areas=it?[...new Set(it.slots.map(s=>s.area))]:[];
