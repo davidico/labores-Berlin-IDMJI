@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **9.8**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **9.9**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v104`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v105`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -90,7 +90,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 - **Un culto «pasa»** (`svcGone(d)`) a las **20:00** si es de la tarde (18:00/18:30) y 150 min después si es el domingo 10:00 (12:30): desaparece de Labores y Por día; en la Tabla del horario el día queda gris y bloqueado. **La semana termina el domingo a las 13:00** (`weekPast`).
 - **Enseñanzas:** se reparten en orden sobre jueves y domingos, saltando domingos con transmisión (`teachMap()`). Las **fijas** (`pin`) no se corren. **La del día que predica David se fija sola** (`autoPinDavid()`). La misma lógica está duplicada en el servidor (`teachMapS`) → cambiar las dos.
 - **Jueves antes de una visita a Leipzig:** se agrega el puesto `predica` (David o Javier, por defecto David) y la introducción la puede dar Oswaldo, Javier o David. En la Tabla salen «Intro.» y «Predi.».
-- **Introducción (jue/dom):** tema en rueda de 5 (`INTROT`, `introTema`), los domingos con transmisión no hay introducción y el tema pasa al siguiente culto.
+- **Introducción (jue/dom):** tema en rueda de 5 (`INTROT`, `introTema`), los domingos con transmisión no hay introducción y el tema pasa al siguiente culto; ese domingo el puesto `pul` se llama «Púlpito · transmisión» (`slotsAt`).
 - **Preámbulos:** estudio bíblico = mismo preámbulo el martes y el sábado de la semana, rueda de 5 (`PRE_EB`); transmisión = rueda propia (`PRE_TR`); alabanza Lun/Mié/Vie = `preamb()`.
 - **Gabriela:** ve «Alabanza (vas tú)» los Lun/Mié/Vie en que David no tiene labor (no se le asigna nada).
 - **Fichas:** enlaces de Drive por enseñanza y por idioma. Todo el equipo de alemán ve el de alemán y todo el de inglés el de inglés (por reemplazos de último momento). Leipzig: solo el equipo de traducción; quienes viajan ven los dos.
