@@ -45,8 +45,8 @@ function slotsFor(dow){
 const ORDER=['predica','pul','pul_ini','pul_fin','sonido','grd1','grd2','grd3','puerta','de_pred','de_test','en_pred','en_test','ofr1','ofr3','de_intro','en_intro','mic1','mic2','ent'];
 function leipThu(date){const d=pd(date);if(d.getDay()!==4)return false;const sat=ds(new Date(d.getTime()+2*864e5));return state.leipzig.some(l=>l.date===sat)}
 // Domingo con transmisión: no hay introducción; el de púlpito da el preámbulo de la transmisión.
-// Los intérpretes solo traducen el saludo y el preámbulo (no hay puestos de predicación ni testimonios).
-function slotsAt(date){const a0=slotsFor(pd(date).getDay()),a=pd(date).getDay()===0&&(state.trans||[]).some(t=>t.date===date)?a0.filter(s=>!/_(pred|test)$/.test(s.k)).map(s=>s.k==='pul'?{...s,l:'Púlpito · transmisión'}:/_intro$/.test(s.k)?{...s,l:(s.lang==='de'?'Alemán':'Inglés')+' · saludo y preámbulo'}:s):a0;if(!state.leipThuRule||!leipThu(date))return a;
+// Orden: saludo y preámbulo (intérprete) → video de la transmisión → testimonios y despedida (intérprete). No hay puesto de predicación.
+function slotsAt(date){const a0=slotsFor(pd(date).getDay()),a=pd(date).getDay()===0&&(state.trans||[]).some(t=>t.date===date)?a0.filter(s=>!/_pred$/.test(s.k)).map(s=>s.k==='pul'?{...s,l:'Púlpito · transmisión'}:/_intro$/.test(s.k)?{...s,l:(s.lang==='de'?'Alemán':'Inglés')+' · saludo y preámbulo'}:/_test$/.test(s.k)?{...s,l:(s.lang==='de'?'Alemán':'Inglés')+' · testimonios y despedida'}:s):a0;if(!state.leipThuRule||!leipThu(date))return a;
   return [S('predica','Púlpito · predicación','pulpito','pred','pulpito',{only:['david','javier'],prefer:['david']}),...a.map(s=>s.k==='pul'?{...s,noPastor:0,only:['oswaldo','javier','david'],prefer:['oswaldo','javier']}:s)]}
 function pen(p,s,dow){let v=0;if(s.altRole&&!p.roles.includes(s.role))v+=800;if(p.avoidSlots&&p.avoidSlots.includes(s.k))v+=300;if(p.avoidDays&&p.avoidDays.includes(dow))v+=300;if(p.favorSlots&&p.favorSlots.includes(s.k))v-=100;return v}
 function combo(a,b){
@@ -436,12 +436,13 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if(isIntro)todo.push(introTodo(d));
   if(has(s=>s.k==='pul_ini'||s.k==='pul_fin'))info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(PREAMB[preamb(d)])}</div>`,'gold'));
   if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
-  if(w===0&&tr&&isTrad){const x=preTR(d);todo.push(todoBox('Interpretas el saludo y el preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`))}
+  if(w===0&&tr&&has(s=>s.area==='trad'&&/_intro$/.test(s.k))){const x=preTR(d);todo.push(todoBox('Interpretas el saludo y el preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Al comienzo, antes del video de la transmisión.</div>`))}
+  if(w===0&&tr&&has(s=>s.area==='trad'&&/_test$/.test(s.k)))todo.push(todoBox('Interpretas los testimonios y la despedida','<div class="help" style="margin-top:0">Después del video de la transmisión.</div>'));
   if(w===0&&tr&&has(s=>s.k==='pul')){const x=preTR(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
   if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
   const trP=has(s=>s.area==='trad'&&/_pred$/.test(s.k)),trT=has(s=>s.area==='trad'&&/_test$/.test(s.k)),xi=introOf(d);
-  if(trPred&&(w===4||w===0)&&t)todo.push(todoBox(trP&&trT?'Interpretas la predicación y los testimonios':trT?'Interpretas los testimonios':'Interpretas la predicación',`<div class="big2">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+fichaRows('t',t,tradLangs(me()))+linkRep('t',t,d,tradLangs(me()),dday?preacher:null)));
+  if(trPred&&(w===4||w===0)&&t&&!tr)todo.push(todoBox(trP&&trT?'Interpretas la predicación y los testimonios':trT?'Interpretas los testimonios':'Interpretas la predicación',`<div class="big2">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+fichaRows('t',t,tradLangs(me()))+linkRep('t',t,d,tradLangs(me()),dday?preacher:null)));
   for(const s of it.slots)if(s.pair||s.pairOf){const o=person(as[s.pair||s.pairOf]),n=(s.l.match(/pareja \d/)||['pareja'])[0];info.push(isec(`Tu pareja (${n})`,`<div class="tv">${o?esc(o.name):'<i>Sin asignar todavía</i>'}</div>`))}
   // 2. Información del culto
   if((w===4||w===0)&&t&&!preaching&&has(s=>s.area==='pulpito'||s.area==='trad')){
@@ -545,7 +546,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '10.2';
+const APPV = '10.3';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
