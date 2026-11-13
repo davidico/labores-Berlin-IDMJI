@@ -386,7 +386,7 @@ function myItems(p){
     const as=state.schedules[ym][date],w=pd(date).getDay();
     for(const s of slotsAt(date))if(as[s.k]===p.id)add(date).slots.push(s);
   }
-  for(const t of state.trans)if(isPul)add(t.date).notes.push({l:'Transmisión internacional',h:svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre">${linkify(t.link)}</div>`:'<span class="fv empty">Aún sin datos (enlace y hora)</span>'});
+  for(const t of state.trans)if(isPul||slotsAt(t.date).some(s=>s.area==='trad'&&((state.schedules[t.date.slice(0,7)]||{})[t.date]||{})[s.k]===p.id))add(t.date).notes.push({l:'Transmisión internacional',h:svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre">${linkify(t.link)}</div>`:'<span class="fv empty">Aún sin datos (enlace y hora)</span>'});
   if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
   if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))&&!(items[d]&&items[d].slots.length)){const it=add(d);it.attend=true;it.notes.unshift({l:'Alabanza',h:'Ese día vas tú a la alabanza. No tienes labor.'})}}
   for(const m of myMeets(p))add(m.date).notes.push({l:'Reunión',h:`<div class="tv">${esc(m.title)}</div>${m.time?`<div class="sub2">${esc(m.time)}</div>`:''}`});
@@ -435,7 +435,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if(isIntro)todo.push(introTodo(d));
   if(has(s=>s.k==='pul_ini'||s.k==='pul_fin'))info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(PREAMB[preamb(d)])}</div>`,'gold'));
   if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
-  if(w===0&&tr&&has(s=>s.k==='pul')){const x=preTR(d);todo.push(todoBox('Preámbulo sugerido',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`))}
+  if(w===0&&tr&&has(s=>s.k==='pul')){const x=preTR(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
   if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
   const trP=has(s=>s.area==='trad'&&/_pred$/.test(s.k)),trT=has(s=>s.area==='trad'&&/_test$/.test(s.k)),xi=introOf(d);
@@ -445,7 +445,9 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if((w===4||w===0)&&t&&!preaching&&has(s=>s.area==='pulpito'||s.area==='trad')){
     if(!trPred)info.unshift(isec('Enseñanza del culto',`<div class="tv">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+(isTrad?fichaRows('t',t,tradLangs(me())):'')));
     if(trPred&&!trIntro&&!tr)info.push(isec('Introducción',introInfo(d,person(as.pul),false)))}
-  for(const n of it.notes)info.push(typeof n==='string'?isec('',n):isec(n.l,n.h));
+  const trN=it.notes.find(n=>n&&n.l==='Transmisión internacional');
+  for(const n of it.notes)if(n!==trN)info.push(typeof n==='string'?isec('',n):isec(n.l,n.h));
+  if(trN)todo.unshift(`<div class="trbox"><div class="trt"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Hay transmisión internacional</div><div class="trd">${trN.h}</div></div>`);
   return `<div class="card mine v2" data-day="${esc(d)}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
     ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}</div>
@@ -541,7 +543,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '9.9';
+const APPV = '10.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
