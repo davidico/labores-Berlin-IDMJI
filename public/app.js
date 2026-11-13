@@ -540,7 +540,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '9.1';
+const APPV = '9.2';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -907,20 +907,27 @@ function misList(p){
   return h+'</div>';
 }
 
+/* Mis días: 1) días de la semana (fijo, todos los meses); 2) un calendario por mes para tocar las fechas en que no puedo.
+   Entre el 15 y el cierre, arriba del calendario sale el pedido del admin con «Enviar mi disponibilidad». */
+function avPending(p){return Object.keys(state.avReqs||{}).sort().filter(ym=>{const av=avOf(ym);return ym>=today.slice(0,7)&&today<=av.deadline})}
 function vDisp(p){
-  const order=[1,2,3,4,5,6,0];
-  const nx=(()=>{const d=pd(today.slice(0,7)+'-01');d.setMonth(d.getMonth()+1);return ds(d).slice(0,7)})(),nmes=MES[+nx.slice(5,7)-1];
-  const av=avOf(nx),open=misAv(p),late=+today.slice(8)>=AVDAY;
-  const ask=late?`La disponibilidad de <b>${MES[(+nx.slice(5,7))%12]}</b> se pide el ${AVDAY} de ${nmes}.`:`La disponibilidad de <b>${nmes}</b> se pide el ${AVDAY} de ${MES[+today.slice(5,7)-1]}.`;
-  const st=open||`<div class="info" style="margin-bottom:12px">${av||late?`El horario de <b>${nmes}</b> ya se está armando. Si surge algo, avisa desde tu labor con «No puedo». `:''}${ask} Te llega un aviso.</div>`;
-  const byM={};for(const d of p.blocked.filter(d=>d>=today).sort())(byM[d.slice(0,7)]=byM[d.slice(0,7)]||[]).push(d);
+  const order=[1,2,3,4,5,6,0],cur=today.slice(0,7);
+  if(!ui.dm||ui.dm<cur){const pend=avPending(p).filter(ym=>!(avOf(ym).done&&avOf(ym).done[p.id]));ui.dm=pend[0]||cur}
+  const ym=ui.dm,mes=MES[+ym.slice(5,7)-1],Mes=mes[0].toUpperCase()+mes.slice(1),y=ym.slice(0,4);
+  const dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,n=dates.filter(d=>p.blocked.includes(d)).length;
+  const av=avOf(ym),open=av&&today<=av.deadline&&p.roles&&p.roles.length,done=av&&av.done&&av.done[p.id];
+  const req=open?(done?`<div class="avok">✓ Enviaste tu disponibilidad de ${mes}. Si cambias algo, se guarda solo.</div>`
+    :`<div class="card ask" style="margin:0 0 12px"><b>Te piden tu disponibilidad de ${mes}</b><div class="info" style="margin-top:4px">Toca abajo los días que <b>no puedes</b> y después «Enviar». Antes del <b>${fmt(av.deadline)}</b>.</div></div>`):'';
   return `<h2>Mis días para servir</h2><p class="lead">El horario de cada mes se arma con esto.</p>
-  <h3>Mes por mes</h3>${st}
-  <h3>Días que puedo servir</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses. Las fechas sueltas se marcan arriba, mes por mes.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
+  <h3>1 · Mis días de la semana</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
      <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${esc(w)}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
-  <h3>Fechas en que no puedo</h3><div class="card">
-   <div class="inline"><input id="blk" type="date" min="${today}"><button class="btn sm" data-a="block">Agregar</button></div>
-   <div style="margin-top:8px">${Object.entries(byM).map(([ym,ds_])=>{const o=!!(ui.blkOpen||{})[ym],mes=MES[+ym.slice(5,7)-1];return `<button class="mfold" data-a="blk-fold" data-v="${esc(ym)}" aria-expanded="${o}"><span><b>${mes[0].toUpperCase()+mes.slice(1)}</b> · ${ds_.length} ${ds_.length===1?'fecha':'fechas'}</span><span class="chev">${o?'▾':'▸'}</span></button>`+(o?ds_.map(d=>`<div class="li"><div class="main">${fmt(d)}</div><button class="x" data-a="unblock" data-v="${esc(d)}" aria-label="Quitar">✕</button></div>`).join(''):'')}).join('')||'<div class="info" style="padding-top:6px">Ninguna fecha marcada.</div>'}</div></div>`;
+  <h3>2 · Fechas en que no puedo</h3>${req}<div class="card">
+   <div class="mnav" style="margin:0 0 10px;justify-content:space-between"><button class="ib" data-a="dm" data-v="-1" aria-label="Mes anterior" ${ym<=cur?'disabled':''}>‹</button><b>${Mes} ${y}</b><button class="ib" data-a="dm" data-v="1" aria-label="Mes siguiente">›</button></div>
+   <div class="info" style="margin:0 0 10px">Toca los días que <b>no puedes</b> servir. Los demás quedan disponibles.</div>
+   <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${dates.map(d=>`<button class="tog avd" data-a="avday" data-v="${esc(d)}" aria-pressed="${p.blocked.includes(d)}" aria-label="${fmt(d)}" ${d<today?'disabled':''}>${pd(d).getDate()}</button>`).join('')}</div>
+   <div class="info" style="margin-top:8px">${n?`En ${mes} no puedes ${n} ${n===1?'día':'días'}.`:`En ${mes} puedes todos los días.`}</div>
+   ${open?predPick(p,ym,dates):''}
+   ${open&&!done?`<button class="btn" data-a="av-done" data-v="${esc(ym)}" style="width:100%;margin-top:16px">Enviar mi disponibilidad de ${mes}</button>`:''}</div>`;
 }
 
 /* ---- panel del mes (filas) y menú ⋯ del horario ---- */
@@ -1224,7 +1231,7 @@ function vPer(){
 
 /* ---------- acciones ---------- */
 // «Ver como» otra persona: solo para mirar. Estas acciones no cambian nada guardado.
-const VIEWOK=new Set(['ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
+const VIEWOK=new Set(['dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
 const viewOnly=()=>{ui.flash=`Estás viendo la app como ${(me()||{}).name||'otra persona'}: solo para mirar. Toca «Volver a mi cuenta» para hacer cambios.`;ui.panel=null;render()};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
   if(ui.viewAs&&!VIEWOK.has(a)){viewOnly();return}
@@ -1339,7 +1346,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'av-mode':ui.avMode=v;break;
   case'av-remind':{if(v)ui.month=v;const av=avOf(ui.month);if(!av)break;const mes=MES[+ui.month.slice(5,7)-1];const pend=servers().filter(i=>!(av.done&&av.done[i]));
     notify(pend,`Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmt(av.deadline)}.`,{push:{title:`Falta tu disponibilidad de ${mes}`,body:`Márcala antes del ${fmt(av.deadline)}.`}});ui.toast=`Recordatorio enviado a ${pend.length} ${pend.length===1?'persona':'personas'}.`;break}
-  case'av-open':ui.avOpen=v;break;
+  case'av-open':ui.dm=v;ui.tab='disp';ui.avOpen=null;scrollTo(0,0);break;
+  case'dm':{const[y,m]=(ui.dm||today.slice(0,7)).split('-').map(Number);const d=new Date(y,m-1+(+v),1);const nx=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;if(nx>=today.slice(0,7))ui.dm=nx;break}
   case'av-close':ui.avOpen=null;break;
   case'avday':p.blocked=p.blocked.includes(v)?p.blocked.filter(x=>x!==v):[...p.blocked,v];break;
   case'av-done':{const av=avOf(v);if(av){av.done=av.done||{};av.done[p.id]=Date.now()}ui.avOpen=null;ui.flash='Gracias. Tu disponibilidad quedó guardada.';break}
