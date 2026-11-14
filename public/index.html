@@ -577,6 +577,47 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .avleg span{display:inline-flex;align-items:center;gap:6px}
 .lg{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--line);background:var(--surface)}
 .lg.no{background:var(--warn);border-color:var(--warn)}.lg.wk{background:var(--line)}
+
+/* Horario en celular */
+.orgtog{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;margin-top:10px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font:inherit;font-size:16px;font-weight:600;color:var(--ink);cursor:pointer}
+.orgtog .chev{color:var(--muted)}
+.orgtog+.mpanel{margin-top:8px}
+.gapbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:6px 14px;border-radius:12px;border:1px solid var(--warn);background:var(--warn-soft);font-size:16px}
+.gapbar b{color:var(--warn)}.gapbar .linkbtn{min-height:40px;font-size:16px;flex:none}
+.wknav{display:flex;align-items:center;justify-content:space-between;margin:4px 0 8px;text-align:center}
+.wknav b{font-size:17px}.wknav small{display:block;color:var(--muted);font-size:14px}
+.wknav .ib:disabled{opacity:.3}
+.wdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px}
+.wd{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 0 6px;text-align:center;min-height:56px;cursor:pointer}
+.wd.none{border:none;background:none}
+.wd span{display:block;font-size:12px;font-weight:700;color:var(--muted)}.wd b{font-size:18px;font-family:var(--display)}
+.wd i{display:block;width:6px;height:6px;border-radius:50%;margin:3px auto 0;background:transparent}
+.wd.gap i{background:var(--warn)}.wd.past{opacity:.45}.wd.today b{color:var(--gold)}
+.wd[aria-pressed="true"]{background:var(--navy);color:var(--on-navy);border-color:var(--navy);opacity:1}
+.wd[aria-pressed="true"] span,.wd[aria-pressed="true"].today b{color:var(--on-navy)}
+.hday b{display:block;font-size:18px;line-height:1.3}.hday span{display:block;color:var(--muted);font-size:15px;margin-top:2px}
+.hgrp{display:flex;align-items:center;gap:8px;margin:14px 0 6px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c)}
+.hgrp i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.card.hrows{padding:0;overflow:hidden}
+.hr{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:52px;padding:8px 14px;border:0;border-top:1px solid var(--line);background:none;font:inherit;color:inherit;text-align:left}
+button.hr{cursor:pointer}.hr:first-child{border-top:none}
+.hl{font-size:15px;color:var(--muted);flex:1;min-width:0}
+.hn{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;text-align:right}
+.hn small{display:block;font-size:13px;font-weight:600;color:var(--warn)}
+.hn em{font-style:normal;font-weight:400;font-size:20px;color:var(--muted)}
+.hn.me>span{background:color-mix(in srgb,var(--gold) 22%,transparent);padding:2px 8px;border-radius:8px}
+.hr.empty{background:var(--warn-soft)}.hn.e{color:var(--warn)}
+/* Tabla compacta */
+.ctab{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
+.ctab th,.ctab td{border:1px solid var(--line);padding:0;text-align:center;vertical-align:middle}
+.ctab thead th{background:var(--soft);font-size:13px;padding:6px 0;color:var(--ink)}
+.ctab th small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+.ctab tbody th{width:44px;font-size:14px;padding:4px 0;background:var(--surface)}
+.ctab .na{color:var(--muted)}
+.ctab tr.past td,.ctab td.pastd{opacity:.45}
+.cc{display:flex;flex-direction:column;justify-content:center;gap:2px;width:100%;min-height:44px;padding:4px 1px;border:0;background:none;font:inherit;font-weight:600;color:var(--ink);cursor:pointer}
+.cc .e{color:var(--warn);font-weight:800}.cc .bad{color:var(--warn)}
+.cc .me{background:color-mix(in srgb,var(--gold) 30%,transparent);border-radius:4px}
 </style>
 <script src="go.js"></script>
 </head>

@@ -552,7 +552,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '11.1';
+const APPV = '11.2';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1003,6 +1003,7 @@ function vHor(p){const RO=!p.admin;
     <div class="inline">${!RO&&hasS&&!pubd?'<button class="btn sm" data-a="publish">Publicar</button>':''}${sched&&DL?`<button class="btn ghost sm ${RO?'':'dkonly'}" data-a="pdf">Descargar PDF</button>`:''}${RO?'':!hasS?`<button class="btn sm" data-a="gen">Generar horario</button>`:''}${RO?'':`<button class="ib more" data-a="hmenu" aria-label="Más opciones">⋯</button>`}</div></div>${ui.pdfMsg?`<div class="info" style="margin-top:8px">${esc(ui.pdfMsg)}</div>`:''}
     ${pill?`<div class="stline"><span class="mbonly">${pill}</span><span class="info" style="margin:0">${pubd?'Todos ven el horario de '+MES[m-1]+'.':'Los hermanos todavía no lo ven. Ajusta y publícalo.'}</span></div>`:''}`;
   if(ui.regen)h+=`<div class="confirm">Se reemplazan todos los cambios de ${MES[m-1]}. <button class="btn warnb sm" data-a="gen">Sí, generar de nuevo</button><button class="btn ghost sm" data-a="regen-no">Cancelar</button></div>`;
+  if(!DESK())return h+horMobile(p,RO,m,sched);
   h+=monthPanel(p,m,RO);
   h+=`<div class="filters"><button class="f" data-a="view" data-v="grid" aria-pressed="${ui.view==='grid'}">Tabla</button><button class="f" data-a="view" data-v="cards" aria-pressed="${ui.view==='cards'}">Por día</button><span style="width:1px;background:var(--line);flex:none"></span>${[['all','Todo'],...Object.entries(AREAN)].map(([k,l])=>`<button class="f" data-a="area" data-v="${esc(k)}" aria-pressed="${ui.area===k}">${l}</button>`).join('')}</div>`;
   if(!sched)return h+`<div class="card empty-state" style="margin-top:12px">Todavía no hay horario para ${MES[m-1]}. ${RO?'El administrador lo publica pronto.':'Revisa que las enseñanzas, transmisiones y viajes a Leipzig estén cargados, y luego genera el horario.'}</div>`;
@@ -1019,6 +1020,51 @@ function vHor(p){const RO=!p.admin;
   const sum=empties||conf?`<div class="confirm" style="background:var(--warn-soft)">${empties?`${empties} ${empties===1?'puesto vacío':'puestos vacíos'}`:''}${empties&&conf?' · ':''}${conf?`${conf} con conflicto`:''}. Toca un nombre para cambiarlo.</div>`:`<div class="info" style="margin-top:10px">Todo cubierto y sin conflictos. Toca un nombre para cambiarlo.</div>`;
   return h+(RO?`<div class="info" style="margin-top:6px">Solo lectura. Los cambios los hace el administrador.</div>`:sum)+body;
 }
+/* ---- Horario en celular: «Por día» (un culto por pantalla) y «Tabla» compacta que cabe sin deslizar ---- */
+const AGRP=[['pulpito','Púlpito'],['sonido','Sonido'],['puerta','Puerta'],['trad','Interpretación'],['ofr','Ofrendas'],['mic','Micrófonos']];
+function shortNames(){const fn=x=>x.name.split(' ')[0],cnt={};for(const x of state.people)if(!x.deleted){const k=fn(x).slice(0,3).toLowerCase();cnt[k]=(cnt[k]||0)+1}
+  const m={};for(const x of state.people){const f=fn(x),k=f.slice(0,3),ap=(x.name.split(' ')[1]||'')[0]||'';m[x.id]=cnt[k.toLowerCase()]>1?(f.slice(0,3)+ap):k}return m}
+function slotIssue(d,s,as,slots){const x=person(as[s.k]);if(!x)return'';let w=why(x,s,d,as,slots);if(!w&&(s.pair||s.pairOf)){const o=person(as[s.pair||s.pairOf]);if(o&&o.sex!==x.sex)w='pareja mixta'}return w}
+function horMobile(p,RO,m,sched){const mes=MES[m-1],ym=ui.month;
+  let h=`<button class="orgtog" data-a="org-tog" aria-expanded="${!!ui.orgOpen}"><span>${RO?'Del equipo':'Organización de '+mes}</span><span class="chev">${ui.orgOpen?'▾':'▸'}</span></button>${ui.orgOpen?monthPanel(p,m,RO):''}`;
+  if(!sched)return h+`<div class="card empty-state" style="margin-top:12px">Todavía no hay horario para ${mes}. ${RO?'El administrador lo publica pronto.':'Revisa que las enseñanzas, transmisiones y viajes a Leipzig estén cargados, y luego genera el horario.'}</div>`;
+  const dates=monthDates(ym),weeks={};for(const d of dates)(weeks[mondayOf(d)]=weeks[mondayOf(d)]||[]).push(d);const wks=Object.keys(weeks);
+  // puestos vacíos y conflictos en los cultos que vienen
+  const gaps=[];if(!RO)for(const d of dates){if(svcGone(d))continue;const as=sched[d]||{},sl=slotsAt(d);for(const s of sl)if(!person(as[s.k])||slotIssue(d,s,as,sl))gaps.push(d)}
+  const gd=[...new Set(gaps)];
+  if(!RO)h+=gaps.length?`<div class="gapbar"><span><b>${gaps.length} ${gaps.length===1?'puesto por revisar':'puestos por revisar'}</b> este mes</span><button class="linkbtn" data-a="gap-go" data-v="${esc(gd[(gd.indexOf(ui.hd)+1)%gd.length])}">${gd.length>1&&gd.includes(ui.hd)?'Siguiente':'Ver'}</button></div>`:`<div class="info" style="margin:8px 0">Todo cubierto y sin conflictos.</div>`;
+  else h+=`<div class="info" style="margin:8px 0">Solo lectura. Los cambios los hace el administrador.</div>`;
+  const tab=ui.view==='grid'?'grid':'day';
+  h+=`<div class="vtog" style="margin:4px 0 12px"><button class="f" data-a="view" data-v="cards" aria-pressed="${tab==='day'}">Por día</button><button class="f" data-a="view" data-v="grid" aria-pressed="${tab==='grid'}">Tabla</button></div>`;
+  if(tab==='grid'){const SN=shortNames(),SUB={Introducción:'Intro',Predicación:'Pred',Testimonios:'Test',Recogen:'Rec',Entrega:'Ent',Guardan:'Guar','Inicia / finaliza':'','Inicia y finaliza':''};
+    h+=`<div class="filters" style="margin-bottom:8px">${[['all','Todo'],...Object.entries(AREAN)].map(([k,l])=>`<button class="f" data-a="area" data-v="${esc(k)}" aria-pressed="${ui.area===k}">${l}</button>`).join('')}</div>`;
+    for(const g of GRIDS){if(ui.area!=='all'&&g.area!==ui.area)continue;
+      h+=`<h3 style="margin:14px 0 6px">${g.title}</h3><table class="ctab"><thead><tr><th>Sem</th>${g.cols.map(([w,,sub])=>`<th>${DOWS[w][0]}${SUB[sub]?`<small>${SUB[sub]}</small>`:''}</th>`).join('')}</tr></thead><tbody>`;
+      wks.forEach((wk,i)=>{const list=weeks[wk],a=pd(list[0]),b=pd(list[list.length-1]);
+        h+=`<tr class="${weekPast(list)?'past':''}"><th>${i+1}<small>${a.getDate()}–${b.getDate()}</small></th>`+g.cols.map(([w,keys])=>{const d=list.find(x=>pd(x).getDay()===w);if(!d)return'<td class="na">·</td>';
+          const as=sched[d]||{},sl=slotsAt(d),ks=keys.filter(k=>sl.some(z=>z.k===k));if(!ks.length)return'<td class="na">·</td>';
+          return `<td class="${svcGone(d)?'pastd':''}"><button class="cc" data-a="hcell" data-v="${esc(d)}" aria-label="${fmt(d)}">${ks.map(k=>{const s=sl.find(z=>z.k===k),x=person(as[k]),bad=x&&!RO&&slotIssue(d,s,as,sl);return `<span class="${x?(x.id===p.id?'me':'')+(bad?' bad':''):'e'}">${x?esc(SN[x.id]):'—'}</span>`}).join('')}</button></td>`}).join('')+'</tr>'});
+      h+='</tbody></table>'}
+    return h+`<div class="info" style="margin-top:10px">Nombres abreviados para que entre toda la semana. Toca una celda para ver ese día completo${RO?'':' y cambiarlo'}.</div>`}
+  // Por día
+  if(!ui.hw||!weeks[ui.hw])ui.hw=weeks[mondayOf(today)]?mondayOf(today):(wks.find(w=>weeks[w].some(d=>!svcGone(d)))||wks[0]);
+  const list=weeks[ui.hw],wi=wks.indexOf(ui.hw),a=pd(list[0]),b=pd(list[list.length-1]);
+  if(!ui.hd||!list.includes(ui.hd))ui.hd=list.find(d=>!svcGone(d))||list[list.length-1];
+  const d=ui.hd,w=pd(d).getDay(),[sn,st]=SVC[w],as=sched[d]||{},sl=slotsAt(d),gone=svcGone(d),tm=teachMap();
+  h+=`<div class="wknav"><button class="ib" data-a="hw" data-v="-1" aria-label="Semana anterior" ${wi<=0?'disabled':''}>‹</button><div><b>Semana ${wi+1}</b><small>${a.getDate()} – ${b.getDate()} ${MESS[b.getMonth()]}</small></div><button class="ib" data-a="hw" data-v="1" aria-label="Semana siguiente" ${wi>=wks.length-1?'disabled':''}>›</button></div>
+   <div class="wdays">${[1,2,3,4,5,6,0].map(dw=>{const x=list.find(y=>pd(y).getDay()===dw);if(!x)return'<span class="wd none"></span>';
+     return `<button class="wd ${svcGone(x)?'past':''} ${gd.includes(x)?'gap':''} ${x===today?'today':''}" data-a="hd" data-v="${esc(x)}" aria-pressed="${x===d}"><span>${DOWS[dw][0]}</span><b>${pd(x).getDate()}</b><i></i></button>`}).join('')}</div>`;
+  let info='';if(w===1||w===3||w===5)info=`Preámbulo sugerido: ${esc(PREAMB[preamb(d)])}`;
+  if(w===2||w===6)info=`Preámbulo sugerido: ${esc(preEB(d)[0])}`;
+  if(w===4||w===0){const t=transOn(d);info=t?'Hay transmisión internacional':tm[d]?`Enseñanza: ${esc(tm[d].title)}`:'Enseñanza: sin asignar'}
+  h+=`<div class="hday"><b>${DOW[w]} ${pd(d).getDate()} · ${sn} ${st}</b><span>${info}${leipOn(d)?' · Visita a Leipzig':''}${gone?' · Ya pasó':''}</span></div>`;
+  for(const[ar,lbl]of AGRP){const ss=sl.filter(s=>s.area===ar);if(!ss.length)continue;
+    h+=`<div class="hgrp" style="--c:var(${AREAC[ar]})"><i></i>${lbl}</div><div class="card hrows">${ss.map(s=>{const x=person(as[s.k]),bad=x&&!RO?slotIssue(d,s,as,sl):'';
+      const lab=s.l.replace(/^(Púlpito|Ofrendas|Alemán|Inglés) · /,ar==='trad'?'$1 · ':'').replace(/^./,c=>c.toUpperCase());
+      const name=x?esc(x.name):(RO?'—':esc(emptyLbl(d,s.k,'Vacío · asignar')));
+      const inner=`<span class="hl">${esc(lab)}</span><span class="hn ${x?'':'e'} ${x&&x.id===p.id?'me':''}"><span>${name}${bad?`<small>${esc(bad)}</small>`:''}</span>${RO||gone?'':'<em>›</em>'}</span>`;
+      return RO||gone?`<div class="hr ${x?'':'empty'}">${inner}</div>`:`<button class="hr ${x?'':'empty'} ${bad?'bad':''}" data-a="edit" data-v="${esc(d+'|'+s.k)}">${inner}</button>`}).join('')}</div>`}
+  return h}
 function dayCard(d,as,tm){
   const w=pd(d).getDay(),slots=slotsAt(d),[sn,st]=SVC[w];let e=0,c=0;
   let info='';
@@ -1266,7 +1312,7 @@ function vPer(){
 
 /* ---------- acciones ---------- */
 // «Ver como» otra persona: solo para mirar. Estas acciones no cambian nada guardado.
-const VIEWOK=new Set(['msg-old','rsvp-ed','cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
+const VIEWOK=new Set(['org-tog','hw','hd','gap-go','hcell','msg-old','rsvp-ed','cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
 const viewOnly=()=>{ui.flash=`Estás viendo la app como ${(me()||{}).name||'otra persona'}: solo para mirar. Toca «Volver a mi cuenta» para hacer cambios.`;ui.panel=null;render()};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
   if(ui.viewAs&&!VIEWOK.has(a)){viewOnly();return}
@@ -1283,9 +1329,13 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'ic-go':{const[d,ed]=v.split('|');nGo({tab:'mis',d,ed});return}
   case'it-none':{state.intro=state.intro||{};const x=state.intro[v]=state.intro[v]||{};x.noLink=true;ui.flash='Listo: ya no se te recuerda el testimonio.';break}
   case'tab':if(v==='aj'&&ui.tab!=='aj')ui.prevTab=ui.tab;ui.menu=false;ui.bell=false;ui.tab=v;ui.edit=null;scrollTo(0,0);break;
-  case'month':{const[y,m]=ui.month.split('-').map(Number);const d=new Date(y,m-1+(+v),1);ui.month=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;ui.regen=false;break}
+  case'month':{ui.hw=null;ui.hd=null;const[y,m]=ui.month.split('-').map(Number);const d=new Date(y,m-1+(+v),1);ui.month=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;ui.regen=false;break}
   case'area':ui.area=v;break;
   case'view':ui.view=v;ui.edit=null;break;
+  case'org-tog':ui.orgOpen=!ui.orgOpen;break;
+  case'hw':{const ws=[...new Set(monthDates(ui.month).map(mondayOf))],i=ws.indexOf(ui.hw)+(+v);if(i>=0&&i<ws.length){ui.hw=ws[i];ui.hd=null}break}
+  case'hd':ui.hd=v;break;
+  case'gap-go':case'hcell':ui.view='cards';ui.hw=mondayOf(v);ui.hd=v;if(a==='gap-go')setTimeout(()=>{const el=document.querySelector('.hr.empty,.hr.bad');if(el)el.scrollIntoView({behavior:'smooth',block:'center'})},60);break;
   case'mv':ui.mv=v;break;
   case'cm':{const[y,m]=ui.cm.split('-').map(Number);const d=new Date(y,m-1+(+v),1);ui.cm=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;ui.sel=null;break}
   case'selday':ui.sel=v;ui.panel=null;break;
