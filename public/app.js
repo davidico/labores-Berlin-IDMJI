@@ -372,6 +372,8 @@ function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clea
     <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length+introPend(p).length:0;return `<button data-a="tab" data-v="${esc(k)}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.flash?`<div class="toast" role="status">${esc(ui.flash)}</div>`:''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
+// iPhone/iPad: el sistema difumina una franja bajo la barra de estado; se deja más aire arriba para que el título no quede dentro.
+try{if(/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1))document.documentElement.classList.add('ios')}catch(e){}
 /* Número rojo en el ícono de la app instalada: avisos sin leer + cosas por hacer (reemplazos, reuniones, introducción). */
 let BADGE=-1;function appBadge(p){if(ui.viewAs||!('setAppBadge' in navigator))return;const n=unreadFor(p)+pendingFor(p).length+introPend(p).length;if(n===BADGE)return;BADGE=n;
   try{(n?navigator.setAppBadge(n):navigator.clearAppBadge()).catch(()=>{})}catch(e){}}
@@ -546,7 +548,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '10.4';
+const APPV = '10.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}

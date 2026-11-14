@@ -558,6 +558,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .qa{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 2px;border:0;background:none;font:inherit;font-size:15px;font-weight:600;color:var(--muted);cursor:pointer}
 .qa svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 .qa:hover,.qa:focus-visible{color:var(--navy)}
+
+/* iPhone: aire extra arriba (franja difuminada del sistema bajo la barra de estado) */
+@media (max-width:1023px){.ios .wrap{padding-top:28px}.ios .pop{top:calc(env(safe-area-inset-top,0px) + 84px)}}
 </style>
 <script src="go.js"></script>
 </head>

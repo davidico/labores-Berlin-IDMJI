@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **10.4**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **10.5**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v110`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v111`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -112,7 +112,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 | Día 15 / 20 / 23, 10:00 | Pedir disponibilidad / recordar / cerrar (admin) | `?go=disp` / `?go=hor` |
 
 Los avisos que manda la app llevan `?n=<id del aviso>`. Tocar un aviso (en la app o en el celular) lleva a la acción (`goFor()` / `nGo()`).
-iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/actions rompían iOS).
+iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/actions rompían iOS). En iPhone se agrega aire arriba (`.ios .wrap`, clase puesta en `app.js`) porque el sistema difumina una franja bajo la barra de estado.
 
 ## Privacidad (DSGVO)
 
