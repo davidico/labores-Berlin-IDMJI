@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **11.2**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **11.3**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v118`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v119`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -126,7 +126,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - Tamaños de letra según buenas prácticas: texto principal 16 px, notas 15 px, secundario 14 px (en las tarjetas de Labores: títulos 17–18, texto 16, secundario 14–15); señales ✓ y «!» de 16 px y puntos de aviso de 8 px, discretos, etiquetas en mayúsculas y números de aviso nunca menos de 12 px. Áreas táctiles ≥ 44 px (enlaces ≥ 40 px).
 - **Tarjetas de Labores (`itemCard`, diseño «C»):** cabecera (fecha, culto, chips); arriba un cuadro dorado `todoBox` con lo que prepara esa persona según su labor (Tu predicación · Tu introducción con ✓/! de cita y testimonio · Tu interpretación con las fichas); debajo secciones con etiqueta (`isec`: Preámbulo sugerido de alabanza y estudio bíblico —sin cuadro dorado, solo la etiqueta en dorado—, Enseñanza del culto, Introducción, Tu pareja, Transmisión, Leipzig, Reunión). Las notas de `myItems` son objetos `{l, h}`.
 - **Recordatorio de la introducción (`introPend`/`introNag`):** a quien da la introducción **ese mismo día** y le falta la cita o el enlace del testimonio (los dos no obligatorios pero recomendados; **no hay** botón «No tengo testimonio»): un solo aviso amarillo arriba de Labores (el más próximo), número rojo en la pestaña y en el ícono de la app (`appBadge`, Badging API) y «!» amarillo pequeño en la tarjeta.
-- **Transmisión internacional:** en la tarjeta va primero, en un cuadro azul destacado (`.trbox`, «Hay transmisión internacional» + enlace/hora). La ven púlpito y los intérpretes que sirven ese domingo. El preámbulo de la transmisión: para el pastor, sección con etiqueta dorada; para los intérpretes, cuadro dorado «Interpretas el saludo y el preámbulo» (antes del video) o «Interpretas los testimonios y la despedida» (después del video).
+- **Transmisión internacional:** en la tarjeta va primero, en un cuadro azul destacado (`.trbox`, «Hay transmisión internacional» + enlace/hora). La ven púlpito y los intérpretes que sirven ese domingo; **el enlace y los datos de la transmisión son privados: solo los ven el pastor, el admin y los de púlpito** (los intérpretes solo ven que hay transmisión, también en Predicaciones). El preámbulo de la transmisión: para el pastor, sección con etiqueta dorada; para los intérpretes, cuadro dorado «Interpretas el saludo y el preámbulo» (antes del video) o «Interpretas los testimonios y la despedida» (después del video).
 - **Tarjeta según el puesto:** quien predica ve en el cuadro solo el título de su predicación; el intérprete de la introducción ve «Interpretas la introducción» (quién, tema, cita, testimonio); el de predicación o testimonios ve «Interpretas la predicación» (título, quién predica, fichas como enlace simple, sin ✓). El enlace del testimonio de la introducción lo ve SOLO quien interpreta la introducción. Los avisos de un culto que ya pasó no se muestran ni cuentan (`nLive`; la fecha sale de `date`, `go.d` o del texto, con `nDate`). En la agenda de PC los días pasados quedan grises y sin tarjeta.
 - **Predicaciones (`cronograma`) y Pastor:** «Predica: X» va justo debajo del título; en la lista del pastor solo se muestra quién predica (no la introducción). Leipzig en Pastor: solo las visitas que vienen, con el mismo formato que las enseñanzas.
 - **Enlaces externos (`xlink`):** texto que dice qué es («Ficha en alemán», «Ver el testimonio»), subrayado y con flecha ↗; nunca «LINK / Abrir». Si falta: punto rojo + «falta» + botón «Agregar enlace».
