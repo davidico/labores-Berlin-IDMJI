@@ -44,9 +44,9 @@ function slotsFor(dow){
 }
 const ORDER=['predica','pul','pul_ini','pul_fin','sonido','grd1','grd2','grd3','puerta','de_pred','de_test','en_pred','en_test','ofr1','ofr3','de_intro','en_intro','mic1','mic2','ent'];
 function leipThu(date){const d=pd(date);if(d.getDay()!==4)return false;const sat=ds(new Date(d.getTime()+2*864e5));return state.leipzig.some(l=>l.date===sat)}
-// Domingo con transmisión: no hay introducción; el de púlpito da el preámbulo de la transmisión.
+// Domingo con transmisión: no hay introducción (no existe el puesto `pul`); en el púlpito trabaja solo quien predica (el pastor), que da el saludo y el preámbulo.
 // Orden: saludo y preámbulo (intérprete) → video de la transmisión → testimonios y despedida (intérprete). No hay puesto de predicación.
-function slotsAt(date){const a0=slotsFor(pd(date).getDay()),a=pd(date).getDay()===0&&(state.trans||[]).some(t=>t.date===date)?a0.filter(s=>!/_pred$/.test(s.k)).map(s=>s.k==='pul'?{...s,l:'Púlpito · transmisión'}:/_intro$/.test(s.k)?{...s,l:(s.lang==='de'?'Alemán':'Inglés')+' · saludo y preámbulo'}:/_test$/.test(s.k)?{...s,l:(s.lang==='de'?'Alemán':'Inglés')+' · testimonios y despedida'}:s):a0;if(!state.leipThuRule||!leipThu(date))return a;
+function slotsAt(date){const a0=slotsFor(pd(date).getDay()),a=pd(date).getDay()===0&&(state.trans||[]).some(t=>t.date===date)?a0.filter(s=>s.k!=='pul'&&!/_pred$/.test(s.k)).map(s=>/_intro$/.test(s.k)?{...s,l:(s.lang==='de'?'Alemán':'Inglés')+' · saludo y preámbulo'}:/_test$/.test(s.k)?{...s,l:(s.lang==='de'?'Alemán':'Inglés')+' · testimonios y despedida'}:s):a0;if(!state.leipThuRule||!leipThu(date))return a;
   return [S('predica','Púlpito · predicación','pulpito','pred','pulpito',{only:['david','javier'],prefer:['david']}),...a.map(s=>s.k==='pul'?{...s,noPastor:0,only:['oswaldo','javier','david'],prefer:['oswaldo','javier']}:s)]}
 function pen(p,s,dow){let v=0;if(s.altRole&&!p.roles.includes(s.role))v+=800;if(p.avoidSlots&&p.avoidSlots.includes(s.k))v+=300;if(p.avoidDays&&p.avoidDays.includes(dow))v+=300;if(p.favorSlots&&p.favorSlots.includes(s.k))v-=100;return v}
 function combo(a,b){
@@ -173,6 +173,7 @@ function teachMap(){const m={},fixed=new Set();
   return m}
 const isPinned=t=>{if(!t.pin)return false;const tm=teachMap();return !!(tm[t.pin]&&tm[t.pin].id===t.id)};
 // Regla: la enseñanza del día que predica David queda fija en su fecha (no se corre si se agrega una transmisión)
+function transClean(){let ch=false;for(const t of state.trans||[]){if(t.date<today)continue;const as=schedOf(t.date);if(!as)continue;const ok=new Set(slotsAt(t.date).map(z=>z.k));for(const k of Object.keys(as))if(!ok.has(k)){delete as[k];ch=true}}return ch}
 function autoPinDavid(){let ch=false;const tm=teachMap();for(const d in tm){if(d<today)continue;const t=tm[d];if(!t.pin&&!t.unpinned&&davidDay(d)){t.pin=d;t.pinAuto=1;ch=true}}return ch}
 const transOn=date=>state.trans.find(t=>t.date===date);
 const leipOn=date=>state.leipzig.find(l=>l.date===date);
@@ -354,7 +355,7 @@ document.addEventListener('submit',async e=>{if(e.target.id!=='auth-form')return
 function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clearTimeout(ui.flashT);ui.flashT=setTimeout(()=>{ui.flash=null;ui.flashFor=null;try{render()}catch(e){}},5000)}if(window.__MOVED)return;
   const p=me();
   if((ui.goN||ui.goQ)&&READY&&p&&!ui.gating){const n=ui.goN&&state.notifs.find(x=>x.id===ui.goN),g=ui.goQ||(n?goFor(n,p):null);ui.goN=null;ui.goQ=null;if(n&&!n.read.includes(state.me)){n.read.push(state.me);save()}if(g){setTimeout(()=>nGo(g),0)}}
-  if(READY&&p&&(p.admin||p.pastor)&&!ui.viewAs&&autoPinDavid())save();
+  if(READY&&p&&(p.admin||p.pastor)&&!ui.viewAs&&(autoPinDavid()|transClean()))save();
   if(ui.trA&&READY&&p&&(p.pastor||p.admin)){const a=ui.trA;ui.trA=null;trAnswer(ui.trQ,a);save()}
   if(!SESSION||ui.authMode==='newpass'){$('app').innerHTML=authView()+(ui.priv?privSheet():'');return}
   if(!READY){$('app').innerHTML=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div><div class="card empty-state">Cargando tus labores…</div></div>`;return}
@@ -391,6 +392,7 @@ function myItems(p){
   }
   for(const t of state.trans)if(isPul||slotsAt(t.date).some(s=>s.area==='trad'&&((state.schedules[t.date.slice(0,7)]||{})[t.date]||{})[s.k]===p.id))add(t.date).notes.push({l:'Transmisión internacional',h:svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre">${linkify(t.link)}</div>`:'<span class="fv empty">Aún sin datos (enlace y hora)</span>'});
   if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
+  if(p.pastor&&p.roles.includes('pulpito'))for(const t of state.trans)if(canSeeMonth(p,t.date.slice(0,7))){const it=add(t.date);it.attend=true;it.trPul=true}
   if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))&&!(items[d]&&items[d].slots.length)){const it=add(d);it.attend=true;it.notes.unshift({l:'Alabanza',h:'Ese día vas tú a la alabanza. No tienes labor.'})}}
   for(const m of myMeets(p)){const rs=m.rsvp[p.id];if(rs==='no')continue;
     add(m.date).notes.push({l:'Reunión',meet:m,h:`<div class="tv">${esc(m.title)}</div><div class="sub2">${m.time?esc(m.time)+' · ':''}${esc(teamLbl(m))}</div>${m.place?`<div class="sub2 pre">${linkify(m.place)}</div>`:''}`+
@@ -442,7 +444,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   if(w===0&&tr&&has(s=>s.area==='trad'&&/_intro$/.test(s.k))){const x=preTR(d);todo.push(todoBox('Interpretas el saludo y el preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Al comienzo, antes del video de la transmisión.</div>`))}
   if(w===0&&tr&&has(s=>s.area==='trad'&&/_test$/.test(s.k)))todo.push(todoBox('Interpretas los testimonios y la despedida','<div class="help" style="margin-top:0">Después del video de la transmisión.</div>'));
-  if(w===0&&tr&&has(s=>s.k==='pul')){const x=preTR(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
+  if(w===0&&tr&&it.trPul){const x=preTR(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
   if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
   const trP=has(s=>s.area==='trad'&&/_pred$/.test(s.k)),trT=has(s=>s.area==='trad'&&/_test$/.test(s.k)),xi=introOf(d);
@@ -457,7 +459,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if(trN)todo.unshift(`<div class="trbox"><div class="trt"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Hay transmisión internacional</div><div class="trd">${trN.h}</div></div>`);
   return `<div class="card mine v2" data-day="${esc(d)}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:mtN?'Reunión':'Aviso'} <small>${it.slots.length||it.attend?st:mtN?esc(mtN.meet.time||''):''}</small></div>
-    ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}</div>
+    ${it.slots.length||it.trPul?`<div class="chips">${it.trPul?chip('pulpito','Púlpito · transmisión'):''}${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}</div>
     ${todo.length||info.length?`<div class="cbody">${todo.join('')}${info.length?`<div class="infos">${info.join('')}</div>`:''}</div>`:''}
     ${it.slots.length&&d>=today?`<div class="cbody">${actions(d,it)}</div>`:''}</div>`}
 /* ---- avisos y reemplazos ---- */
@@ -465,14 +467,14 @@ const schedOf=d=>(state.schedules[d.slice(0,7)]||{})[d];
 const snapDays=dates=>{const o={};for(const d of dates)o[d]={...(schedOf(d)||{})};return o};
 /* Después de un cambio del admin (Leipzig, volver a generar, quitar persona): avisa a quien entra y a quien sale.
    Solo meses publicados y cultos que no pasaron; un solo aviso por persona. Devuelve a cuántos se avisó. */
-function schedDiffNotify(before){const per={};
+function schedDiffNotify(before,why){const per={};
   for(const d in before){const ym=d.slice(0,7);if(!isPub(ym)||d<today||svcGone(d))continue;const a=before[d]||{},b=schedOf(d)||{};
     const when=`el ${DOW[pd(d).getDay()].toLowerCase()} ${fmt(d).replace(/^\S+\s/,'')}`;
-    for(const k of new Set([...Object.keys(a),...Object.keys(b)])){if(a[k]===b[k])continue;const s=slotOf(d,k),lbl=s?s.l:k;
+    for(const k of new Set([...Object.keys(a),...Object.keys(b)])){if(a[k]===b[k])continue;const s=slotOf(d,k)||slotsFor(pd(d).getDay()).find(z=>z.k===k),lbl=s?s.l:k;
       if(b[k])(per[b[k]]=per[b[k]]||{in:[],out:[]}).in.push(`${lbl} ${when}`);
       if(a[k])(per[a[k]]=per[a[k]]||{in:[],out:[]}).out.push(`${lbl} ${when}`)}}
   let n=0;for(const id in per){const x=per[id],parts=[];if(x.in.length)parts.push('ahora te toca '+x.in.join('; '));if(x.out.length)parts.push('ya no te toca '+x.out.join('; '));
-    const txt=`Cambio en el horario: ${parts.join('. Y ')}.`;n+=notify([id],txt,{push:{title:'Cambio en tu horario',body:txt.replace(/^Cambio en el horario: /,'')}})}
+    const txt=`Cambio en el horario: ${parts.join('. Y ')}${why?' ('+why+')':''}.`;n+=notify([id],txt,{push:{title:'Cambio en tu horario',body:txt.replace(/^Cambio en el horario: /,'')}})}
   return n}
 const admins=()=>state.people.filter(x=>x.admin).map(x=>x.id);
 function svcPeople(d,pred){const as=schedOf(d)||{},out=[];for(const s of slotsAt(d))if(as[s.k]&&pred(s))out.push(as[s.k]);return out}
@@ -550,7 +552,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '11.0';
+const APPV = '11.1';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -799,9 +801,11 @@ function lzInvite(p){const l=state.leipzig.filter(x=>x.date>=today&&!svcGone(x.d
 // Las transmisiones siempre son en domingo: se agrega al próximo domingo que no tenga una
 function trFree(){const x=pd(nextSun());let d=ds(x);while(svcGone(d)||state.trans.some(t=>t.date===d)){x.setDate(x.getDate()+7);d=ds(x)}return d}
 const nextSun=()=>{const x=pd(today);x.setDate(x.getDate()+((7-x.getDay())%7));return ds(x)};
+// Al cambiar si hay transmisión: se quitan o reponen los puestos de ese domingo y se avisa a quien entra o sale
+function transFix(d){if(!schedOf(d))return 0;const bf=snapDays([d]);fixDate(d);return schedDiffNotify(bf,transOn(d)?'ese domingo hay transmisión':'ese domingo ya no hay transmisión')}
 function trAnswer(d,a){if(!d||svcGone(d)){ui.trQ=null;ui.flash='Ese domingo ya pasó: no se cambió nada.';return}state.transNo=(state.transNo||[]).filter(x=>x!==d);
-  if(a==='si'){if(!state.trans.some(t=>t.date===d))state.trans.push({id:uid(),date:d,link:'',note:''});ui.flash=`Anotado: hay transmisión el ${fmt(d)}. Cuando tengas el enlace, agrégalo en la pestaña Pastor.`}
-  else{state.trans=state.trans.filter(t=>t.date!==d);state.transNo.push(d);ui.flash=`Anotado: no hay transmisión el ${fmt(d)}.`}
+  if(a==='si'){if(!state.trans.some(t=>t.date===d))state.trans.push({id:uid(),date:d,link:'',note:''});transFix(d);ui.flash=`Anotado: hay transmisión el ${fmt(d)}. Cuando tengas el enlace, agrégalo en la pestaña Pastor.`}
+  else{state.trans=state.trans.filter(t=>t.date!==d);state.transNo.push(d);transFix(d);ui.flash=`Anotado: no hay transmisión el ${fmt(d)}.`}
   ui.trQ=null}
 function trAsk(p){if(!(p.pastor||p.admin))return'';const w=pd(today).getDay();const d=ui.trQ||((w===5||w===6)?nextSun():null);if(!d||d<today)return'';
   const yes=state.trans.some(t=>t.date===d),no=(state.transNo||[]).includes(d);if((yes||no)&&!ui.trQ)return'';
@@ -905,12 +909,12 @@ function misCal(p){
     let l=`<div class="calhead">${monthNav()}${tog}</div>`;
     if(!ds_.length)return l+`<div class="card info">${dates.some(d=>items[d])?'Ya pasaron todas tus labores de este mes.':'No tienes labores este mes.'}</div>`;
     l+='<div class="card llist2">'+ds_.map(d=>{const it=items[d],w=pd(d).getDay(),[sn,st]=SVC[w];
-      const mt=it.notes.find(n=>n&&n.meet);const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.attend?'Alabanza (vas tú)':mt?mt.meet.title:it.notes.map(n=>n.l||'Aviso').join(', ');
+      const mt=it.notes.find(n=>n&&n.meet);const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.trPul?'Púlpito · transmisión':it.preach?'Predicación':it.attend?'Alabanza (vas tú)':mt?mt.meet.title:it.notes.map(n=>n.l||'Aviso').join(', ');
       return `<div class="lr${svcGone(d)?' past':''}${d===today?' today':''}"><span class="ld"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span><span class="lh">${it.slots.length||it.attend?st:mt?esc(mt.meet.time||''):''}</span><span class="lw"><b>${it.slots.length||it.attend?sn:mt?'Reunión':'Aviso'}</b><span>${esc(what)}${mt&&(it.slots.length||it.attend)?' · Reunión '+esc(mt.meet.time||''):''}</span></span></div>`}).join('')+'</div>';
     return l}
   let h=`<div class="calhead">${monthNav()}${tog}</div><div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
   for(const d of dates){const it=items[d];const areas=it?[...new Set(it.slots.map(s=>s.area))]:[];
-    h+=`<button class="cd ${areas.length?'':'free'} ${d===today?'today':''}" data-a="selday" data-v="${esc(d)}" aria-pressed="${ui.sel===d}"><b>${pd(d).getDate()}${it&&it.notes.length?'<i class="nt"></i>':''}</b>${areas.slice(0,2).map(a=>`<span class="lab" style="--c:var(${AREAC[a]})">${SHORT[a]}</span>`).join('')+(it&&it.attend?'<span class="lab" style="--c:var(--gold)">Alabanza</span>':'')}${areas.length>2?`<span class="more">+${areas.length-2}</span>`:''}</button>`}
+    h+=`<button class="cd ${areas.length?'':'free'} ${d===today?'today':''}" data-a="selday" data-v="${esc(d)}" aria-pressed="${ui.sel===d}"><b>${pd(d).getDate()}${it&&it.notes.length?'<i class="nt"></i>':''}</b>${areas.slice(0,2).map(a=>`<span class="lab" style="--c:var(${AREAC[a]})">${SHORT[a]}</span>`).join('')+(it&&it.attend?`<span class="lab" style="--c:var(--gold)">${it.trPul?'Transm.':it.preach?'Predica':'Alabanza'}</span>`:'')}${areas.length>2?`<span class="more">+${areas.length-2}</span>`:''}</button>`}
   h+='</div>';
   const n=dates.filter(d=>items[d]&&items[d].slots.length).length;
   h+=`<div class="info" style="margin:10px 0">${n?`${n} ${n===1?'día':'días'} con labor este mes. Toca un día para ver el detalle.`:'No tienes labores este mes.'}</div>`;
@@ -1426,10 +1430,10 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case't-up':case't-down':{const tm=teachMap(),dOf={};for(const d in tm)dOf[tm[d].id]=d;const mv=state.teachings.filter(t=>!isPinned(t)).sort((x,y)=>(dOf[x.id]||'9')<(dOf[y.id]||'9')?-1:1);const i=mv.findIndex(t=>t.id===v),j=a==='t-up'?i-1:i+1;if(i<0||j<0||j>=mv.length)return;
     const arr=state.teachings,ia=arr.indexOf(mv[i]),ib=arr.indexOf(mv[j]);[arr[ia],arr[ib]]=[arr[ib],arr[ia]];break}
   case't-pin':{const t=state.teachings.find(x=>x.id===v);if(!t)return;if(isPinned(t)){delete t.pin;delete t.pinAuto;t.unpinned=1;ui.flash='Soltada: ahora se corre con las demás.'}else{const tm=teachMap();const d=Object.keys(tm).find(k=>tm[k].id===v);if(!d)return;t.pin=d;delete t.unpinned;ui.flash=`Fija el ${fmt(d)}: ya no se corre.`}break}
-  case'tr-add':{const d=v;if(!d)return;state.transNo=(state.transNo||[]).filter(x=>x!==d);state.trans.push({id:uid(),date:d,link:$('tr-link').value.trim(),note:''});break}
+  case'tr-add':{const d=v;if(!d)return;state.transNo=(state.transNo||[]).filter(x=>x!==d);state.trans.push({id:uid(),date:d,link:$('tr-link').value.trim(),note:''});transFix(d);break}
   case'tr-edit':ui.trEdit=v;break;
   case'tr-done':ui.trEdit=null;break;
-  case'tr-del':state.trans=state.trans.filter(t=>t.id!==v);break;
+  case'tr-del':{const t=state.trans.find(x=>x.id===v);state.trans=state.trans.filter(x=>x.id!==v);if(t&&!svcGone(t.date))transFix(t.date);break}
   case'lz-add':{const d=$('lz-date').value,tt=$('lz-t').value.trim();if(!d||!tt){ui.lzErr=!d&&!tt?'Elige la fecha y escribe la predicación.':!d?'Elige la fecha.':'Escribe el título de la predicación.';ui.lzD=d;ui.lzT=tt;break}ui.lzErr='';ui.lzD='';ui.lzT='';state.leipzig.push({id:uid(),date:d,teaching:tt});
     const th=ds(new Date(pd(d).getTime()-2*864e5)),bf=snapDays([th,d]);fixDate(th);fixDate(d);const n=schedDiffNotify(bf);if(n)ui.flash=`Visita agregada. Se avisó a ${n} ${n===1?'persona':'personas'} de cambios en su labor.`;break}
   case'lz-del':{const l=state.leipzig.find(t=>t.id===v);state.leipzig=state.leipzig.filter(t=>t.id!==v);
