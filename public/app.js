@@ -486,7 +486,7 @@ function actions(d,it){const real=it.slots.filter(s=>s.k);
     return `<div class="panel"><label class="field" style="margin-bottom:8px">Mensaje para el equipo<textarea id="late-msg" rows="2" placeholder="Por ejemplo: llego unos 15 minutos tarde"></textarea></label>
       <div class="inline"><button class="btn sm" data-a="late-yes" data-v="${esc(d)}">Enviar aviso</button><button class="btn ghost sm" data-a="panel-x">Cancelar</button></div>
       <div class="info" style="margin-top:6px">Lo recibe tu equipo de ese culto, los de púlpito y el administrador.</div></div>`}
-  return `<div class="acts">${real.length?`<button class="btn ghost sm" data-a="out-open" data-v="${esc(d)}">No puedo ir</button>`:''}<button class="btn ghost sm" data-a="late-open" data-v="${esc(d)}">Llego tarde</button></div>`}
+  return `<div class="acts quiet">${real.length?`<button class="qa" data-a="out-open" data-v="${esc(d)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7"/></svg>No puedo ir</button>`:''}<button class="qa" data-a="late-open" data-v="${esc(d)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Llego tarde</button></div>`}
 function outReq(d){const p=me(),as=schedOf(d);if(!as)return;
   const mine=slotsAt(d).filter(s=>as[s.k]===p.id);
   for(const s of mine)delete as[s.k];
@@ -546,7 +546,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '10.3';
+const APPV = '10.4';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
