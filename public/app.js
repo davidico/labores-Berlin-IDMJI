@@ -548,7 +548,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '10.6';
+const APPV = '10.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -945,6 +945,7 @@ function vDisp(p){
    <div class="mnav" style="margin:0 0 10px;justify-content:space-between"><button class="ib" data-a="dm" data-v="-1" aria-label="Mes anterior" ${ym<=cur?'disabled':''}>‹</button><b>${Mes} ${y}</b><button class="ib" data-a="dm" data-v="1" aria-label="Mes siguiente">›</button></div>
    ${lock?'':`<div class="info" style="margin:0 0 10px">Toca los días que <b>no puedes</b> servir. Los demás quedan disponibles.</div>`}
    <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${dates.map(d=>wk(d)?`<button class="tog avd wk${d<today?' past':''}" aria-pressed="true" aria-label="${fmt(d)}: no puedes (por tus días de la semana)" disabled>${pd(d).getDate()}</button>`:`<button class="tog avd" data-a="avday" data-v="${esc(d)}" aria-pressed="${p.blocked.includes(d)}" aria-label="${fmt(d)}" ${d<today||lock?'disabled':''}>${pd(d).getDate()}</button>`).join('')}</div>
+   <div class="avleg"><span><i class="lg ok"></i>Puedo</span><span><i class="lg no"></i>No puedo</span>${nw?'<span><i class="lg wk"></i>No puedo (día de la semana)</span>':''}</div>
    <div class="info" style="margin-top:8px">${n?`En ${mes} no puedes ${n} ${n===1?'día':'días'}${nw?` (${nw} por tus días de la semana, en gris; se cambian arriba)`:''}.`:`En ${mes} puedes todos los días.`}</div>
    ${open?predPick(p,ym,dates):''}
    ${open&&!done?`<button class="btn" data-a="av-done" data-v="${esc(ym)}" style="width:100%;margin-top:16px">Enviar mi disponibilidad de ${mes}</button>`:''}</div>`;

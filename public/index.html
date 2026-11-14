@@ -567,6 +567,16 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .rsvpok.no{background:var(--warn-soft);color:var(--warn)}
 .rsvpok .linkbtn{font-size:15px;min-height:40px;flex:none}
 .rsvp{display:flex;gap:8px;margin-top:12px}.rsvp .btn{flex:1;min-height:44px}
+
+/* Mis días: colores claros en el calendario (blanco = puedo, naranja = no puedo, gris = día de la semana) */
+.tog.avd{background:var(--surface);color:var(--ink);border:1.5px solid var(--line);box-shadow:none;font-weight:600;min-height:44px}
+.tog.avd[aria-pressed="true"]{background:var(--warn);color:var(--surface);border-color:var(--warn);text-decoration:none;font-weight:700;transform:none;box-shadow:none}
+.tog.avd.wk,.tog.avd.wk:disabled{background:var(--line);color:var(--muted);border-color:var(--line);text-decoration:line-through;opacity:1}
+.tog.avd:disabled:not(.wk){opacity:.35}
+.avleg{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-size:14px;color:var(--muted)}
+.avleg span{display:inline-flex;align-items:center;gap:6px}
+.lg{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--line);background:var(--surface)}
+.lg.no{background:var(--warn);border-color:var(--warn)}.lg.wk{background:var(--line)}
 </style>
 <script src="go.js"></script>
 </head>
