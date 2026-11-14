@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **10.8**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **10.9**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v114`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v115`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -140,7 +140,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - Hojas que suben desde abajo en el celular, centradas en PC.
 - Lo pasado se oculta o queda gris y bloqueado.
 - Confirmar lo que pasó con un mensaje corto (`ui.flash`).
-- **Reuniones:** al responder, los botones «Asisto / No puedo» se reemplazan por la respuesta («✓ Listo, asistes. ¡Te esperamos!» o «Avisaste que no puedes asistir») con «Cambiar» (`ui.rsvpEd`). Nunca dejar dos botones iguales después de responder.
+- **Reuniones:** al responder, los botones «Asisto / No puedo» se reemplazan por la respuesta («✓ Listo, asistes. ¡Te esperamos!» o «Avisaste que no puedes asistir») con «Cambiar» (`ui.rsvpEd`). Nunca dejar dos botones iguales después de responder. Quien respondió «Asisto» ya no ve la tarjeta arriba: la reunión pasa a la tarjeta de ese día en Labores (sección «Reunión» con «✓ Asistes · Cambiar»; si ese día no tiene labor, sale una tarjeta «Sábado · Reunión 13:00») y a la lista del Calendario. Quien dijo «No puedo» ve arriba solo una línea con «Cambiar». La reunión desaparece cuando pasa su fecha; los «Mensajes del mes» se ven todo el mes para el que se escribieron (y desde el día 21 también los del mes siguiente).
 - Editar con lápiz junto al texto; acciones de fila juntas (mover en grupo, quitar aparte y en naranja).
 - Buscador en listas largas (sin tildes ni mayúsculas, `normQ`).
 - Funcionar bien en celular y en PC (menú lateral ≥ 1024 px). **Todo cambio debe verse igual en los dos** (Labores en PC es `vDash`/`dkAgenda`).

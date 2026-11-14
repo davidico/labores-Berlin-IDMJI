@@ -392,7 +392,9 @@ function myItems(p){
   for(const t of state.trans)if(isPul||slotsAt(t.date).some(s=>s.area==='trad'&&((state.schedules[t.date.slice(0,7)]||{})[t.date]||{})[s.k]===p.id))add(t.date).notes.push({l:'Transmisión internacional',h:svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre">${linkify(t.link)}</div>`:'<span class="fv empty">Aún sin datos (enlace y hora)</span>'});
   if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
   if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))&&!(items[d]&&items[d].slots.length)){const it=add(d);it.attend=true;it.notes.unshift({l:'Alabanza',h:'Ese día vas tú a la alabanza. No tienes labor.'})}}
-  for(const m of myMeets(p))add(m.date).notes.push({l:'Reunión',h:`<div class="tv">${esc(m.title)}</div>${m.time?`<div class="sub2">${esc(m.time)}</div>`:''}`});
+  for(const m of myMeets(p)){const rs=m.rsvp[p.id];if(rs==='no')continue;
+    add(m.date).notes.push({l:'Reunión',meet:m,h:`<div class="tv">${esc(m.title)}</div><div class="sub2">${m.time?esc(m.time)+' · ':''}${esc(teamLbl(m))}</div>${m.place?`<div class="sub2 pre">${linkify(m.place)}</div>`:''}`+
+      (rs==='yes'?`<div class="rsvpok yes" style="margin-top:8px"><span>✓ Asistes</span><button class="linkbtn" data-a="rsvp-ed" data-v="${esc(m.id)}">Cambiar</button></div>`:`<div class="sub2"><i>Todavía no respondes: mira arriba, en Reuniones.</i></div>`)})}
   for(const l of state.leipzig)add(l.date).notes.push({l:'Visita a Leipzig',h:`<div class="tv">${esc(l.teaching||'Predicación por definir')}</div>${p.leipzig?'<div class="sub2">Viajas este día</div>':(l.going||[]).includes(p.id)?'<div class="sub2">Vas a ir</div>':''}${seesLzGoing(p)?`<div class="sub2">${lzGoingLine(l)}</div>`:''}${fichaRows('l',l,lzLangs(p))}${lzLangs(p).length&&l.date>=today?linkRep('l',l,l.date,lzLangs(p),null):''}`});
   return items;
 }
@@ -450,11 +452,11 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if((w===4||w===0)&&t&&!preaching&&has(s=>s.area==='pulpito'||s.area==='trad')){
     if(!trPred)info.unshift(isec('Enseñanza del culto',`<div class="tv">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+(isTrad?fichaRows('t',t,tradLangs(me())):'')));
     if(trPred&&!trIntro&&!tr)info.push(isec('Introducción',introInfo(d,person(as.pul),false)))}
-  const trN=it.notes.find(n=>n&&n.l==='Transmisión internacional');
+  const trN=it.notes.find(n=>n&&n.l==='Transmisión internacional'),mtN=it.notes.find(n=>n&&n.meet);
   for(const n of it.notes)if(n!==trN)info.push(typeof n==='string'?isec('',n):isec(n.l,n.h));
   if(trN)todo.unshift(`<div class="trbox"><div class="trt"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Hay transmisión internacional</div><div class="trd">${trN.h}</div></div>`);
   return `<div class="card mine v2" data-day="${esc(d)}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
-    <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:'Aviso'} <small>${it.slots.length||it.attend?st:''}</small></div>
+    <div class="svc">${DOW[w]} · ${it.slots.length||it.attend?sn:mtN?'Reunión':'Aviso'} <small>${it.slots.length||it.attend?st:mtN?esc(mtN.meet.time||''):''}</small></div>
     ${it.slots.length?`<div class="chips">${it.slots.map(s=>chip(s.area,s.l)).join('')}</div>`:''}</div>
     ${todo.length||info.length?`<div class="cbody">${todo.join('')}${info.length?`<div class="infos">${info.join('')}</div>`:''}</div>`:''}
     ${it.slots.length&&d>=today?`<div class="cbody">${actions(d,it)}</div>`:''}</div>`}
@@ -548,7 +550,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '10.8';
+const APPV = '10.9';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -663,7 +665,10 @@ function meetHead(m){const f=person(m.from),d=pd(m.date);return `<div class="msg
   <div class="info">Convoca: <b>${esc(f?f.name:'')}</b></div>
   ${m.place?`<div class="pre" style="margin-top:6px">${linkify(m.place)}</div>`:''}${m.notes?`<div class="pre info" style="margin-top:4px">${linkify(m.notes)}</div>`:''}`}
 function misMeets(p){const ms=myMeets(p);if(!ms.length)return'';
-  return `<h3 style="margin-top:4px">Reuniones</h3><div class="list">${ms.map(m=>{const r=m.rsvp[p.id];return `<div class="card">${meetHead(m)}
+  const show=ms.filter(m=>m.rsvp[p.id]!=='yes'||ui.rsvpEd===m.id);if(!show.length)return'';
+  return `<h3 style="margin-top:4px">Reuniones</h3><div class="list">${show.map(m=>{const r=m.rsvp[p.id];
+    if(r==='no'&&ui.rsvpEd!==m.id)return `<div class="rsvpok no" style="margin-top:0"><span>No asistes a «${esc(m.title)}» (${fmt(m.date)}).</span><button class="linkbtn" data-a="rsvp-ed" data-v="${esc(m.id)}">Cambiar</button></div>`;
+    return `<div class="card">${meetHead(m)}
     ${r&&ui.rsvpEd!==m.id?`<div class="rsvpok ${r==='yes'?'yes':'no'}"><span>${r==='yes'?'✓ Listo, asistes. ¡Te esperamos!':'Avisaste que no puedes asistir.'}</span><button class="linkbtn" data-a="rsvp-ed" data-v="${esc(m.id)}">Cambiar</button></div>`
       :`<div class="rsvp"><button class="btn sm" data-a="rsvp" data-v="${esc(m.id)}|yes">Asisto</button><button class="btn ghost sm" data-a="rsvp" data-v="${esc(m.id)}|no">No puedo</button></div>`}</div>`}).join('')}</div>`}
 function meetBlock(p){const ms=state.meets.filter(m=>m.date>=today).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1);let h='';
@@ -895,8 +900,8 @@ function misCal(p){
     let l=`<div class="calhead">${monthNav()}${tog}</div>`;
     if(!ds_.length)return l+`<div class="card info">${dates.some(d=>items[d])?'Ya pasaron todas tus labores de este mes.':'No tienes labores este mes.'}</div>`;
     l+='<div class="card llist2">'+ds_.map(d=>{const it=items[d],w=pd(d).getDay(),[sn,st]=SVC[w];
-      const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.attend?'Alabanza (vas tú)':it.notes.map(n=>n.l||'Aviso').join(', ');
-      return `<div class="lr${svcGone(d)?' past':''}${d===today?' today':''}"><span class="ld"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span><span class="lh">${it.slots.length||it.attend?st:''}</span><span class="lw"><b>${it.slots.length||it.attend?sn:'Aviso'}</b><span>${esc(what)}</span></span></div>`}).join('')+'</div>';
+      const mt=it.notes.find(n=>n&&n.meet);const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.attend?'Alabanza (vas tú)':mt?mt.meet.title:it.notes.map(n=>n.l||'Aviso').join(', ');
+      return `<div class="lr${svcGone(d)?' past':''}${d===today?' today':''}"><span class="ld"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span><span class="lh">${it.slots.length||it.attend?st:mt?esc(mt.meet.time||''):''}</span><span class="lw"><b>${it.slots.length||it.attend?sn:mt?'Reunión':'Aviso'}</b><span>${esc(what)}${mt&&(it.slots.length||it.attend)?' · Reunión '+esc(mt.meet.time||''):''}</span></span></div>`}).join('')+'</div>';
     return l}
   let h=`<div class="calhead">${monthNav()}${tog}</div><div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
   for(const d of dates){const it=items[d];const areas=it?[...new Set(it.slots.map(s=>s.area))]:[];
@@ -1305,8 +1310,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'm-del':ui.mDel=v;break;
   case'm-del-no':ui.mDel=null;break;
   case'm-del-yes':{const m=state.meets.find(x=>x.id===v);if(m){notify(invitees(m),`Se canceló la reunión «${m.title}» del ${fmt(m.date)}.`);state.meets=state.meets.filter(x=>x.id!==v)}ui.mDel=null;break}
-  case'rsvp':{const[id,val]=v.split('|');const m=state.meets.find(x=>x.id===id);if(m){m.rsvp[p.id]=val;ui.rsvpEd=null;ui.flash=val==='yes'?`Listo, te esperamos el ${fmt(m.date)}.`:'Anotado: no puedes asistir.'}break}
-  case'rsvp-ed':ui.rsvpEd=v;break;
+  case'rsvp':{const[id,val]=v.split('|');const m=state.meets.find(x=>x.id===id);if(m){m.rsvp[p.id]=val;ui.rsvpEd=null;ui.flash=val==='yes'?`Listo, te esperamos. La reunión quedó en tus labores del ${fmt(m.date)}.`:'Anotado: no puedes asistir.'}break}
+  case'rsvp-ed':ui.rsvpEd=v;ui.tab='mis';scrollTo(0,0);break;
   case'readall':for(const n of state.notifs)if(n.to.includes(p.id)&&!n.read.includes(p.id))n.read.push(p.id);break;
   case'gen':{const ym=ui.month,old=JSON.parse(JSON.stringify(state.schedules[ym]||{})),before={};for(const d of monthDates(ym))before[d]=old[d]||{};
     generate(ym);for(const d in old)if(d<today||svcGone(d))state.schedules[ym][d]=old[d];
