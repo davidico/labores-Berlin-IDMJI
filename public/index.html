@@ -561,6 +561,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 
 /* iPhone: aire extra arriba (franja difuminada del sistema bajo la barra de estado) */
 @media (max-width:1023px){.ios .wrap{padding-top:28px}.ios .pop{top:calc(env(safe-area-inset-top,0px) + 84px)}}
+
+/* Reuniones: respuesta ya dada */
+.rsvpok{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding:10px 12px;border-radius:12px;font-size:16px;font-weight:600;background:color-mix(in srgb,var(--ok) 12%,var(--surface));color:var(--ok)}
+.rsvpok.no{background:var(--warn-soft);color:var(--warn)}
+.rsvpok .linkbtn{font-size:15px;min-height:40px;flex:none}
+.rsvp{display:flex;gap:8px;margin-top:12px}.rsvp .btn{flex:1;min-height:44px}
 </style>
 <script src="go.js"></script>
 </head>

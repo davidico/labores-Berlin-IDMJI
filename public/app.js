@@ -548,7 +548,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '10.5';
+const APPV = '10.6';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -664,7 +664,8 @@ function meetHead(m){const f=person(m.from),d=pd(m.date);return `<div class="msg
   ${m.place?`<div class="pre" style="margin-top:6px">${linkify(m.place)}</div>`:''}${m.notes?`<div class="pre info" style="margin-top:4px">${linkify(m.notes)}</div>`:''}`}
 function misMeets(p){const ms=myMeets(p);if(!ms.length)return'';
   return `<h3 style="margin-top:4px">Reuniones</h3><div class="list">${ms.map(m=>{const r=m.rsvp[p.id];return `<div class="card">${meetHead(m)}
-    <div class="rsvp"><button class="tog" data-a="rsvp" data-v="${esc(m.id)}|yes" aria-pressed="${r==='yes'}">Asisto</button><button class="tog" data-a="rsvp" data-v="${esc(m.id)}|no" aria-pressed="${r==='no'}">No puedo</button></div></div>`}).join('')}</div>`}
+    ${r&&ui.rsvpEd!==m.id?`<div class="rsvpok ${r==='yes'?'yes':'no'}"><span>${r==='yes'?'✓ Listo, asistes. ¡Te esperamos!':'Avisaste que no puedes asistir.'}</span><button class="linkbtn" data-a="rsvp-ed" data-v="${esc(m.id)}">Cambiar</button></div>`
+      :`<div class="rsvp"><button class="btn sm" data-a="rsvp" data-v="${esc(m.id)}|yes">Asisto</button><button class="btn ghost sm" data-a="rsvp" data-v="${esc(m.id)}|no">No puedo</button></div>`}</div>`}).join('')}</div>`}
 function meetBlock(p){const ms=state.meets.filter(m=>m.date>=today).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1);let h='';
   if(ui.meet){const d=ui.md;h+=`<div class="panel" style="margin-top:12px"><b>Convocar reunión</b>
     <label class="field" style="margin-top:8px">Título<input id="md-title" type="text" value="${esc(d.title)}" placeholder="Por ejemplo: Reunión del equipo de puerta" data-c="md" data-v="title"></label>
@@ -1250,7 +1251,7 @@ function vPer(){
 
 /* ---------- acciones ---------- */
 // «Ver como» otra persona: solo para mirar. Estas acciones no cambian nada guardado.
-const VIEWOK=new Set(['cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
+const VIEWOK=new Set(['rsvp-ed','cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
 const viewOnly=()=>{ui.flash=`Estás viendo la app como ${(me()||{}).name||'otra persona'}: solo para mirar. Toca «Volver a mi cuenta» para hacer cambios.`;ui.panel=null;render()};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
   if(ui.viewAs&&!VIEWOK.has(a)){viewOnly();return}
@@ -1303,7 +1304,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'm-del':ui.mDel=v;break;
   case'm-del-no':ui.mDel=null;break;
   case'm-del-yes':{const m=state.meets.find(x=>x.id===v);if(m){notify(invitees(m),`Se canceló la reunión «${m.title}» del ${fmt(m.date)}.`);state.meets=state.meets.filter(x=>x.id!==v)}ui.mDel=null;break}
-  case'rsvp':{const[id,val]=v.split('|');const m=state.meets.find(x=>x.id===id);if(m)m.rsvp[p.id]=val;break}
+  case'rsvp':{const[id,val]=v.split('|');const m=state.meets.find(x=>x.id===id);if(m){m.rsvp[p.id]=val;ui.rsvpEd=null;ui.flash=val==='yes'?`Listo, te esperamos el ${fmt(m.date)}.`:'Anotado: no puedes asistir.'}break}
+  case'rsvp-ed':ui.rsvpEd=v;break;
   case'readall':for(const n of state.notifs)if(n.to.includes(p.id)&&!n.read.includes(p.id))n.read.push(p.id);break;
   case'gen':{const ym=ui.month,old=JSON.parse(JSON.stringify(state.schedules[ym]||{})),before={};for(const d of monthDates(ym))before[d]=old[d]||{};
     generate(ym);for(const d in old)if(d<today||svcGone(d))state.schedules[ym][d]=old[d];
