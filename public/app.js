@@ -550,7 +550,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '10.9';
+const APPV = '11.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -871,11 +871,16 @@ function vDash(p){const items=myItems(p);for(const d in items)if(svcGone(d))dele
 /* ---- mensajes por equipo ---- */
 function teamIds(area){return state.people.filter(x=>area==='all'||x.roles.some(r=>ROLEAREA[r]===area)||(area==='pulpito'&&x.pastor)).map(x=>x.id)}
 function msgsFor(p,ym){const a=myAreas(p);return state.msgs.filter(m=>m.month===ym&&(m.area==='all'||a.includes(m.area)||m.from===p.id))}
-function msgCard(m,del){const f=person(m.from),[y,mo]=m.month.split('-').map(Number);
+function msgCard(m,del,extra){const f=person(m.from),[y,mo]=m.month.split('-').map(Number);
   return `<div class="card"><div class="dayhead"><span class="msgfrom">${esc(f?f.name:'Púlpito')}${f&&f.pastor?' · Pastor':''}</span>${del?`<button class="x" data-a="msg-del" data-v="${esc(m.id)}" aria-label="Borrar mensaje">✕</button>`:''}</div><div class="dayhead"><span class="info" style="margin:0;display:flex;align-items:center;gap:6px"><i class="dot" style="--c:var(${m.area==='all'?'--gold':AREAC[m.area]})"></i>${m.area==='all'?'Para todos':'Equipo de '+AREAN[m.area].toLowerCase()} · ${MES[mo-1]}</span></div>
-    <div class="pre" style="margin-top:8px">${linkify(m.text)}</div></div>`}
+    <div class="pre" style="margin-top:8px">${linkify(m.text)}</div>${extra||''}</div>`}
 function misMsgs(p){const ms=[...new Set([today.slice(0,7),defaultMonth()])].flatMap(ym=>msgsFor(p,ym));
-  return ms.length?`<h3 style="margin-top:4px">Mensajes del mes</h3><div class="list">${ms.map(m=>msgCard(m,false)).join('')}</div>`:''}
+  if(!ms.length)return'';
+  // «Entendido» oculta el mensaje para esa persona; los leídos se pueden volver a ver
+  const nw=ms.filter(m=>!(m.seen||[]).includes(p.id)),old=ms.filter(m=>(m.seen||[]).includes(p.id));
+  const ok=m=>`<button class="btn ghost sm" data-a="msg-ok" data-v="${esc(m.id)}" style="margin-top:12px">Entendido</button>`;
+  return (nw.length?`<h3 style="margin-top:4px">Mensajes del mes</h3><div class="list">${nw.map(m=>msgCard(m,false,ok(m))).join('')}</div>`:'')+
+    (old.length?`<button class="linkbtn" data-a="msg-old" style="display:block;margin:4px 0 12px;min-height:40px;font-size:15px">${ui.msgOld?'Ocultar mensajes leídos':`Ver mensajes leídos (${old.length})`}</button>${ui.msgOld?`<div class="list" style="margin-bottom:12px">${old.map(m=>msgCard(m,false)).join('')}</div>`:''}`:'')}
 function msgBlock(p){const ms=state.msgs.filter(m=>m.month===ui.month),mo=+ui.month.slice(5,7);let h='';
   if(ui.compose)h+=`<div class="panel" style="margin-top:12px"><b>Mensaje para ${MES[mo-1]}</b>
     <label class="field" style="margin-top:8px">Para<select id="msg-area"><option value="all">Todos los equipos</option>${Object.entries(AREAN).map(([k,l])=>`<option value="${k}">Equipo de ${l.toLowerCase()}</option>`).join('')}</select></label>
@@ -1257,7 +1262,7 @@ function vPer(){
 
 /* ---------- acciones ---------- */
 // «Ver como» otra persona: solo para mirar. Estas acciones no cambian nada guardado.
-const VIEWOK=new Set(['rsvp-ed','cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
+const VIEWOK=new Set(['msg-old','rsvp-ed','cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
 const viewOnly=()=>{ui.flash=`Estás viendo la app como ${(me()||{}).name||'otra persona'}: solo para mirar. Toca «Volver a mi cuenta» para hacer cambios.`;ui.panel=null;render()};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
   if(ui.viewAs&&!VIEWOK.has(a)){viewOnly();return}
@@ -1291,6 +1296,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'dec':decline(v);break;
   case'pdf':savePdf(ui.month);return;
   case'dlpdf':dlPdf(v);return;
+  case'msg-ok':{const m=state.msgs.find(x=>x.id===v);if(m&&!(m.seen||[]).includes(p.id)){m.seen=[...(m.seen||[]),p.id];ui.flash='Mensaje guardado en «leídos».'}break}
+  case'msg-old':ui.msgOld=!ui.msgOld;break;
   case'msg-open':ui.compose=true;break;
   case'msg-x':ui.compose=false;break;
   case'msg-send':{const txt=($('msg-text').value||'').trim(),area=$('msg-area').value;if(!txt)return;
