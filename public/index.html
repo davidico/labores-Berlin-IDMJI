@@ -618,6 +618,13 @@ button.hr{cursor:pointer}.hr:first-child{border-top:none}
 .cc{display:flex;flex-direction:column;justify-content:center;gap:2px;width:100%;min-height:44px;padding:4px 1px;border:0;background:none;font:inherit;font-weight:600;color:var(--ink);cursor:pointer}
 .cc .e{color:var(--warn);font-weight:800}.cc .bad{color:var(--warn)}
 .cc .me{background:color-mix(in srgb,var(--gold) 30%,transparent);border-radius:4px}
+
+/* Calendario: ventana con el detalle del día */
+.calsheet-b{overflow:auto;-webkit-overflow-scrolling:touch;margin-top:8px;padding-bottom:8px}
+.calsheet .card.mine{border:none;padding:0;background:none}
+.calsheet .card.mine>.dbox,.calsheet .card.mine>.dbox+div>.svc{display:none}
+.calsheet .card.mine>.dbox+div{grid-column:1/-1}
+.calsheet .card.mine .chips{margin-top:0}
 </style>
 <script src="go.js"></script>
 </head>

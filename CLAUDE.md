@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **11.5**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **11.6**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v121`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v122`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -136,7 +136,8 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - **Enlaces externos (`xlink`):** texto que dice qué es («Ficha en alemán», «Ver el testimonio»), subrayado y con flecha ↗; nunca «LINK / Abrir». Si falta: punto rojo + «falta» + botón «Agregar enlace».
 - **Pestaña Pastor, enseñanzas:** una línea dorada (`.tsep`) separa la lista de «Agregar»; título + lápiz; debajo, en una línea, la fecha a la izquierda y las acciones (fijar, subir/bajar, quitar) pequeñas a la derecha.
 - **Mis días (`vDisp`):** la pestaña solo aparece mientras hay un pedido de disponibilidad abierto (`avPending`, del 15 al cierre); siempre se puede abrir desde el menú del perfil («Mis días para servir»). Los meses que ya tienen horario (publicado o borrador) quedan bloqueados, solo para mirar, con el aviso de usar «No puedo ir». 1) «Mis días de la semana» (interruptores fijos, `p.days`); 2) «Fechas en que no puedo»: un calendario por mes (`ui.dm`, flechas, días pasados bloqueados) que marca `p.blocked`; colores: blanco = puedo, naranja relleno y tachado = no puedo, gris tachado = día de la semana en «No puedo» (no se toca desde el calendario); leyenda debajo. Si el admin pidió la disponibilidad de ese mes (`avReqs`), arriba sale el pedido y abajo «Enviar mi disponibilidad» (`av-done`). En Labores, «Marcar mis días» lleva a esta pestaña (ya no hay calendario dentro de Labores ni lista con campo de fecha).
-- **Calendario › Mi mes:** botones «Calendario | Lista» (`ui.cv`, se recuerda en el aparato). La lista es compacta (una fila por cada culto del mes con labor, también los pasados en gris; hoy con el número en dorado: día, hora, culto y labores en texto), sin detalles ni botones.
+- **Intérpretes de inglés, jueves:** en Labores ven cada jueves la tarjeta con «Enseñanza del jueves · inglés» (título, quién predica, ficha en inglés) e «Introducción» (quién, tema, cita), aunque tengan otra labor o ninguna (`it.info` en `myItems`). No sale si ese día interpretan en alemán (caso de quien tiene los dos idiomas).
+- **Calendario › Mi mes:** al tocar un día de la cuadrícula se abre una ventana (`calSheet`, `ui.calPop`) con lo que toca ese día; ya no se muestra debajo. botones «Calendario | Lista» (`ui.cv`, se recuerda en el aparato). La lista es compacta (una fila por cada culto del mes con labor, también los pasados en gris; hoy con el número en dorado: día, hora, culto y labores en texto), sin detalles ni botones.
 - **Horario en celular (`horMobile`, <1024 px; en PC sigue la tabla grande):** «Organización del mes» plegada en una fila; barra «N puestos por revisar · Ver/Siguiente» (`gap-go`); dos vistas: **Por día** (semana con flechas `ui.hw`, 7 botones de día `ui.hd`, el culto completo agrupado por equipo, tocar un nombre abre el selector) y **Tabla** compacta (nombres abreviados con `shortNames()`, cabe sin deslizar; tocar una celda lleva a ese día).
 - «No puedo ir» y «Llego tarde» quedan siempre visibles en cada tarjeta (no esconderlos en un menú), pero como acciones discretas: fila al pie con línea fina, enlaces de texto gris con ícono (`.acts.quiet` / `.qa`), no botones grandes.
 - Espaciado en pasos de 8 px; **16 px entre contenido y botones**.
