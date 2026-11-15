@@ -155,7 +155,7 @@ No hay tests automáticos. Se prueba con **Playwright (Python)** cargando `publi
 
 ## Pendientes
 
-- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 40 en Supabase, SHA-256 `a384cdd4…dccd45`, 15 nov 2026: agrega el modo `test`). Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
+- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 41 en Supabase, SHA-256 `1350b9af…e1f3b6`, 15 nov 2026: modo `test` con variante `decl` = formato declarativo para iPhone, todavía solo en la prueba). Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
 - [ ] (15 nov) Desde el despliegue de la función v39 TODAS las llamadas de pg_cron superan los 5 s de espera de pg_net (`timed_out`), aunque la función sigue corriendo (las claves de `push_log` se crean). No se ve cuántos avisos salen ni los errores. Hacer: subir el tiempo de espera y leer el estado una sola vez por ejecución.
 - [ ] Subir a 60 s el tiempo de espera de la llamada de pg_cron (`timeout_milliseconds := 60000` en `push.sql`): la de las 20:30 del 12 nov quedó sin respuesta por tardar más de 5 s.
 - [ ] Confirmar si los jueves se necesita la ficha en inglés (hoy la pestaña Pastor la pide siempre).

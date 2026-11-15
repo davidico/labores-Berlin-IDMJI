@@ -20,15 +20,24 @@ const cors = {
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 const ERRORS: string[] = [];
+// iPhone/iPad: formato «declarativo» (iOS 18.4+): el sistema muestra el aviso directamente y se pide que NO sea silencioso.
+// Los campos title/body/url de siempre van también, para los iPhone más viejos (los lee sw.js).
+const ORIGIN = 'https://labores-berlin.pages.dev';
+const isApple = (endpoint: string) => endpoint.includes('push.apple.com');
 // deno-lint-ignore no-explicit-any
-async function sendTo(ids: string[], title: string, body: string, url = '/', actions?: any[]) {
+const payloadFor = (endpoint: string, title: string, body: string, url: string, actions?: any[], decl = false) =>
+  JSON.stringify(decl && isApple(endpoint)
+    ? { web_push: 8030, notification: { title, body, navigate: ORIGIN + (url.startsWith('/') ? url : '/'), silent: false, lang: 'es' }, title, body, url }
+    : actions ? { title, body, url, actions } : { title, body, url });
+// deno-lint-ignore no-explicit-any
+async function sendTo(ids: string[], title: string, body: string, url = '/', actions?: any[], decl = false) {
   ids = [...new Set(ids)];
   if (!ids.length) return 0;
   const { data } = await SB.from('push_subs').select('endpoint,sub').in('person_id', ids);
   let sent = 0;
   for (const r of data ?? []) {
     try {
-      await webpush.sendNotification(r.sub, JSON.stringify(actions ? { title, body, url, actions } : { title, body, url }), { TTL: 60 * 60 * 12, urgency: 'high' });
+      await webpush.sendNotification(r.sub, payloadFor(r.endpoint, title, body, url, actions, decl), { TTL: 60 * 60 * 12, urgency: 'high' });
       sent++;
     } catch (e) {
       const code = (e as { statusCode?: number }).statusCode;
@@ -452,7 +461,7 @@ Deno.serve(async (req) => {
     if (typeof b.nonce !== 'string' || !/^[a-z0-9]{24,64}$/.test(b.nonce) || typeof b.to !== 'string') return json({ error: 'no autorizado' }, 401);
     const { data: used } = await SB.from('push_log').delete().eq('day', 'test:' + b.nonce).select('day');
     if (!used?.length) return json({ error: 'no autorizado' }, 401);
-    const sent = await sendTo([b.to], 'Prueba de avisos', 'Si ves esto, los avisos funcionan en este aparato.', '/?go=mis');
+    const sent = await sendTo([b.to], b.decl ? 'Prueba B' : 'Prueba A', b.decl ? 'Aviso de prueba B (formato nuevo para iPhone).' : 'Aviso de prueba A (formato de siempre).', '/?go=mis', undefined, !!b.decl);
     return json({ sent, errors: ERRORS });
   }
   if (b.mode === 'daily') {
