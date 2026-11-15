@@ -30,6 +30,7 @@ select cron.schedule(
   $$ select net.http_post(
        url := 'https://hooqurezzjbzcgjtuqnn.supabase.co/functions/v1/push',
        headers := '{"Content-Type":"application/json"}'::jsonb,
-       body := '{"mode":"daily"}'::jsonb
+       body := '{"mode":"daily"}'::jsonb,
+       timeout_milliseconds := 60000  -- la función puede tardar más de 5 s (valor por defecto) cuando envía varios avisos
      ) $$
 );

@@ -50,6 +50,20 @@ async function sendTo(ids: string[], title: string, body: string, url = '/', act
   return sent;
 }
 
+// Nombre del puesto para ese día. Domingo con transmisión: no existen `pul` ni `*_pred` (devuelve ''),
+// `*_intro` = saludo y preámbulo, `*_test` = testimonios y despedida (igual que slotsAt en app.js).
+// deno-lint-ignore no-explicit-any
+function lblFor(st: any, date: string, k: string): string {
+  // deno-lint-ignore no-explicit-any
+  const tr = new Date(date + 'T12:00:00Z').getUTCDay() === 0 && (st.trans || []).some((t: any) => t.date === date);
+  if (!tr) return LBL[k] || k;
+  if (k === 'pul' || /_pred$/.test(k)) return '';
+  const lang = k.startsWith('de_') ? 'Alemán' : k.startsWith('en_') ? 'Inglés' : '';
+  if (/_intro$/.test(k)) return `${lang} · saludo y preámbulo`;
+  if (/_test$/.test(k)) return `${lang} · testimonios y despedida`;
+  return LBL[k] || k;
+}
+
 // ---- recordatorio diario ----
 const LBL: Record<string, string> = {
   pul: 'Púlpito', pul_ini: 'Púlpito (inicia)', pul_fin: 'Púlpito (finaliza)', predica: 'Predicación',
@@ -322,7 +336,7 @@ async function todayReminder() {
   const dow = new Date(date + 'T12:00:00Z').getUTCDay();
   const [sn, hr] = SVC[dow];
   const by: Record<string, Set<string>> = {};
-  for (const [k, pid] of Object.entries(as)) if (pid && ok.has(pid)) (by[pid] ??= new Set()).add(LBL[k] || k);
+  for (const [k, pid] of Object.entries(as)) { const l = lblFor(st, date, k); if (l && pid && ok.has(pid)) (by[pid] ??= new Set()).add(l); }
   let sent = 0;
   for (const [pid, set] of Object.entries(by)) sent += await sendTo([pid], `Hoy te toca: ${[...set].join(', ')}`, `${sn} a las ${hr}.`);
   // deno-lint-ignore no-explicit-any
@@ -351,7 +365,7 @@ async function daily() {
   const dow = new Date(date + 'T12:00:00Z').getUTCDay();
   const [sn, hr] = SVC[dow];
   const by: Record<string, Set<string>> = {};
-  for (const [k, pid] of Object.entries(as)) if (pid && ok.has(pid)) (by[pid] ??= new Set()).add(LBL[k] || k);
+  for (const [k, pid] of Object.entries(as)) { const l = lblFor(st, date, k); if (l && pid && ok.has(pid)) (by[pid] ??= new Set()).add(l); }
   let sent = 0;
   for (const [pid, set] of Object.entries(by)) sent += await sendTo([pid], `Mañana te toca: ${[...set].join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.`);
   // deno-lint-ignore no-explicit-any
@@ -418,12 +432,12 @@ async function calendar(pid: string, t: string) {
       if (!isDate(date) || !as || typeof as !== 'object') continue;
       const dow = new Date(date + 'T12:00:00Z').getUTCDay();
       const [sn, hr] = SVC[dow];
-      const ks = Object.keys(as).filter((k) => as[k]).sort((a, b) => ORDERK.indexOf(a) - ORDERK.indexOf(b));
+      const ks = Object.keys(as).filter((k) => as[k] && lblFor(st, date, k)).sort((a, b) => ORDERK.indexOf(a) - ORDERK.indexOf(b));
       if (all) {
         if (!ks.length) continue;
-        ev(`${date}-todos`, date, hr, 120, `${sn} · labores`, ks.map((k) => `${LBL[k] || k}: ${nm(as[k])}`).join('\n'));
+        ev(`${date}-todos`, date, hr, 120, `${sn} · labores`, ks.map((k) => `${lblFor(st, date, k)}: ${nm(as[k])}`).join('\n'));
       } else {
-        const mine = [...new Set(ks.filter((k) => as[k] === pid).map((k) => LBL[k] || k))];
+        const mine = [...new Set(ks.filter((k) => as[k] === pid).map((k) => lblFor(st, date, k)))];
         if (mine.length) ev(`${date}-${uidSafe(pid)}`, date, hr, 120, `Labor: ${mine.join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.\nVer en la app: https://labores-berlin.pages.dev`);
         // Gabriela: los días de alabanza en que David no tiene labor, va ella a la alabanza (sin labor).
         if (pid === 'gabriela' && !mine.length && [1, 3, 5].includes(dow) && !Object.values(as).includes('david'))
@@ -461,7 +475,9 @@ Deno.serve(async (req) => {
     if (typeof b.nonce !== 'string' || !/^[a-z0-9]{24,64}$/.test(b.nonce) || typeof b.to !== 'string') return json({ error: 'no autorizado' }, 401);
     const { data: used } = await SB.from('push_log').delete().eq('day', 'test:' + b.nonce).select('day');
     if (!used?.length) return json({ error: 'no autorizado' }, 401);
-    const sent = await sendTo([b.to], b.decl === false ? 'Prueba A' : 'Prueba de avisos', b.decl === false ? 'Aviso de prueba A (formato de antes).' : 'Si ves esto, los avisos funcionan en este aparato.', '/?go=mis', undefined, b.decl !== false);
+    let to = [b.to];
+    if (b.to === '*') { const { data: all } = await SB.from('push_subs').select('person_id'); to = [...new Set((all ?? []).map((x: { person_id: string }) => x.person_id))]; }
+    const sent = await sendTo(to, b.decl === false ? 'Prueba A' : 'Prueba de avisos', b.decl === false ? 'Aviso de prueba A (formato de antes).' : b.to === '*' ? 'Es solo una prueba: si ves esto, los avisos funcionan en tu celular. No tienes que hacer nada.' : 'Si ves esto, los avisos funcionan en este aparato.', '/?go=mis', undefined, b.decl !== false);
     return json({ sent, errors: ERRORS });
   }
   if (b.mode === 'daily') {
