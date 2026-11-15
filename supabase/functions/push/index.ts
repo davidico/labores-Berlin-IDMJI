@@ -30,7 +30,7 @@ const payloadFor = (endpoint: string, title: string, body: string, url: string, 
     ? { web_push: 8030, notification: { title, body, navigate: ORIGIN + (url.startsWith('/') ? url : '/'), silent: false, lang: 'es' }, title, body, url }
     : actions ? { title, body, url, actions } : { title, body, url });
 // deno-lint-ignore no-explicit-any
-async function sendTo(ids: string[], title: string, body: string, url = '/', actions?: any[], decl = false) {
+async function sendTo(ids: string[], title: string, body: string, url = '/', actions?: any[], decl = true) {
   ids = [...new Set(ids)];
   if (!ids.length) return 0;
   const { data } = await SB.from('push_subs').select('endpoint,sub').in('person_id', ids);
@@ -461,7 +461,7 @@ Deno.serve(async (req) => {
     if (typeof b.nonce !== 'string' || !/^[a-z0-9]{24,64}$/.test(b.nonce) || typeof b.to !== 'string') return json({ error: 'no autorizado' }, 401);
     const { data: used } = await SB.from('push_log').delete().eq('day', 'test:' + b.nonce).select('day');
     if (!used?.length) return json({ error: 'no autorizado' }, 401);
-    const sent = await sendTo([b.to], b.decl ? 'Prueba B' : 'Prueba A', b.decl ? 'Aviso de prueba B (formato nuevo para iPhone).' : 'Aviso de prueba A (formato de siempre).', '/?go=mis', undefined, !!b.decl);
+    const sent = await sendTo([b.to], b.decl === false ? 'Prueba A' : 'Prueba de avisos', b.decl === false ? 'Aviso de prueba A (formato de antes).' : 'Si ves esto, los avisos funcionan en este aparato.', '/?go=mis', undefined, b.decl !== false);
     return json({ sent, errors: ERRORS });
   }
   if (b.mode === 'daily') {
