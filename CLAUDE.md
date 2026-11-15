@@ -62,6 +62,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
   - `{"mode":"send", to, title, body, url}` → la usa la app (`pushOut`) para avisos por acción. `url` solo acepta rutas internas `/?…`.
   - `GET ?p=<persona>&t=<firma>` → calendario ICS personal (HMAC con `VAPID_PRIVATE_KEY+':cal'`; `*todos` = calendario completo para admin).
   - `caltoken`, `delete-me` (borra cuenta y anonimiza), `ping`.
+  - `{"mode":"test", nonce, to}` → aviso de prueba a una persona; solo con una clave de un solo uso insertada antes en `push_log` (`day='test:<clave>'`, desde el SQL de Supabase). Devuelve `{sent, errors}`. Se llama con `net.http_post` desde SQL (ver historial del 15 nov).
   - web-push con `{ TTL: 43200, urgency: 'high' }`.
 - **Desplegar la función:** sin CLI. Con un token de Supabase (guardado como secreto del entorno `labores-Berlin-IDMJI` de Claude Code, host `api.supabase.com`) se puede usar la Management API (`/v1/projects/hooqurezzjbzcgjtuqnn/functions/deploy?slug=push`, `verify_jwt:false`; SQL con `/database/query`). Si no, desde el panel de Supabase (Edge Functions → push → Code): reemplazar el código, «Deploy updates», confirmar. **Mantener `supabase/functions/push/index.ts` idéntico a lo desplegado** (comparar SHA-256). El repo NO despliega la función solo.
 
@@ -154,7 +155,7 @@ No hay tests automáticos. Se prueba con **Playwright (Python)** cargando `publi
 
 ## Pendientes
 
-- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 39 en Supabase, SHA-256 `d03fa78e…b35956`) el 12 nov 2026. Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
+- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 40 en Supabase, SHA-256 `a384cdd4…dccd45`, 15 nov 2026: agrega el modo `test`). Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
 - [ ] (15 nov) Desde el despliegue de la función v39 TODAS las llamadas de pg_cron superan los 5 s de espera de pg_net (`timed_out`), aunque la función sigue corriendo (las claves de `push_log` se crean). No se ve cuántos avisos salen ni los errores. Hacer: subir el tiempo de espera y leer el estado una sola vez por ejecución.
 - [ ] Subir a 60 s el tiempo de espera de la llamada de pg_cron (`timeout_milliseconds := 60000` en `push.sql`): la de las 20:30 del 12 nov quedó sin respuesta por tardar más de 5 s.
 - [ ] Confirmar si los jueves se necesita la ficha en inglés (hoy la pestaña Pastor la pide siempre).

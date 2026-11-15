@@ -446,6 +446,15 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') { const q = new URL(req.url).searchParams; return calendar(q.get('p') || '', q.get('t') || ''); }
   // deno-lint-ignore no-explicit-any
   const b: any = await req.json().catch(() => ({}));
+  // Aviso de prueba a una persona. Solo con una clave de un solo uso creada antes en push_log (day = 'test:<clave>')
+  // por quien administra la base; se borra al usarla. Devuelve los errores del servicio de avisos para diagnosticar.
+  if (b.mode === 'test') {
+    if (typeof b.nonce !== 'string' || !/^[a-z0-9]{24,64}$/.test(b.nonce) || typeof b.to !== 'string') return json({ error: 'no autorizado' }, 401);
+    const { data: used } = await SB.from('push_log').delete().eq('day', 'test:' + b.nonce).select('day');
+    if (!used?.length) return json({ error: 'no autorizado' }, 401);
+    const sent = await sendTo([b.to], 'Prueba de avisos', 'Si ves esto, los avisos funcionan en este aparato.', '/?go=mis');
+    return json({ sent, errors: ERRORS });
+  }
   if (b.mode === 'daily') {
     // Limpieza de filas viejas del límite de frecuencia
     try { await SB.from('push_log').delete().like('day', 'rl:%').lt('sent_at', new Date(Date.now() - 864e5).toISOString()); } catch (e) { console.error('limpieza rl', e); }
