@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **11.4**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **11.5**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v120`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v121`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -62,6 +62,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
   - `{"mode":"send", to, title, body, url}` → la usa la app (`pushOut`) para avisos por acción. `url` solo acepta rutas internas `/?…`.
   - `GET ?p=<persona>&t=<firma>` → calendario ICS personal (HMAC con `VAPID_PRIVATE_KEY+':cal'`; `*todos` = calendario completo para admin).
   - `caltoken`, `delete-me` (borra cuenta y anonimiza), `ping`.
+  - Cada evento del calendario ICS lleva `URL` y «Abrir en la app: …/?go=mis&d=<fecha>», que abre Labores en ese día.
   - `{"mode":"test", nonce, to}` → aviso de prueba a una persona; solo con una clave de un solo uso insertada antes en `push_log` (`day='test:<clave>'`, desde el SQL de Supabase). Devuelve `{sent, errors}`. Con `to:'*'` va a todos los que tienen avisos activados. Se llama con `net.http_post` desde SQL. Los nombres de puesto de los avisos y del calendario salen de `lblFor()` (domingo con transmisión: sin `pul` ni `*_pred`, «saludo y preámbulo», «testimonios y despedida»).
   - web-push con `{ TTL: 43200, urgency: 'high' }`.
   - **iPhone/iPad (endpoints `push.apple.com`): formato declarativo** (`payloadFor`: `web_push: 8030` + `notification{title, body, navigate, silent:false}`, además de `title/body/url` para iPhone viejos). Probado el 15 nov: con el formato de antes el aviso llegaba sin vibrar; con este enciende la pantalla y vibra. El sonido depende del iPhone (Ajustes › Notificaciones › Labores › Sonidos); la app no lo puede forzar. Android sigue con el formato de siempre.
@@ -96,7 +97,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 - **Preámbulos:** estudio bíblico = mismo preámbulo el martes y el sábado de la semana, rueda de 5 (`PRE_EB`); transmisión = rueda propia (`PRE_TR`); alabanza Lun/Mié/Vie = `preamb()`.
 - **Gabriela:** ve «Alabanza (vas tú)» los Lun/Mié/Vie en que David no tiene labor (no se le asigna nada).
 - **Fichas:** enlaces de Drive por enseñanza y por idioma. Todo el equipo de alemán ve el de alemán y todo el de inglés el de inglés (por reemplazos de último momento). Leipzig: solo el equipo de traducción; quienes viajan ven los dos.
-- **Ofrendas:** «pareja 1 / pareja 2» y cada uno ve a su pareja (sin teléfono: el teléfono solo lo ve el admin).
+- **Ofrendas:** «pareja 1 / pareja 2» y cada uno ve a su pareja (sin teléfono: el teléfono solo lo ve el admin). Quien tiene «Entrega de ofrendas» ve en su tarjeta quiénes recogen y quiénes guardan ese culto.
 - **Avisos por cambios del admin:** solo en meses publicados y fechas futuras; se avisa a quien entra y a quien sale (asignar, Leipzig, volver a generar, quitar persona → `schedDiffNotify()`). «Volver a generar» no toca los días que ya pasaron.
 - **Quitar persona:** se marca `deleted` (no se borra del arreglo), sale de las labores que vienen (se rellenan) y se borran sus filas en members, push_subs y private_info.
 - **«Ver como»:** solo para mirar; las acciones que guardan están bloqueadas (`VIEWOK`).
@@ -131,7 +132,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - **Recordatorio de la introducción (`introPend`/`introNag`):** a quien da la introducción **ese mismo día** y le falta la cita o el enlace del testimonio (los dos no obligatorios pero recomendados; **no hay** botón «No tengo testimonio»): un solo aviso amarillo arriba de Labores (el más próximo), número rojo en la pestaña y en el ícono de la app (`appBadge`, Badging API) y «!» amarillo pequeño en la tarjeta.
 - **Transmisión internacional:** en la tarjeta va primero, en un cuadro azul destacado (`.trbox`, «Hay transmisión internacional» + enlace/hora). La ven púlpito y los intérpretes que sirven ese domingo; **el enlace y los datos de la transmisión son privados: solo los ven el pastor, el admin y los de púlpito** (los intérpretes solo ven que hay transmisión, también en Predicaciones). El preámbulo de la transmisión: para el pastor, sección con etiqueta dorada; para los intérpretes, cuadro dorado «Interpretas el saludo y el preámbulo» (antes del video) o «Interpretas los testimonios y la despedida» (después del video).
 - **Tarjeta según el puesto:** quien predica ve en el cuadro solo el título de su predicación; el intérprete de la introducción ve «Interpretas la introducción» (quién, tema, cita, testimonio); el de predicación o testimonios ve «Interpretas la predicación» (título, quién predica, fichas como enlace simple, sin ✓). El enlace del testimonio de la introducción lo ve SOLO quien interpreta la introducción. Los avisos de un culto que ya pasó no se muestran ni cuentan (`nLive`; la fecha sale de `date`, `go.d` o del texto, con `nDate`). En la agenda de PC los días pasados quedan grises y sin tarjeta.
-- **Predicaciones (`cronograma`) y Pastor:** «Predica: X» va justo debajo del título; en la lista del pastor solo se muestra quién predica (no la introducción). Leipzig en Pastor: solo las visitas que vienen, con el mismo formato que las enseñanzas.
+- **Predicaciones (`cronograma`) y Pastor:** los intérpretes (alemán e inglés; los de inglés también los jueves, aunque no tengan puesto) ven en cada enseñanza la ficha de su idioma y la **Introducción** (quién, tema, cita; sin el enlace del testimonio). «Predica: X» va justo debajo del título; en la lista del pastor solo se muestra quién predica (no la introducción). Leipzig en Pastor: solo las visitas que vienen, con el mismo formato que las enseñanzas.
 - **Enlaces externos (`xlink`):** texto que dice qué es («Ficha en alemán», «Ver el testimonio»), subrayado y con flecha ↗; nunca «LINK / Abrir». Si falta: punto rojo + «falta» + botón «Agregar enlace».
 - **Pestaña Pastor, enseñanzas:** una línea dorada (`.tsep`) separa la lista de «Agregar»; título + lápiz; debajo, en una línea, la fecha a la izquierda y las acciones (fijar, subir/bajar, quitar) pequeñas a la derecha.
 - **Mis días (`vDisp`):** la pestaña solo aparece mientras hay un pedido de disponibilidad abierto (`avPending`, del 15 al cierre); siempre se puede abrir desde el menú del perfil («Mis días para servir»). Los meses que ya tienen horario (publicado o borrador) quedan bloqueados, solo para mirar, con el aviso de usar «No puedo ir». 1) «Mis días de la semana» (interruptores fijos, `p.days`); 2) «Fechas en que no puedo»: un calendario por mes (`ui.dm`, flechas, días pasados bloqueados) que marca `p.blocked`; colores: blanco = puedo, naranja relleno y tachado = no puedo, gris tachado = día de la semana en «No puedo» (no se toca desde el calendario); leyenda debajo. Si el admin pidió la disponibilidad de ese mes (`avReqs`), arriba sale el pedido y abajo «Enviar mi disponibilidad» (`av-done`). En Labores, «Marcar mis días» lleva a esta pestaña (ya no hay calendario dentro de Labores ni lista con campo de fecha).
@@ -156,9 +157,8 @@ No hay tests automáticos. Se prueba con **Playwright (Python)** cargando `publi
 
 ## Pendientes
 
-- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 43 en Supabase, SHA-256 `52a998c6…06e165`, 15 nov 2026). Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
+- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 44 en Supabase, SHA-256 `2f59fe42…73ab38`, 15 nov 2026). Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
 - [x] (15 nov) Llamada de pg_cron con `timeout_milliseconds := 60000` (aplicado en Supabase y en `push.sql`): antes superaba los 5 s y no se veía la respuesta. Los resultados quedan en `net._http_response`.
-- [ ] Confirmar si los jueves se necesita la ficha en inglés (hoy la pestaña Pastor la pide siempre).
 - [ ] Pendiente de seguridad: cualquier miembro todavía puede escribir horarios y avisos en el estado compartido (se puede recuperar con `app_state_history`); separarlo en tablas lo resolvería del todo.
 
 - [ ] Borrar el proyecto viejo de Cloudflare `labores-berlin-idmji` (fin de noviembre).

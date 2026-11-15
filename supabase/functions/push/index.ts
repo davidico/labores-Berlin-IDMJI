@@ -423,7 +423,10 @@ async function calendar(pid: string, t: string) {
     const [h0, m0] = hm.split(':').map(Number), endDate = h0 * 60 + m0 + mins >= 1440 ? plusDays(date, 1) : date;
     L.push('BEGIN:VEVENT', `UID:${uid}@labores-berlin`, `DTSTAMP:${stamp}`, `DTSTART;TZID=Europe/Berlin:${lt(date, hm)}`, `DTEND;TZID=Europe/Berlin:${lt(endDate, plus(hm, mins))}`,
       `SUMMARY:${icsTxt(sum)}`, `LOCATION:${icsTxt('Pistoriusstraße 114, Berlin')}`);
-    if (desc) L.push(`DESCRIPTION:${icsTxt(desc)}`);
+    // Enlace que abre la app en ese día (en Android abre la app instalada; en iPhone, Safari)
+    const link = `https://labores-berlin.pages.dev/?go=mis&d=${date}`;
+    const d2 = `${desc.replace(/\n?Ver en la app: https:\/\/labores-berlin\.pages\.dev/, '')}\nAbrir en la app: ${link}`.trim();
+    L.push(`DESCRIPTION:${icsTxt(d2)}`, `URL:${link}`);
     L.push('END:VEVENT');
   };
   for (const ym of Object.keys(st.schedules || {}).sort()) {
