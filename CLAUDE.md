@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **11.3**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **11.4**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v119`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v120`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -112,6 +112,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 | Día 15 / 20 / 23, 10:00 | Pedir disponibilidad / recordar / cerrar (admin) | `?go=disp` / `?go=hor` |
 
 Los avisos que manda la app llevan `?n=<id del aviso>`. Tocar un aviso (en la app o en el celular) lleva a la acción (`goFor()` / `nGo()`).
+**Diagnóstico de avisos:** Ajustes › Notificaciones (`notifCard`) muestra el estado de ESE aparato (instalada / permiso / registrado) y «Enviarme un aviso de prueba» (`pushTest`, usa el modo `send` hacia uno mismo y dice a cuántos aparatos se envió). Si el permiso está dado pero el aparato no quedó registrado (`ui.subFail`), en Labores sale «Reactivar notificaciones».
 iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/actions rompían iOS). En iPhone se agrega aire arriba (`.ios .wrap`, clase puesta en `app.js`) porque el sistema difumina una franja bajo la barra de estado.
 
 ## Privacidad (DSGVO)
@@ -154,6 +155,7 @@ No hay tests automáticos. Se prueba con **Playwright (Python)** cargando `publi
 ## Pendientes
 
 - [x] `seguridad.sql` aplicado y función `push` desplegada (versión 39 en Supabase, SHA-256 `d03fa78e…b35956`) el 12 nov 2026. Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
+- [ ] (15 nov) Desde el despliegue de la función v39 TODAS las llamadas de pg_cron superan los 5 s de espera de pg_net (`timed_out`), aunque la función sigue corriendo (las claves de `push_log` se crean). No se ve cuántos avisos salen ni los errores. Hacer: subir el tiempo de espera y leer el estado una sola vez por ejecución.
 - [ ] Subir a 60 s el tiempo de espera de la llamada de pg_cron (`timeout_milliseconds := 60000` en `push.sql`): la de las 20:30 del 12 nov quedó sin respuesta por tardar más de 5 s.
 - [ ] Confirmar si los jueves se necesita la ficha en inglés (hoy la pestaña Pastor la pide siempre).
 - [ ] Pendiente de seguridad: cualquier miembro todavía puede escribir horarios y avisos en el estado compartido (se puede recuperar con `app_state_history`); separarlo en tablas lo resolvería del todo.

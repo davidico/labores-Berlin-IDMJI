@@ -552,7 +552,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '11.3';
+const APPV = '11.4';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -586,6 +586,7 @@ function vAj(p){const em=ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||
    <label class="field">Correo<input type="email" value="${esc(em)}" disabled></label>
    <div class="info" style="margin-top:-4px">El correo solo lo puede cambiar el administrador.</div>
    <div class="info" style="margin-top:10px">Labores: <b>${p.roles.map(r=>ROLES[r]).join(', ')||'ninguna todavía'}</b></div></div>
+  ${ui.viewAs?'':notifCard()}
   ${calCard(p)}
   <h3>Privacidad</h3><div class="card">
    <button class="linkbtn" data-a="priv-open">Leer el aviso de privacidad</button>
@@ -701,10 +702,27 @@ async function ensureSub(ask){if(!pushOk())return false;const me_=realMe();if(!m
   try{const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(CFG.vapid)});
     const j=sub.toJSON();const{error}=await SB.from('push_subs').upsert({endpoint:j.endpoint,person_id:me_.id,sub:j});if(error)throw error;
-    ui.subOk=true;ui.subMsg='';render();return true}catch(e){ui.subMsg='No se pudieron activar las notificaciones. Intenta de nuevo.';render();return false}}
+    ui.subOk=true;ui.subFail=false;ui.subMsg='';render();return true}catch(e){ui.subFail=true;ui.subErr=String(e&&(e.message||e.code)||e).slice(0,120);ui.subMsg='No se pudieron activar las notificaciones. Intenta de nuevo.';render();return false}}
+/* Ajustes › Notificaciones: estado de ESTE aparato y aviso de prueba */
+function notifCard(){let b;
+  if(!pushOk())b=isIOS()&&!isStandalone()?`<div class="info" style="margin:0">En iPhone los avisos solo funcionan con la app <b>instalada en la pantalla de inicio</b>: en Safari toca <b>Compartir</b> <i>(Teilen)</i> → <b>Agregar a pantalla de inicio</b> <i>(Zum Home-Bildschirm)</i> y ábrela desde ahí.</div>`:'<div class="info" style="margin:0">Este navegador no permite avisos.</div>';
+  else if(Notification.permission==='denied')b=`<div class="info" style="margin:0"><b>Están bloqueados para esta app.</b> ${isIOS()?'Abre <b>Ajustes</b> <i>(Einstellungen)</i> del iPhone → <b>Notificaciones</b> <i>(Mitteilungen)</i> → <b>Labores</b> → activa <b>Permitir notificaciones</b> <i>(Mitteilungen erlauben)</i>.':'En los ajustes del navegador o del celular, permite las notificaciones para Labores.'}</div>`;
+  else if(Notification.permission!=='granted')b=`<div class="info" style="margin:0 0 10px">Todavía no están activadas en este aparato.</div><button class="btn sm" data-a="push-on">Activar notificaciones</button>`;
+  else b=`<div class="rsvpok ${ui.subOk?'yes':'no'}" style="margin-top:0"><span>${ui.subOk?'✓ Activadas en este aparato':'Falta terminar de activarlas en este aparato'}</span>${ui.subOk?'':'<button class="linkbtn" data-a="push-on">Reactivar</button>'}</div>
+    <button class="btn ghost sm" data-a="push-test" style="margin-top:12px" ${ui.testBusy?'disabled':''}>${ui.testBusy?'Enviando…':'Enviarme un aviso de prueba'}</button>`;
+  return `<h3>Notificaciones</h3><div class="card">${b}${ui.testMsg?`<div class="info" style="margin-top:10px">${ui.testMsg}</div>`:''}${ui.subMsg?`<div class="info" style="margin-top:8px;color:var(--warn)">${esc(ui.subMsg)}${ui.subErr?' ('+esc(ui.subErr)+')':''}</div>`:''}</div>`}
+async function pushTest(){ui.testBusy=true;ui.testMsg='';render();
+  const ok=await ensureSub(true);const me_=realMe();
+  if(!ok||!me_){ui.testBusy=false;ui.testMsg='No se pudo registrar este aparato para recibir avisos.';render();return}
+  try{const r=await SB.functions.invoke('push',{body:{mode:'send',to:[me_.id],title:'Prueba de avisos',body:'Si ves esto, los avisos funcionan en este aparato.',url:'/?go=mis'}});
+    const n=r&&r.data?r.data.sent:null;
+    ui.testMsg=r.error||n===null?'No se pudo enviar la prueba. Revisa la conexión e intenta de nuevo.':n>0?`<b>Enviado a ${n} ${n===1?'aparato':'aparatos'} tuyos.</b> Debe llegarte en unos segundos. Si no llega: ${isIOS()?'revisa en <b>Ajustes</b> <i>(Einstellungen)</i> del iPhone → <b>Notificaciones</b> <i>(Mitteilungen)</i> → <b>Labores</b> que estén permitidas, y que no tengas activo un modo de <b>Concentración</b> <i>(Fokus)</i> o No molestar.':'revisa que el celular no esté en No molestar y que las notificaciones de la app estén permitidas.'}`:'El servidor no tiene ningún aparato tuyo registrado. Toca «Reactivar» e inténtalo de nuevo.'}
+  catch(e){ui.testMsg='No se pudo enviar la prueba. Revisa la conexión e intenta de nuevo.'}
+  ui.testBusy=false;render()}
 function pushCard(){if(!pushOk()||ui.subOk)return'';
   if(isIOS()&&!isStandalone())return'';
-  if(Notification.permission==='granted')return'';
+  if(Notification.permission==='granted'&&!ui.subFail)return'';
+  if(Notification.permission==='granted')return `<div class="card nag" style="display:block"><b>Los avisos no están llegando a este aparato</b><div class="sub2">Toca el botón para volver a activarlos.</div><button class="btn sm" data-a="push-on" style="margin-top:10px">Reactivar notificaciones</button></div>`;
   return `<div class="card" style="margin-bottom:14px"><b>Activa las notificaciones</b>
    <div class="info" style="margin-top:4px">Te avisamos cuando te pidan un reemplazo, cuando haya un mensaje de púlpito o una reunión, y la noche antes de cada labor.</div>
    ${ui.subMsg?`<div class="info" style="color:var(--warn);margin-top:6px">${esc(ui.subMsg)}</div>`:''}
@@ -1324,6 +1342,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'auth-mode':ui.authMode=v;ui.authMsg='';break;
   case'auth-newpass':{const pw=$('au-pass').value;SB.auth.updateUser({password:pw}).then(r=>{if(r.error){ui.authMsg=AUTHERR(r.error);ui.authOk=false}else{ui.authMode='login';ui.authMsg='';if(r.data&&r.data.user){SESSION={...SESSION,user:r.data.user};loadData()}}render()});return}
   case'push-on':ensureSub(true);return;
+  case'push-test':pushTest();return;
   case'install':if(INSTALL){INSTALL.prompt();INSTALL=null}return;
   case'install-x':ui.hideInstall=true;try{localStorage.setItem('lb-noinstall','1')}catch(e){}break;
   case'ic-go':{const[d,ed]=v.split('|');nGo({tab:'mis',d,ed});return}
