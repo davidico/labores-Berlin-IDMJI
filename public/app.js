@@ -373,7 +373,7 @@ function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clea
   $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''} ${dash?'dash':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
     ${hdr(p)}</div>${ui.viewAs?`<div class="viewas">Viendo como <b>${esc(p.name)}</b><button class="linkbtn" data-a="logout">Volver a mi cuenta</button></div>`:''}
     ${ui.upd?`<div class="banner ok" style="display:flex;align-items:center;justify-content:space-between;gap:10px">Hay una versión nueva (${esc(ui.upd)}).<button class="btn sm" data-a="upd">Actualizar</button></div>`:''}${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div><div class="pg">${body}</div></div>
-    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.filter(t=>!menuTabs(p).some(m=>m[0]===t[0])).map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length+introPend(p).length:0;return `<button data-a="tab" data-v="${esc(k)}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.flash?`<div class="toast" role="status">${esc(ui.flash)}</div>`:''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}${ui.calPop&&ui.tab==='cal'?calSheet(p):''}`;
+    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.filter(t=>!menuTabs(p).some(m=>m[0]===t[0])).map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length+introPend(p).length:0;return `<button data-a="tab" data-v="${esc(k)}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.flash?`<div class="toast" role="status">${esc(ui.flash)}</div>`:''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}${ui.calPop&&ui.tab==='cal'?calSheet(p):''}${ui.lzPop&&ui.tab==='lz'?lzSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
 // iPhone/iPad: el sistema difumina una franja bajo la barra de estado; se deja más aire arriba para que el título no quede dentro.
@@ -406,7 +406,7 @@ function myItems(p){
   for(const m of myMeets(p)){const rs=m.rsvp[p.id];if(rs==='no')continue;
     add(m.date).notes.push({l:'Reunión',meet:m,h:`<div class="tv">${esc(m.title)}</div><div class="sub2">${m.time?esc(m.time)+' · ':''}${esc(teamLbl(m))}</div>${m.place?`<div class="sub2 pre">${linkify(m.place)}</div>`:''}`+
       (rs==='yes'?`<div class="rsvpok yes" style="margin-top:8px"><span>✓ Asistes</span><button class="linkbtn" data-a="rsvp-ed" data-v="${esc(m.id)}">Cambiar</button></div>`:`<div class="sub2"><i>Todavía no respondes: mira arriba, en Reuniones.</i></div>`)})}
-  for(const l of state.leipzig)add(l.date).notes.push({l:'Visita a Leipzig',h:`<div class="tv">${esc(l.teaching||'Predicación por definir')}</div>${p.leipzig?'<div class="sub2">Viajas este día</div>':(l.going||[]).includes(p.id)?'<div class="sub2">Vas a ir</div>':''}${seesLzGoing(p)?`<div class="sub2">${lzGoingLine(l)}</div>`:''}${fichaRows('l',l,lzLangs(p))}${lzLangs(p).length&&l.date>=today?linkRep('l',l,l.date,lzLangs(p),null):''}`});
+  for(const l of state.leipzig){const it=add(l.date);if(p.leipzig)it.lz='trav';else if((l.going||[]).includes(p.id))it.lz='go';it.notes.push({l:'Visita a Leipzig',h:`<div class="tv">${esc(l.teaching||'Predicación por definir')}</div>${p.leipzig?'<div class="sub2">Viajas este día</div>':(l.going||[]).includes(p.id)?'<div class="sub2">Vas a ir</div>':''}${seesLzGoing(p)?`<div class="sub2">${lzGoingLine(l)}</div>`:''}${fichaRows('l',l,lzLangs(p))}${lzLangs(p).length&&l.date>=today?linkRep('l',l,l.date,lzLangs(p),null):''}`})}
   return items;
 }
 /* ---- Tarjeta de un día (diseño «primero lo que te toca hacer»):
@@ -564,7 +564,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '12.7';
+const APPV = '12.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -829,7 +829,9 @@ function lzAdmin(){return `<h3>Administrar visitas</h3><div class="card">
    <div class="inline" style="margin-top:10px"><input id="lz-date" type="date" value="${esc(ui.lzD||'')}"><input id="lz-t" type="text" placeholder="Predicación (opcional, se puede poner después)" value="${esc(ui.lzT||'')}"><button class="btn sm" data-a="lz-add">Agregar visita</button></div><div class="info" style="margin-top:4px">Solo hace falta la fecha (un sábado). La predicación y las fichas se agregan cuando se sepan.</div>${ui.lzErr?`<div class="info" style="color:var(--warn);margin-top:6px">${esc(ui.lzErr)}</div>`:''}
    <div class="info" style="margin-top:6px">Viajan: ${esc(yList(state.people.filter(x=>x.leipzig&&!x.deleted).map(x=>x.name))||'nadie marcado').replace(/\.$/,'')}. Ese día no se les asigna nada en Berlín. Las visitas se ven aquí para todos.</div></div>`}
 function vLz(p){const ls=lzNext();
-  let h=`<h2>Visitas a Leipzig</h2><p class="lead">Las próximas visitas. Si vas a ir, avísalo aquí.</p>`;
+  const tog=`<div class="filters" role="group" aria-label="Vista" style="padding:4px 0 10px"><button class="f" data-a="lzv" data-v="list" aria-pressed="${ui.lzv!=='cal'}">Visitas</button><button class="f" data-a="lzv" data-v="cal" aria-pressed="${ui.lzv==='cal'}">Calendario</button></div>`;
+  if(ui.lzv==='cal')return `<h2>Visitas a Leipzig</h2>${tog}`+lzCal(p);
+  let h=`<h2>Visitas a Leipzig</h2>${tog}<p class="lead">Las próximas visitas. Si vas a ir, avísalo aquí.</p>`;
   const adm=(p.admin||p.pastor)&&!ui.viewAs;
   if(adm)return h.replace('Si vas a ir, avísalo aquí.','Agrega una visita con solo la fecha; la predicación y las fichas se ponen cuando se sepan.')+lzAdmin();
   if(!ls.length)return h+'<div class="card empty-state">No hay visitas programadas.</div>';
@@ -839,6 +841,32 @@ function vLz(p){const ls=lzNext();
       ${langs.length?`<div class="kv"><span>Fichas</span>${fichaRows('l',l,langs).replace('class="fichs"','class="fichs" style="margin-top:0"')}</div>${linkRep('l',l,l.date,langs,null)}`:''}
       <div class="kv lzvan"><span>Van</span>${lzGoing(l).length?lzGoing(l).map(x=>esc(x.name)).join(', '):'<i>Todavía nadie dijo que va</i>'}</div>
       <div style="margin-top:10px">${trav?'<div class="rsvpok yes" style="margin-top:0"><span>Tú viajas este día.</span></div>':go?`<div class="rsvpok yes" style="margin-top:0"><span>✓ Vas a ir</span><button class="linkbtn" data-a="lz-go" data-v="${esc(l.id)}|0">Ya no puedo</button></div>`:`<button class="btn ghost sm" data-a="lz-go" data-v="${esc(l.id)}|1">Yo iré</button>`}</div></div>`}).join('')+'</div>'}
+/* Calendario de Leipzig: el año (12 meses con cuántas visitas hay) y el mes elegido día por día; tocar un día abre la visita. */
+function lzCal(p){const y=ui.lzy||+today.slice(0,4),vs=(state.leipzig||[]).filter(l=>l.date&&l.date.startsWith(y+'-')).sort((a,b)=>a.date<b.date?-1:1);
+  if(!ui.lzm||!ui.lzm.startsWith(y+'-'))ui.lzm=y===+today.slice(0,4)?today.slice(0,7):`${y}-01`;
+  const ym=ui.lzm,dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,byD={};for(const l of vs)byD[l.date]=l;
+  const mine=l=>!!p.leipzig||(l.going||[]).includes(p.id);
+  let h=`<div class="mnav" style="margin:2px 0 10px"><button class="ib" data-a="lzy" data-v="-1" aria-label="Año anterior">‹</button><b>${y}</b><button class="ib" data-a="lzy" data-v="1" aria-label="Año siguiente">›</button></div>
+   <div class="lzmos">${MESS.map((m,i)=>{const k=`${y}-${String(i+1).padStart(2,'0')}`,n=vs.filter(l=>l.date.startsWith(k)).length;
+     return `<button class="lzmo${k<today.slice(0,7)?' past':''}" data-a="lzm" data-v="${k}" aria-pressed="${k===ym}"><span>${m}</span>${n?`<i>${n}</i>`:'<i class="z">–</i>'}</button>`}).join('')}</div>
+   <h3 style="margin:16px 0 8px;text-transform:capitalize">${MES[+ym.slice(5)-1]} ${y}</h3>
+   <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
+  for(const d of dates){const l=byD[d];
+    h+=`<button class="cd ${l?'lzd':'free'} ${d===today?'today':''} ${d<today?'past':''}" data-a="lzday" data-v="${d}"><b>${pd(d).getDate()}</b>${l&&mine(l)?'<span class="lab" style="--c:var(--ok)">Vas</span>':''}</button>`}
+  h+=`</div><div class="lzleg"><span><i class="sw lz"></i>Visita a Leipzig</span><span><i class="sw ok"></i>Vas a ir</span></div>`;
+  h+=`<h3 style="margin:20px 0 8px">Todas las visitas de ${y}</h3>`+(vs.length?'<div class="card llist2">'+vs.map(l=>{const x=pd(l.date);
+    return `<button class="lr lzr${l.date<today?' past':''}" data-a="lzday" data-v="${l.date}"><span class="ld"><b>${x.getDate()}</b><small>${MESS[x.getMonth()]}</small></span><span class="lw"><b>${esc(l.teaching||'Predicación por definir')}</b><span>${mine(l)?(p.leipzig?'Viajas · ':'✓ Vas · '):''}${lzGoing(l).length} ${lzGoing(l).length===1?'va':'van'}</span></span>${ARROW}</button>`}).join('')+'</div>':'<div class="card info">No hay visitas este año.</div>');
+  return h}
+function lzSheet(p){const d=ui.lzPop,l=(state.leipzig||[]).find(x=>x.date===d),past=d<today||svcGone(d),adm=(p.admin||p.pastor)&&!ui.viewAs;
+  let b;
+  if(l){const go=(l.going||[]).includes(p.id),langs=lzLangs(p);
+    b=`<div class="kv" style="margin-top:4px"><span>Predicación</span>${l.teaching?`<b>${esc(l.teaching)}</b>`:'<i>Por definir</i>'}</div>
+     ${langs.length&&!past?`<div class="kv"><span>Fichas</span>${fichaRows('l',l,langs).replace('class="fichs"','class="fichs" style="margin-top:0"')}</div>`:''}
+     <div class="kv lzvan"><span>${past?'Fueron':'Van'}</span>${lzGoing(l).length?lzGoing(l).map(x=>esc(x.name)).join(', '):'<i>Nadie dijo que va</i>'}</div>
+     ${past?'':`<div style="margin-top:12px">${p.leipzig?'<div class="rsvpok yes" style="margin-top:0"><span>Tú viajas este día.</span></div>':go?`<div class="rsvpok yes" style="margin-top:0"><span>✓ Vas a ir</span><button class="linkbtn" data-a="lz-go" data-v="${esc(l.id)}|0">Ya no puedo</button></div>`:`<button class="btn ghost sm" data-a="lz-go" data-v="${esc(l.id)}|1">Yo iré</button>`}</div>`}`}
+  else b=`<div class="info" style="margin:8px 0 4px;font-size:16px">No hay visita a Leipzig este día.</div>${adm&&!past&&pd(d).getDay()===6?`<button class="btn sm" data-a="lz-addd" data-v="${d}" style="margin-top:12px">Agregar visita este sábado</button>`:''}`;
+  return `<div class="scrim" data-a="lz-x"></div><div class="sheet calsheet" role="dialog" aria-label="${fmt(d)}"><div class="dayhead"><div><b style="font-size:18px">${l?'Visita a Leipzig · ':''}${DOWL(d)}</b></div><button class="x" data-a="lz-x" aria-label="Cerrar">✕</button></div>
+   <div class="calsheet-b">${b}</div></div>`}
 function lzInvite(p){const l=state.leipzig.filter(x=>x.date>=today&&!svcGone(x.date)).sort((a,b)=>a.date<b.date?-1:1)[0];if(!l)return'';
   const from=pd(l.date);from.setDate(from.getDate()-3);if(today<ds(from))return'';
   const go=(l.going||[]).includes(p.id),trav=!!p.leipzig;
@@ -958,12 +986,12 @@ function misCal(p){
     let l=`<div class="calhead">${monthNav()}${tog}</div>`;
     if(!ds_.length)return l+`<div class="card info">${dates.some(d=>items[d])?'Ya pasaron todas tus labores de este mes.':'No tienes labores este mes.'}</div>`;
     l+='<div class="card llist2">'+ds_.map(d=>{const it=items[d],w=pd(d).getDay(),[sn,st]=SVC[w];
-      const mt=it.notes.find(n=>n&&n.meet);const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.trPul?'Púlpito · transmisión':it.preach?'Predicación':it.attend?'Alabanza (vas tú)':it.info?'Ficha e introducción (inglés)':mt?mt.meet.title:it.notes.map(n=>n.l||'Aviso').join(', ');
-      return `<div class="lr${svcGone(d)?' past':''}${d===today?' today':''}"><span class="ld"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span><span class="lh">${it.slots.length||it.attend||it.info?st:mt?esc(mt.meet.time||''):''}</span><span class="lw"><b>${it.slots.length||it.attend||it.info?sn:mt?'Reunión':'Aviso'}</b><span>${esc(what)}${mt&&(it.slots.length||it.attend)?' · Reunión '+esc(mt.meet.time||''):''}</span></span></div>`}).join('')+'</div>';
+      const mt=it.notes.find(n=>n&&n.meet);const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.trPul?'Púlpito · transmisión':it.preach?'Predicación':it.attend?'Alabanza (vas tú)':it.info?'Ficha e introducción (inglés)':it.lz?(it.lz==='trav'?'Viajas a Leipzig':'Vas a Leipzig'):mt?mt.meet.title:it.notes.map(n=>n.l||'Aviso').join(', ');
+      return `<div class="lr${svcGone(d)?' past':''}${d===today?' today':''}"><span class="ld"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span><span class="lh">${it.slots.length||it.attend||it.info?st:mt?esc(mt.meet.time||''):''}</span><span class="lw"><b>${it.slots.length||it.attend||it.info?sn:it.lz?'Visita a Leipzig':mt?'Reunión':'Aviso'}</b><span>${esc(what)}${it.lz&&(it.slots.length||it.attend||it.info)?' · '+(it.lz==='trav'?'Viajas a Leipzig':'Vas a Leipzig'):''}${mt&&(it.slots.length||it.attend)?' · Reunión '+esc(mt.meet.time||''):''}</span></span></div>`}).join('')+'</div>';
     return l}
   let h=`<div class="calhead">${monthNav()}${tog}</div><div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
   for(const d of dates){const it=items[d];const areas=it?[...new Set(it.slots.map(s=>s.area))]:[];
-    h+=`<button class="cd ${areas.length?'':'free'} ${d===today?'today':''}" data-a="selday" data-v="${esc(d)}" aria-pressed="${ui.calPop===d}"><b>${pd(d).getDate()}${it&&it.notes.length?'<i class="nt"></i>':''}</b>${areas.slice(0,2).map(a=>`<span class="lab" style="--c:var(${AREAC[a]})">${SHORT[a]}</span>`).join('')+(it&&it.attend?`<span class="lab" style="--c:var(--gold)">${it.trPul?'Transm.':it.preach?'Predica':'Alabanza'}</span>`:'')}${areas.length>2?`<span class="more">+${areas.length-2}</span>`:''}</button>`}
+    h+=`<button class="cd ${areas.length?'':'free'} ${d===today?'today':''}" data-a="selday" data-v="${esc(d)}" aria-pressed="${ui.calPop===d}"><b>${pd(d).getDate()}${it&&it.notes.length?'<i class="nt"></i>':''}</b>${areas.slice(0,2).map(a=>`<span class="lab" style="--c:var(${AREAC[a]})">${SHORT[a]}</span>`).join('')+(it&&it.attend?`<span class="lab" style="--c:var(--gold)">${it.trPul?'Transm.':it.preach?'Predica':'Alabanza'}</span>`:'')+(it&&it.lz?'<span class="lab" style="--c:var(--gold)">Viaje</span>':'')}${areas.length>2?`<span class="more">+${areas.length-2}</span>`:''}</button>`}
   h+='</div>';
   const n=dates.filter(d=>items[d]&&items[d].slots.length).length;
   h+=`<div class="info" style="margin:10px 0">${n?`${n} ${n===1?'día':'días'} con labor este mes. Toca un día para ver qué te toca.`:'No tienes labores este mes.'}</div>`;
@@ -1367,7 +1395,7 @@ function vPer(){
 
 /* ---------- acciones ---------- */
 // «Ver como» otra persona: solo para mirar. Estas acciones no cambian nada guardado.
-const VIEWOK=new Set(['cal-x','org-tog','hw','hd','gap-go','hcell','msg-old','rsvp-ed','cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
+const VIEWOK=new Set(['cal-x','lzv','lzy','lzm','lzday','lz-x','org-tog','hw','hd','gap-go','hcell','msg-old','rsvp-ed','cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
 const viewOnly=()=>{ui.flash=`Estás viendo la app como ${(me()||{}).name||'otra persona'}: solo para mirar. Toca «Volver a mi cuenta» para hacer cambios.`;ui.panel=null;render()};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
   if(ui.viewAs&&!VIEWOK.has(a)){viewOnly();return}
@@ -1384,7 +1412,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'install-x':ui.hideInstall=true;try{localStorage.setItem('lb-noinstall','1')}catch(e){}break;
   case'ic-go':{const[d,ed]=v.split('|');nGo({tab:'mis',d,ed});return}
   case'it-none':{state.intro=state.intro||{};const x=state.intro[v]=state.intro[v]||{};x.noLink=true;ui.flash='Listo: ya no se te recuerda el testimonio.';break}
-  case'tab':ui.calPop=null;if(v==='aj'&&ui.tab!=='aj')ui.prevTab=ui.tab;ui.menu=false;ui.bell=false;ui.tab=v;ui.edit=null;scrollTo(0,0);break;
+  case'tab':ui.calPop=null;ui.lzPop=null;if(v==='aj'&&ui.tab!=='aj')ui.prevTab=ui.tab;ui.menu=false;ui.bell=false;ui.tab=v;ui.edit=null;scrollTo(0,0);break;
   case'month':{ui.hw=null;ui.hd=null;const[y,m]=ui.month.split('-').map(Number);const d=new Date(y,m-1+(+v),1);ui.month=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;ui.regen=false;break}
   case'area':ui.area=v;break;
   case'view':ui.view=v;ui.edit=null;break;
@@ -1541,6 +1569,13 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'tr-edit':ui.trEdit=v;break;
   case'tr-done':ui.trEdit=null;break;
   case'tr-del':{const t=state.trans.find(x=>x.id===v);state.trans=state.trans.filter(x=>x.id!==v);if(t&&!svcGone(t.date))transFix(t.date);break}
+  case'lzv':ui.lzv=v;ui.lzPop=null;break;
+  case'lzy':ui.lzy=(ui.lzy||+today.slice(0,4))+(+v);ui.lzm=null;break;
+  case'lzm':ui.lzm=v;break;
+  case'lzday':ui.lzPop=v;break;
+  case'lz-x':ui.lzPop=null;break;
+  case'lz-addd':{const d=v;if(pd(d).getDay()!==6||d<today||state.leipzig.some(l=>l.date===d))break;state.leipzig.push({id:uid(),date:d,teaching:''});
+    const th=ds(new Date(pd(d).getTime()-2*864e5)),bf=snapDays([th,d]);fixDate(th);fixDate(d);const n=schedDiffNotify(bf);ui.flash=n?`Visita agregada. Se avisó a ${n} ${n===1?'persona':'personas'} de cambios en su labor.`:'Visita agregada.';break}
   case'lz-add':{const d=$('lz-date').value,tt=$('lz-t').value.trim();const err=!d?'Elige la fecha.':pd(d).getDay()!==6?'Las visitas a Leipzig son los sábados. Elige un sábado.':d<today?'Esa fecha ya pasó.':state.leipzig.some(l=>l.date===d)?'Ya hay una visita ese día.':'';if(err){ui.lzErr=err;ui.lzD=d;ui.lzT=tt;break}ui.lzErr='';ui.lzD='';ui.lzT='';state.leipzig.push({id:uid(),date:d,teaching:tt});
     const th=ds(new Date(pd(d).getTime()-2*864e5)),bf=snapDays([th,d]);fixDate(th);fixDate(d);const n=schedDiffNotify(bf);if(n)ui.flash=`Visita agregada. Se avisó a ${n} ${n===1?'persona':'personas'} de cambios en su labor.`;break}
   case'lz-del':{const l=state.leipzig.find(t=>t.id===v);state.leipzig=state.leipzig.filter(t=>t.id!==v);

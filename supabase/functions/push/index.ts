@@ -448,6 +448,17 @@ async function calendar(pid: string, t: string) {
       }
     }
   }
+  // Visitas a Leipzig: en el calendario de quien dijo «Yo iré» o viaja siempre (y todas en el calendario completo).
+  // deno-lint-ignore no-explicit-any
+  for (const l of (st.leipzig || []) as any[]) {
+    if (!isDate(l.date) || l.date.slice(0, 7) < from) continue;
+    if (!all && !me.leipzig && !(l.going || []).includes(pid)) continue;
+    const lu = `lz-${uidSafe(l.id) || l.date}-${uidSafe(pid) || 'todos'}`;
+    const link = `https://labores-berlin.pages.dev/?go=lz`;
+    const desc = `Predicación: ${l.teaching || 'por definir'}\nAbrir en la app: ${link}`;
+    L.push('BEGIN:VEVENT', `UID:${lu}@labores-berlin`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${l.date.replace(/-/g, '')}`, `DTEND;VALUE=DATE:${plusDays(l.date, 1).replace(/-/g, '')}`,
+      `SUMMARY:${icsTxt('Visita a Leipzig')}`, `LOCATION:${icsTxt('Leipzig')}`, `DESCRIPTION:${icsTxt(desc)}`, `URL:${link}`, 'END:VEVENT');
+  }
   // deno-lint-ignore no-explicit-any
   for (const m of (st.meets || []) as any[]) {
     if (!isDate(m.date) || m.date.slice(0, 7) < from) continue;

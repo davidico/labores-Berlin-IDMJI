@@ -631,6 +631,27 @@ button.hr{cursor:pointer}.hr:first-child{border-top:none}
 .lzvan{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
 /* etiquetas de la barra de abajo: hasta 2 líneas cortas */
 .tabs button{text-align:center;line-height:1.15;hyphens:manual;overflow-wrap:normal}
+/* Leipzig · calendario del año */
+.lzmos{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.lzmo{font:inherit;min-height:48px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 0}
+.lzmo span{font-size:14px;font-weight:700;text-transform:capitalize}
+.lzmo i{font-style:normal;font-size:12px;font-weight:700;min-width:18px;height:18px;line-height:18px;border-radius:9px;background:var(--gold);color:#1a1a1a;text-align:center;padding:0 4px}
+.lzmo i.z{background:none;color:var(--muted)}
+.lzmo.past{opacity:.55}
+.lzmo[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:var(--on-navy)}
+.lzmo[aria-pressed="true"] i.z{color:var(--on-navy)}
+.cd.past{opacity:.5}
+.lzr{font:inherit;width:100%;background:none;border:none;border-top:1px solid var(--line);color:var(--ink);text-align:left;cursor:pointer;min-height:56px}
+.llist2 .lzr:first-child{border-top:none}
+.lzr.past{opacity:.55}
+.lzr .arw{width:18px;height:18px;flex:none;stroke:var(--muted);fill:none;stroke-width:2}
+@media(min-width:1024px){.lzmos{grid-template-columns:repeat(12,minmax(0,1fr))}}
+.cd.lzd{border:2px solid var(--gold);background:color-mix(in srgb,var(--gold) 14%,var(--surface))}
+.lzleg{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0 0;font-size:14px;color:var(--muted)}
+.lzleg span{display:inline-flex;align-items:center;gap:6px}
+.lzleg .sw{width:14px;height:14px;border-radius:4px;display:inline-block}
+.lzleg .sw.lz{border:2px solid var(--gold);background:color-mix(in srgb,var(--gold) 14%,var(--surface))}
+.lzleg .sw.ok{background:color-mix(in srgb,var(--ok) 25%,transparent)}
 </style>
 <script src="go.js"></script>
 </head>
