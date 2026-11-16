@@ -322,6 +322,8 @@ function tabsFor(p){const t=[['mis','Labores'],['cal','Mi calendario']];if(p.rol
   if(canSeeAll(p))t.push(['hor','Horario']);
   if(p.admin||p.pastor||p.roles.includes('pulpito')||p.roles.some(r=>r.startsWith('trad')))t.push(['ens','Predica\u00ADciones']);
   if(p.admin)t.push(['per','Personas']);return t}
+/* Pestañas que van en el menú ⋯ en vez de la barra: el admin no necesita Predicaciones, Mis días ni Leipzig a la vista; púlpito (no admin), Horario. */
+function menuTabs(p){const k=p.admin?['ens','disp','lz']:(p.roles||[]).includes('pulpito')?['hor']:[];return tabsFor(p).filter(t=>k.includes(t[0]))}
 
 function authView(){const m=ui.authMode||'login';const msg=ui.authMsg?`<div class="banner ${ui.authOk?'ok':'warnbn'}">${esc(ui.authMsg)}</div>`:'';
   const head=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div>`;
@@ -371,7 +373,7 @@ function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clea
   $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''} ${dash?'dash':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
     ${hdr(p)}</div>${ui.viewAs?`<div class="viewas">Viendo como <b>${esc(p.name)}</b><button class="linkbtn" data-a="logout">Volver a mi cuenta</button></div>`:''}
     ${ui.upd?`<div class="banner ok" style="display:flex;align-items:center;justify-content:space-between;gap:10px">Hay una versión nueva (${esc(ui.upd)}).<button class="btn sm" data-a="upd">Actualizar</button></div>`:''}${ui.toast?`<div class="banner warnbn">${esc(ui.toast)}</div>`:''}<div class="banner ${SYNC==='ok'?'':'warnbn'}" ${SYNC==='ok'?'hidden':''}>${{ok:'',loading:'Conectando…',slow:'La conexión está lenta. Lo que ves puede no estar al día.',local:'Sin conexión: los cambios quedan solo en este aparato.',error:'No se pudo guardar. Revisa la conexión a internet.'}[SYNC]}</div><div class="pg">${body}</div></div>
-    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length+introPend(p).length:0;return `<button data-a="tab" data-v="${esc(k)}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.flash?`<div class="toast" role="status">${esc(ui.flash)}</div>`:''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}${ui.calPop&&ui.tab==='cal'?calSheet(p):''}`;
+    <nav class="tabs" ${gate?'hidden':''}><div class="sbrand"><img src="icon-192.png" alt="" width="40" height="40"><div>Labores Berlín<small>Pistoriusstraße 114</small></div></div>${tabs.filter(t=>!menuTabs(p).some(m=>m[0]===t[0])).map(([k,l])=>{const b=k==='mis'?pendingFor(p).length+myMeets(p).filter(m=>!m.rsvp[p.id]).length+introPend(p).length:0;return `<button data-a="tab" data-v="${esc(k)}" ${ui.tab===k?'aria-current="page"':''}>${ICON[k]}${l}${b?`<span class="bdg">${b}</span>`:''}</button>`}).join('')}<button class="sonly" data-a="tab" data-v="aj" ${ui.tab==='aj'?'aria-current="page"':''}>${ICON.aj}Ajustes</button><div class="sfoot"><i></i>Versión ${APPV}</div></nav>${ui.priv?privSheet():''}${ui.flash?`<div class="toast" role="status">${esc(ui.flash)}</div>`:''}${ui.menu?menuSheet(p):''}${ui.edit&&ui.tab==='hor'&&p.admin?pickSheet():''}${ui.mrow&&ui.tab==='hor'?mrowSheet(p):''}${ui.hmenu&&ui.tab==='hor'&&p.admin?hmenuSheet():''}${ui.bell?bellSheet(p):''}${ui.calPop&&ui.tab==='cal'?calSheet(p):''}`;
 }
 const $=id=>document.getElementById(id);
 // iPhone/iPad: el sistema difumina una franja bajo la barra de estado; se deja más aire arriba para que el título no quede dentro.
@@ -562,7 +564,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '12.5';
+const APPV = '12.6';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -579,6 +581,7 @@ function hdr(p){const un=unreadFor(p);
     <button class="hb menu" data-a="menu" aria-label="Menú">${avatar(p,30)}<svg class="dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></div>`}
 function menuSheet(p){return `<div class="scrim" data-a="sheet-x"></div><div class="pop menu-pop" role="menu">
   <div class="pophead">${avatar(p,40)}<div><b>${esc(p.name)}</b><small>${esc(ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||'')}</small></div></div>
+  ${menuTabs(p).filter(t=>t[0]!=='disp').map(([k])=>`<button role="menuitem" data-a="tab" data-v="${k}">${{ens:'Predicaciones',lz:'Leipzig',hor:'Horario'}[k]}</button>`).join('')}
   ${p.roles&&p.roles.length?`<button role="menuitem" data-a="tab" data-v="disp">Mis días para servir</button>`:''}
   <button role="menuitem" data-a="tab" data-v="aj">Ajustes</button>
   <button role="menuitem" data-a="priv-open">Aviso de privacidad</button>
