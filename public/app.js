@@ -318,9 +318,9 @@ ICON.lz='<svg viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 
 ICON.aj='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>';
 const CALI=ICON.cal;
 const canSeeAll=p=>p.admin||p.pastor||p.roles.includes('pulpito');
-function tabsFor(p){const t=[['mis','Labores'],['cal','Calendario']];if(p.roles&&p.roles.length&&avPending(p).length)t.push(['disp','Mis días']);if(lzNext().length||p.admin||p.pastor)t.push(['lz','Leipzig']);
+function tabsFor(p){const t=[['mis','Labores'],['cal','Mi calendario']];if(p.roles&&p.roles.length&&avPending(p).length)t.push(['disp','Mis días']);if(lzNext().length||p.admin||p.pastor)t.push(['lz','Leipzig']);
   if(canSeeAll(p))t.push(['hor','Horario']);
-  if(p.admin||p.pastor||p.roles.includes('pulpito')||p.roles.some(r=>r.startsWith('trad')))t.push(['ens',p.admin||p.pastor?'Pastor':'Predicaciones']);
+  if(p.admin||p.pastor||p.roles.includes('pulpito')||p.roles.some(r=>r.startsWith('trad')))t.push(['ens','Predica\u00ADciones']);
   if(p.admin)t.push(['per','Personas']);return t}
 
 function authView(){const m=ui.authMode||'login';const msg=ui.authMsg?`<div class="banner ${ui.authOk?'ok':'warnbn'}">${esc(ui.authMsg)}</div>`:'';
@@ -550,7 +550,7 @@ function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n
 function goFor(n,p){if(n.go)return n.go;const t=(n.text||'').toLowerCase();
   if(/introducci/.test(t)&&/cita/.test(t)){const it=myItems(p);const d=Object.keys(it).sort().find(x=>x>=today&&!svcGone(x)&&[4,0].includes(pd(x).getDay())&&it[x].slots.some(s=>s.k==='pul')&&!introOf(x).cita);return {tab:'mis',d,ed:d?'ic':null,label:'Poner la cita'}}
   if(/corrigi[oó] la ficha/.test(t))return {tab:'mis',d:n.date,label:'Ver la ficha'};
-  if(/ficha/.test(t)&&/pesta[nñ]a pastor/.test(t))return {tab:'ens',label:'Ir a Pastor'};
+  if(/ficha/.test(t)&&/pesta[nñ]a (pastor|predicaciones)/.test(t))return {tab:'ens',label:'Ir a Predicaciones'};
   if(/transmisi[oó]n/.test(t)&&/¿hay/.test(t))return {tab:'mis',label:'Responder'};
   if(/leipzig/.test(t)&&/(invitaci|yo ir)/.test(t))return {tab:'lz',label:'Responder'};
   if(/disponibilidad/.test(t))return /cerrada/.test(t)&&p.admin?{tab:'hor',label:'Ver horario'}:{tab:'disp',label:'Marcar mis días'};
@@ -562,7 +562,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '12.4';
+const APPV = '12.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -850,7 +850,7 @@ const nextSun=()=>{const x=pd(today);x.setDate(x.getDate()+((7-x.getDay())%7));r
 // Al cambiar si hay transmisión: se quitan o reponen los puestos de ese domingo y se avisa a quien entra o sale
 function transFix(d){if(!schedOf(d))return 0;const bf=snapDays([d]);fixDate(d);return schedDiffNotify(bf,transOn(d)?'ese domingo hay transmisión':'ese domingo ya no hay transmisión')}
 function trAnswer(d,a){if(!d||svcGone(d)){ui.trQ=null;ui.flash='Ese domingo ya pasó: no se cambió nada.';return}state.transNo=(state.transNo||[]).filter(x=>x!==d);
-  if(a==='si'){if(!state.trans.some(t=>t.date===d))state.trans.push({id:uid(),date:d,link:'',note:''});transFix(d);ui.flash=`Anotado: hay transmisión el ${fmt(d)}. Cuando tengas el enlace, agrégalo en la pestaña Pastor.`}
+  if(a==='si'){if(!state.trans.some(t=>t.date===d))state.trans.push({id:uid(),date:d,link:'',note:''});transFix(d);ui.flash=`Anotado: hay transmisión el ${fmt(d)}. Cuando tengas el enlace, agrégalo en la pestaña Predicaciones.`}
   else{state.trans=state.trans.filter(t=>t.date!==d);state.transNo.push(d);transFix(d);ui.flash=`Anotado: no hay transmisión el ${fmt(d)}.`}
   ui.trQ=null}
 function trAsk(p){if(!(p.pastor||p.admin))return'';const w=pd(today).getDay();const d=ui.trQ||((w===5||w===6)?nextSun():null);if(!d||d<today)return'';
@@ -898,7 +898,7 @@ function dkTeach(p){const n=dkNextTeach();if(!n)return'';const as=schedOf(n.d)||
 function dkNotifs(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)&&nLive(n)).slice(0,4);
   return `<section class="card dkcard"><div class="dkhead"><h4>Avisos</h4><button class="linkbtn" data-a="bell">Ver todos</button></div>
     ${ns.length?`<div class="dknot">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}</div>${ns.some(n=>!n.read.includes(p.id))?'<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>':''}`:'<div class="info">Sin avisos.</div>'}</section>`}
-function dkQuick(p){const L={lz:'Visitas a Leipzig',cal:'Ver calendario',disp:'Mis días para servir',hor:'Horario del mes',ens:p.admin||p.pastor?'Enseñanzas (pastor)':'Predicaciones',per:'Personas'};
+function dkQuick(p){const L={lz:'Visitas a Leipzig',cal:'Ver calendario',disp:'Mis días para servir',hor:'Horario del mes',ens:'Predicaciones',per:'Personas'};
   const it=tabsFor(p).filter(t=>t[0]!=='mis').map(([k])=>`<button class="dkq" data-a="tab" data-v="${esc(k)}">${ICON[k]}<span>${L[k]}</span>${ARROW}</button>`).join('');
   return `<section class="card dkcard"><h4>Accesos rápidos</h4><div class="dkql">${it}<button class="dkq" data-a="tab" data-v="aj">${ICON.aj}<span>Ajustes y mi calendario</span>${ARROW}</button></div></section>`}
 function vDash(p){const items=myItems(p);for(const d in items)if(svcGone(d))delete items[d];
@@ -942,7 +942,7 @@ function msgBlock(p){const ms=state.msgs.filter(m=>m.month===ui.month),mo=+ui.mo
 function vCal(p){
   const tabs=[['cal','Mi mes']];if(myAreas(p).length)tabs.push(['equipo','Mi equipo']);
   if(!tabs.some(t=>t[0]===ui.mv))ui.mv='cal';
-  const h=`<h2>Calendario</h2>${calBanner(p)}${tabs.length>1?`<div class="filters" style="padding:4px 0 6px">${tabs.map(([k,l])=>`<button class="f" data-a="mv" data-v="${esc(k)}" aria-pressed="${ui.mv===k}">${l}</button>`).join('')}</div>`:''}`;
+  const h=`<h2>Mi calendario</h2>${calBanner(p)}${tabs.length>1?`<div class="filters" style="padding:4px 0 6px">${tabs.map(([k,l])=>`<button class="f" data-a="mv" data-v="${esc(k)}" aria-pressed="${ui.mv===k}">${l}</button>`).join('')}</div>`:''}`;
   return h+(ui.mv==='equipo'?misTeam:misCal)(p);
 }
 function misCal(p){
@@ -1305,7 +1305,7 @@ function vEns(p){
     for(const l of state.leipzig)if(l.date>=today&&l.date<=sun){const miss=[!l.teaching&&'el título',!l.linkDe&&'el enlace en alemán',!l.linkEn&&'el enlace en inglés'].filter(Boolean);if(miss.length)out.push(`Leipzig ${fmt(l.date)}: falta ${miss.join(', ')}`)}
     if(w>=5||w===0){if(!transOn(sun)&&w!==0)out.push(`¿Hay transmisión internacional el ${fmt(sun)}? Si la hay, agrégala abajo.`)}
     return out})();
-  return `<h2>Pastor · enseñanzas y viajes</h2>${repsCard(me())}${dupSummary()}${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas, menos las fijas (con el alfiler azul). La del día que predica David queda fija sola.</p>
+  return `<h2>Predicaciones</h2>${repsCard(me())}${dupSummary()}${pend.length?`<div class="card ask" style="margin:6px 0 12px"><b>Pendiente esta semana</b><ul class="steps" style="margin:6px 0 0">${pend.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="info" style="margin-top:6px">Los enlaces de las fichas deben estar a más tardar el miércoles.</div></div>`:''}<p class="lead">Las enseñanzas se reparten en orden entre jueves y domingos. Si un domingo hay transmisión internacional, las fechas se corren solas, menos las fijas (con el alfiler azul). La del día que predica David queda fija sola.</p>
   <h3>Enseñanzas en orden</h3>${ui.uplMsg?`<div class="banner warnbn">${esc(ui.uplMsg)}</div>`:''}<div class="card">
    <label class="field">Empiezan desde<input id="t-start" type="date" value="${esc(state.teachStart)}" data-c="t-start"></label>
    ${(()=>{const past=state.teachings.filter(t=>dateOf[t.id]&&svcGone(dateOf[t.id])),fut=state.teachings.filter(t=>!(dateOf[t.id]&&svcGone(dateOf[t.id]))).sort((a,b)=>(dateOf[a.id]||'9')<(dateOf[b.id]||'9')?-1:1);const mov=fut.filter(t=>!isPinned(t));
@@ -1470,7 +1470,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     const note=(($('rep-note')||{}).value||'').trim();if(!note){const x=$('rep-note');if(x){x.classList.add('bad');x.placeholder='Escribe qué pasa con el enlace';x.focus()}return}
     const to=ow?[ow]:state.people.filter(x=>x.pastor&&!x.deleted).map(x=>x.id);
     state.linkReps=state.linkReps||[];state.linkReps.push({id:uid(),kind,tid:id,lang:l,d,by:state.me,note,ts:Date.now(),open:true,to});ui.repOpen=null;
-    const what=kind==='l'?`la visita a Leipzig del ${fmt(d)}`:`«${t.title}» (${fmt(d)})`;const txt=`${me().name} avisa sobre la ficha en ${LANGN[l]} de ${what}: «${note}». Corrígela en la pestaña Pastor.`;
+    const what=kind==='l'?`la visita a Leipzig del ${fmt(d)}`:`«${t.title}» (${fmt(d)})`;const txt=`${me().name} avisa sobre la ficha en ${LANGN[l]} de ${what}: «${note}». Corrígela en la pestaña Predicaciones.`;
     notify(to,txt,{push:{title:'Enlace erróneo o faltante',body:txt}});ui.flash='Listo, se avisó. Cuando lo corrijan te llega un aviso.';break}
   case'rep-done':{const r=(state.linkReps||[]).find(x=>x.id===v);if(!r)return;closeReps(r.kind,r.tid,r.lang,'corrigió');ui.flash='Listo, se avisó a quien reportó.';break}
   case'tr-ans':{const[d,a]=v.split('|');trAnswer(d,a);break}

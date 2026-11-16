@@ -260,7 +260,7 @@ async function pastorReminders() {
   if (!lines.length) return { ok: 'nada pendiente' };
   if (!(await once(`pastor-${today}`))) return { skipped: true, already: today };
   const body = lines.join('\n');
-  const note = dow >= 5 ? `${title}: ${lines.join(' · ')}` : `${title}: ${lines.join(' · ')}. Pon los enlaces a más tardar el miércoles en la pestaña Pastor.`;
+  const note = dow >= 5 ? `${title}: ${lines.join(' · ')}` : `${title}: ${lines.join(' · ')}. Pon los enlaces a más tardar el miércoles en la pestaña Predicaciones.`;
   if (!(await prep(`pastor-${today}`, () => editState((s2) => addNotif(s2, pastors, note))))) return { error: 'sin datos' };
   const sent = await sendTo(pastors, title, body, '/?go=ens');
   return { sent, lines };
