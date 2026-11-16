@@ -322,8 +322,8 @@ function tabsFor(p){const t=[['mis','Labores'],['cal','Mi calendario']];if(p.rol
   if(canSeeAll(p))t.push(['hor','Horario']);
   if(p.admin||p.pastor||p.roles.includes('pulpito')||p.roles.some(r=>r.startsWith('trad')))t.push(['ens','Predica\u00ADciones']);
   if(p.admin)t.push(['per','Personas']);return t}
-/* Pestañas que van en el menú ⋯ en vez de la barra: el admin no necesita Predicaciones, Mis días ni Leipzig a la vista; púlpito (no admin), Horario. */
-function menuTabs(p){const k=p.admin?['ens','disp','lz']:(p.roles||[]).includes('pulpito')?['hor']:[];return tabsFor(p).filter(t=>k.includes(t[0]))}
+/* Pestañas que van en el menú ⋯ en vez de la barra: el admin no necesita Predicaciones, Mis días ni Leipzig a la vista; púlpito (no admin), Horario y, si no es pastor, también Predicaciones. */
+function menuTabs(p){const k=p.admin?['ens','disp','lz']:(p.roles||[]).includes('pulpito')?(p.pastor?['hor']:['hor','ens']):[];return tabsFor(p).filter(t=>k.includes(t[0]))}
 
 function authView(){const m=ui.authMode||'login';const msg=ui.authMsg?`<div class="banner ${ui.authOk?'ok':'warnbn'}">${esc(ui.authMsg)}</div>`:'';
   const head=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div>`;
@@ -564,7 +564,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '12.6';
+const APPV = '12.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
