@@ -561,7 +561,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '11.6';
+const APPV = '11.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -972,22 +972,27 @@ function misList(p){
 /* Mis días: 1) días de la semana (fijo, todos los meses); 2) un calendario por mes para tocar las fechas en que no puedo.
    Entre el 15 y el cierre, arriba del calendario sale el pedido del admin con «Enviar mi disponibilidad». */
 function avPending(p){return Object.keys(state.avReqs||{}).sort().filter(ym=>{const av=avOf(ym);return ym>=today.slice(0,7)&&today<=av.deadline})}
+/* Días de la semana en que esta persona puede ser necesaria (según sus labores y las reglas de cada puesto) */
+function needDays(p){const out=new Set();
+  for(const w of [0,1,2,3,4,5,6])if(slotsFor(w).some(s=>(p.roles.includes(s.role)||(s.altRole&&p.roles.includes(s.altRole)))&&!(s.onlyPastor&&!p.pastor)&&!(s.noPastor&&p.pastor)&&!(s.excl&&s.excl.includes(p.id))&&!(p.noSlots&&p.noSlots.includes(s.k))))out.add(w);
+  if(p.pastor&&p.roles.includes('pulpito')){out.add(4);out.add(0)}
+  return out}
 function vDisp(p){
-  const order=[1,2,3,4,5,6,0],cur=today.slice(0,7);
+  const need=needDays(p),order=[1,2,3,4,5,6,0].filter(w=>need.has(w)),cur=today.slice(0,7);
   if(!ui.dm||ui.dm<cur){const pend=avPending(p).filter(ym=>!(avOf(ym).done&&avOf(ym).done[p.id]));ui.dm=pend[0]||cur}
   const ym=ui.dm,mes=MES[+ym.slice(5,7)-1],Mes=mes[0].toUpperCase()+mes.slice(1),y=ym.slice(0,4);
-  const dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,wk=d=>!p.days.includes(pd(d).getDay()),nw=dates.filter(wk).length,n=dates.filter(d=>wk(d)||p.blocked.includes(d)).length;
+  const dates=monthDates(ym),lead=(pd(dates[0]).getDay()+6)%7,na=d=>!need.has(pd(d).getDay()),wk=d=>!na(d)&&!p.days.includes(pd(d).getDay()),nw=dates.filter(wk).length,n=dates.filter(d=>!na(d)&&(wk(d)||p.blocked.includes(d))).length;
   const lock=isPub(ym)||Object.keys(state.schedules[ym]||{}).length>0;
   const av=avOf(ym),open=!lock&&av&&today<=av.deadline&&p.roles&&p.roles.length,done=av&&av.done&&av.done[p.id];
   const req=open?(done?`<div class="avok">✓ Enviaste tu disponibilidad de ${mes}. Si cambias algo, se guarda solo.</div>`
     :`<div class="card ask" style="margin:0 0 12px"><b>Te piden tu disponibilidad de ${mes}</b><div class="info" style="margin-top:4px">Toca abajo los días que <b>no puedes</b> y después «Enviar». Antes del <b>${fmt(av.deadline)}</b>.</div></div>`):'';
   return `<h2>Mis días para servir</h2><p class="lead">El horario de cada mes se arma con esto.</p>
-  <h3>1 · Mis días de la semana</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
+  <h3>1 · Mis días de la semana</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses. Solo salen los días en que hay ${p.roles.length===1?'tu labor':'tus labores'}.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
      <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${esc(w)}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
   <h3>2 · Fechas en que no puedo</h3>${lock?`<div class="card ask" style="margin:0 0 12px"><b>El horario de ${mes} ya está hecho</b><div class="info" style="margin-top:4px">Aquí ya no se puede cambiar. Si no puedes ir a una labor, avisa desde su tarjeta con <b>«No puedo ir»</b> para que se busque reemplazo.</div><button class="btn sm" data-a="tab" data-v="mis" style="margin-top:10px">Ir a Labores</button></div>`:req}<div class="card${lock?' locked':''}">
    <div class="mnav" style="margin:0 0 10px;justify-content:space-between"><button class="ib" data-a="dm" data-v="-1" aria-label="Mes anterior" ${ym<=cur?'disabled':''}>‹</button><b>${Mes} ${y}</b><button class="ib" data-a="dm" data-v="1" aria-label="Mes siguiente">›</button></div>
-   ${lock?'':`<div class="info" style="margin:0 0 10px">Toca los días que <b>no puedes</b> servir. Los demás quedan disponibles.</div>`}
-   <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${dates.map(d=>wk(d)?`<button class="tog avd wk${d<today?' past':''}" aria-pressed="true" aria-label="${fmt(d)}: no puedes (por tus días de la semana)" disabled>${pd(d).getDate()}</button>`:`<button class="tog avd" data-a="avday" data-v="${esc(d)}" aria-pressed="${p.blocked.includes(d)}" aria-label="${fmt(d)}" ${d<today||lock?'disabled':''}>${pd(d).getDate()}</button>`).join('')}</div>
+   ${lock?'':`<div class="info" style="margin:0 0 10px">Toca los días que <b>no puedes</b> servir. Los demás quedan disponibles. Solo salen con cuadro los días en que hay ${p.roles.length===1?'tu labor':'tus labores'}.</div>`}
+   <div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${dates.map(d=>na(d)?`<span class="tog avd na" aria-hidden="true">${pd(d).getDate()}</span>`:wk(d)?`<button class="tog avd wk${d<today?' past':''}" aria-pressed="true" aria-label="${fmt(d)}: no puedes (por tus días de la semana)" disabled>${pd(d).getDate()}</button>`:`<button class="tog avd" data-a="avday" data-v="${esc(d)}" aria-pressed="${p.blocked.includes(d)}" aria-label="${fmt(d)}" ${d<today||lock?'disabled':''}>${pd(d).getDate()}</button>`).join('')}</div>
    <div class="avleg"><span><i class="lg ok"></i>Puedo</span><span><i class="lg no"></i>No puedo</span>${nw?'<span><i class="lg wk"></i>No puedo (día de la semana)</span>':''}</div>
    <div class="info" style="margin-top:8px">${n?`En ${mes} no puedes ${n} ${n===1?'día':'días'}${nw?` (${nw} por tus días de la semana, en gris; se cambian arriba)`:''}.`:`En ${mes} puedes todos los días.`}</div>
    ${open?predPick(p,ym,dates):''}
