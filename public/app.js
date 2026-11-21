@@ -386,6 +386,10 @@ const chip=(area,label)=>`<span class="chip" style="--c:var(${AREAC[area]})">${e
 const SHORT={pulpito:'Púlpito',puerta:'Puerta',sonido:'Sonido',trad:'Traduc.',ofr:'Ofrend.',mic:'Micróf.'};
 function weeksOf(ym){const w={};for(const d of monthDates(ym))(w[mondayOf(d)]=w[mondayOf(d)]||[]).push(d);return w}
 function myAreas(p){const s=new Set(p.roles.filter(r=>r!=='entrega').map(r=>ROLEAREA[r]));if(p.pastor)s.add('pulpito');return['pulpito','puerta','sonido','trad','ofr','mic'].filter(a=>s.has(a))}
+/* Quiénes asisten a una reunión: lo ven el pastor, el admin y los de púlpito (en la tarjeta del día y al tocar el día en Mi calendario). */
+function meetWho(m){const ids=invitees(m).filter(id=>{const x=person(id);return x&&!x.deleted}),r=m.rsvp||{},nm=l=>l.map(id=>esc(person(id).name)).join(', ');
+  const y=ids.filter(id=>r[id]==='yes'),n=ids.filter(id=>r[id]==='no'),w=ids.filter(id=>!r[id]);
+  return `<div class="mwho"><div><b>Asisten (${y.length}):</b> ${y.length?nm(y):'<i>todavía nadie</i>'}</div>${n.length?`<div><b>No pueden (${n.length}):</b> ${nm(n)}</div>`:''}${w.length?`<details><summary>Sin responder (${w.length})</summary>${nm(w)}</details>`:''}</div>`}
 function myItems(p){
   const items={};const add=d=>(items[d]=items[d]||{slots:[],notes:[]});
   const isPul=p.roles.includes('pulpito')||p.pastor, isTrad=p.roles.some(r=>r.startsWith('trad'));
@@ -404,7 +408,7 @@ function myItems(p){
       if(as.pul)it.notes.push({l:'Introducción',h:introInfo(d,person(as.pul),false)})}}
   if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))&&!(items[d]&&items[d].slots.length)){const it=add(d);it.attend=true;it.notes.unshift({l:'Alabanza',h:'Ese día vas tú a la alabanza. No tienes labor.'})}}
   for(const m of myMeets(p)){const rs=m.rsvp[p.id];if(rs==='no')continue;
-    add(m.date).notes.push({l:'Reunión',meet:m,h:`<div class="tv">${esc(m.title)}</div><div class="sub2">${m.time?esc(m.time)+' · ':''}${esc(teamLbl(m))}</div>${m.place?`<div class="sub2 pre">${linkify(m.place)}</div>`:''}`+
+    add(m.date).notes.push({l:'Reunión',meet:m,h:`<div class="tv">${esc(m.title)}</div><div class="sub2">${m.time?esc(m.time)+' · ':''}${esc(teamLbl(m))}</div>${m.place?`<div class="sub2 pre">${linkify(m.place)}</div>`:''}`+(seesLzGoing(p)?meetWho(m):'')+
       (rs==='yes'?`<div class="rsvpok yes" style="margin-top:8px"><span>✓ Asistes</span><button class="linkbtn" data-a="rsvp-ed" data-v="${esc(m.id)}">Cambiar</button></div>`:`<div class="sub2"><i>Todavía no respondes: mira arriba, en Reuniones.</i></div>`)})}
   for(const l of state.leipzig){const it=add(l.date);if(p.leipzig)it.lz='trav';else if((l.going||[]).includes(p.id))it.lz='go';it.notes.push({l:'Visita a Leipzig',h:`<div class="tv">${esc(l.teaching||'Predicación por definir')}</div>${p.leipzig?'<div class="sub2">Viajas este día</div>':(l.going||[]).includes(p.id)?'<div class="sub2">Vas a ir</div>':''}${seesLzGoing(p)?`<div class="sub2">${lzGoingLine(l)}</div>`:''}${fichaRows('l',l,lzLangs(p))}${lzLangs(p).length&&l.date>=today?linkRep('l',l,l.date,lzLangs(p),null):''}`})}
   return items;
@@ -564,7 +568,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '12.8';
+const APPV = '12.9';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
