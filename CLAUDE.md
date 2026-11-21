@@ -162,8 +162,7 @@ No hay tests automáticos. Se prueba con **Playwright (Python)** cargando `publi
 
 ## Pendientes
 
-- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 46 en Supabase, SHA-256 `085d6ceb…6d350c14`, 16 nov 2026). Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
-- [ ] **Desplegar `push` (21 nov):** `supabase/functions/push/index.ts` (SHA-256 `bea76bdf…2029705c`) tiene los avisos de disponibilidad nuevos («Si no la envías, no se te asigna…») y todavía NO está en Supabase (sigue la versión 46): el token de Supabase del entorno dio «Invalid access token». Desplegar con un token nuevo o desde el panel.
+- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 49 en Supabase, SHA-256 `bea76bdf…2029705c`, 21 nov 2026). Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
 - [x] (15 nov) Llamada de pg_cron con `timeout_milliseconds := 60000` (aplicado en Supabase y en `push.sql`): antes superaba los 5 s y no se veía la respuesta. Los resultados quedan en `net._http_response`.
 - [ ] Pendiente de seguridad: cualquier miembro todavía puede escribir horarios y avisos en el estado compartido (se puede recuperar con `app_state_history`); separarlo en tablas lo resolvería del todo.
 
