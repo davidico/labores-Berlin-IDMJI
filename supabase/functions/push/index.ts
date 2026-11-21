@@ -130,6 +130,8 @@ async function editState(fn: (st: any) => void) {
   return null;
 }
 // deno-lint-ignore no-explicit-any
+const noPastor = (st: any, ids: string[]): string[] => ids.filter((i) => !((st.people || []).find((x: any) => x.id === i) || {}).pastor);
+// deno-lint-ignore no-explicit-any
 const servers = (st: any): string[] => (st.people || []).filter((x: any) => x.roles && x.roles.length).map((x: any) => x.id);
 // deno-lint-ignore no-explicit-any
 const addNotif = (st: any, to: string[], text: string) => { st.notifs = st.notifs || []; st.notifs.unshift({ id: uid(), ts: Date.now(), to, text, read: [] }); st.notifs = st.notifs.slice(0, 300); };
@@ -149,7 +151,9 @@ async function monthly() {
       if (st.avReqs[ym]) return;
       st.avReqs[ym] = { deadline, ts: Date.now(), done: {}, auto: true };
       to = servers(st);
-      addNotif(st, to, `Marca los días que no puedes servir en ${mes}, antes del ${fmtDl}. Está arriba en Labores.`);
+      const np = noPastor(st, to), ps = to.filter((i) => !np.includes(i));
+      if (np.length) addNotif(st, np, `Marca los días que no puedes servir en ${mes}, antes del ${fmtDl}. Está arriba en Labores. Si no la envías, en ${mes} no se te asigna ninguna labor.`);
+      if (ps.length) addNotif(st, ps, `Marca los días que no puedes servir en ${mes}, antes del ${fmtDl}. Está arriba en Labores.`);
     }));
     if (!st) return { error: 'sin datos', ym };
     if (to.length) await sendTo(to, `Disponibilidad de ${mes}`, `Marca los días que no puedes antes del ${fmtDl}.`, '/?go=disp');
@@ -161,10 +165,15 @@ async function monthly() {
       const av = (st.avReqs || {})[ym];
       if (!av) return;
       pend = servers(st).filter((i) => !(av.done && av.done[i]));
-      if (pend.length) addNotif(st, pend, `Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmtDl}.`);
+      const np = noPastor(st, pend), ps = pend.filter((i) => !np.includes(i));
+      if (np.length) addNotif(st, np, `Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmtDl}. Si no la envías, en ${mes} no se te asigna ninguna labor.`);
+      if (ps.length) addNotif(st, ps, `Todavía falta tu disponibilidad de ${mes}. Márcala en Labores antes del ${fmtDl}.`);
     }));
     if (!st) return { error: 'sin datos', ym };
-    if (pend.length) await sendTo(pend, `Falta tu disponibilidad de ${mes}`, `Márcala antes del ${fmtDl}.`, '/?go=disp');
+    const npS = noPastor(st, pend);
+    if (npS.length) await sendTo(npS, `Falta tu disponibilidad de ${mes}`, `Márcala antes del ${fmtDl}. Si no la envías, no se te asigna nada ese mes.`, '/?go=disp');
+    const psS = pend.filter((i) => !npS.includes(i));
+    if (psS.length) await sendTo(psS, `Falta tu disponibilidad de ${mes}`, `Márcala antes del ${fmtDl}.`, '/?go=disp');
     return { sent: 'recordatorio', ym, n: pend.length };
   }
   if (day === AV.close && await once(`av-close-${ym}`)) {

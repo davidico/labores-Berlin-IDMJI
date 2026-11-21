@@ -180,6 +180,9 @@ const leipOn=date=>state.leipzig.find(l=>l.date===date);
 const yList=a=>a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' y '+a[a.length-1];
 const fmt=s=>{const d=pd(s);return `${DOWS[d.getDay()]} ${d.getDate()} ${MESS[d.getMonth()]}`};
 
+/* Si el admin pidió la disponibilidad del mes y la persona no la envió, ese mes no se le asigna nada (no puede ningún día).
+   Los pastores son la excepción: pueden siempre. */
+const noAv=(p,ym)=>{const av=(state.avReqs||{})[ym];return !!av&&!p.pastor&&!(av.done&&av.done[p.id])};
 function why(p,s,date,as,slots){
   if(!p.roles.includes(s.role)&&!(s.altRole&&p.roles.includes(s.altRole))) return 'no tiene esta labor';
   if(s.onlyPastor&&!p.pastor) return 'solo el pastor';
@@ -189,6 +192,7 @@ function why(p,s,date,as,slots){
   if(p.noSlots&&p.noSlots.includes(s.k)) return 'no hace esta parte';
   if(p.introNotWith&&s.tag==='trI'&&as.pul===p.introNotWith) return 'la introducción de púlpito la tiene '+((person(p.introNotWith)||{}).name||'');
   if(p.maxOne&&slots.some(o=>o.k!==s.k&&as[o.k]===p.id)) return 'solo hace una labor por culto';
+  if(noAv(p,date.slice(0,7))) return 'no envió su disponibilidad de este mes';
   if(!p.days.includes(pd(date).getDay())) return 'no sirve este día de la semana';
   if(p.blocked.includes(date)) return 'marcó la fecha como no disponible';
   {const dw=pd(date).getDay();if(p.freeAlab&&(dw===1||dw===3||dw===5)){const mon=pd(mondayOf(date));
@@ -406,6 +410,9 @@ function myItems(p){
       const pr=davidDay(d)?person(as.predica):pastor,it=add(d);it.info=true;
       it.notes.push({l:'Enseñanza del jueves · inglés',h:`<div class="tv">${esc(tm[d].title)}</div><div class="sub2">Predica: ${pr?esc(pr.name):'sin asignar'}</div>${fichaRows('t',tm[d],['en'])}${d>=today?linkRep('t',tm[d],d,['en'],davidDay(d)?pr:null):''}`});
       if(as.pul)it.notes.push({l:'Introducción',h:introInfo(d,person(as.pul),false)})}}
+  if(p.roles.includes('pulpito'))for(const ym in state.schedules){if(!canSeeMonth(p,ym))continue;
+    for(const d of monthDates(ym)){const w=pd(d).getDay();if(!(w===2||w===6||(w===0&&transOn(d))))continue;
+      const it0=items[d];if(it0&&(it0.trPul||it0.slots.some(s=>s.k==='pul')))continue;const it=add(d);it.info=true;it.pre=true}}
   if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))&&!(items[d]&&items[d].slots.length)){const it=add(d);it.attend=true;it.notes.unshift({l:'Alabanza',h:'Ese día vas tú a la alabanza. No tienes labor.'})}}
   for(const m of myMeets(p)){const rs=m.rsvp[p.id];if(rs==='no')continue;
     add(m.date).notes.push({l:'Reunión',meet:m,h:`<div class="tv">${esc(m.title)}</div><div class="sub2">${m.time?esc(m.time)+' · ':''}${esc(teamLbl(m))}</div>${m.place?`<div class="sub2 pre">${linkify(m.place)}</div>`:''}`+(seesLzGoing(p)?meetWho(m):'')+
@@ -457,6 +464,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   if(w===0&&tr&&has(s=>s.area==='trad'&&/_intro$/.test(s.k))){const x=preTR(d);todo.push(todoBox('Interpretas el saludo y el preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Al comienzo, antes del video de la transmisión.</div>`))}
   if(w===0&&tr&&has(s=>s.area==='trad'&&/_test$/.test(s.k)))todo.push(todoBox('Interpretas los testimonios y la despedida','<div class="help" style="margin-top:0">Después del video de la transmisión.</div>'));
+  if(it.pre){const x=w===0?preTR(d):preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Este día no te toca el púlpito; es para que todos en púlpito lo tengan presente.</div>`))}
   if(w===0&&tr&&it.trPul){const x=preTR(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
   if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
@@ -568,7 +576,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '12.9';
+const APPV = '13.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -990,7 +998,7 @@ function misCal(p){
     let l=`<div class="calhead">${monthNav()}${tog}</div>`;
     if(!ds_.length)return l+`<div class="card info">${dates.some(d=>items[d])?'Ya pasaron todas tus labores de este mes.':'No tienes labores este mes.'}</div>`;
     l+='<div class="card llist2">'+ds_.map(d=>{const it=items[d],w=pd(d).getDay(),[sn,st]=SVC[w];
-      const mt=it.notes.find(n=>n&&n.meet);const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.trPul?'Púlpito · transmisión':it.preach?'Predicación':it.attend?'Alabanza (vas tú)':it.info?'Ficha e introducción (inglés)':it.lz?(it.lz==='trav'?'Viajas a Leipzig':'Vas a Leipzig'):mt?mt.meet.title:it.notes.map(n=>n.l||'Aviso').join(', ');
+      const mt=it.notes.find(n=>n&&n.meet);const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.trPul?'Púlpito · transmisión':it.preach?'Predicación':it.attend?'Alabanza (vas tú)':it.pre&&!it.slots.length?'Preámbulo sugerido':it.info?'Ficha e introducción (inglés)':it.lz?(it.lz==='trav'?'Viajas a Leipzig':'Vas a Leipzig'):mt?mt.meet.title:it.notes.map(n=>n.l||'Aviso').join(', ');
       return `<div class="lr${svcGone(d)?' past':''}${d===today?' today':''}"><span class="ld"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span><span class="lh">${it.slots.length||it.attend||it.info?st:mt?esc(mt.meet.time||''):''}</span><span class="lw"><b>${it.slots.length||it.attend||it.info?sn:it.lz?'Visita a Leipzig':mt?'Reunión':'Aviso'}</b><span>${esc(what)}${it.lz&&(it.slots.length||it.attend||it.info)?' · '+(it.lz==='trav'?'Viajas a Leipzig':'Vas a Leipzig'):''}${mt&&(it.slots.length||it.attend)?' · Reunión '+esc(mt.meet.time||''):''}</span></span></div>`}).join('')+'</div>';
     return l}
   let h=`<div class="calhead">${monthNav()}${tog}</div><div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
@@ -1041,7 +1049,7 @@ function vDisp(p){
   const lock=isPub(ym)||Object.keys(state.schedules[ym]||{}).length>0;
   const av=avOf(ym),open=!lock&&av&&today<=av.deadline&&p.roles&&p.roles.length,done=av&&av.done&&av.done[p.id];
   const req=open?(done?`<div class="avok">✓ Enviaste tu disponibilidad de ${mes}. Si cambias algo, se guarda solo.</div>`
-    :`<div class="card ask" style="margin:0 0 12px"><b>Te piden tu disponibilidad de ${mes}</b><div class="info" style="margin-top:4px">Toca abajo los días que <b>no puedes</b> y después «Enviar». Antes del <b>${fmt(av.deadline)}</b>.</div></div>`):'';
+    :`<div class="card ask" style="margin:0 0 12px"><b>Te piden tu disponibilidad de ${mes}</b><div class="info" style="margin-top:4px">Toca abajo los días que <b>no puedes</b> y después «Enviar». Antes del <b>${fmt(av.deadline)}</b>.${p.pastor?'':` <b>Si no la envías, en ${mes} no se te asigna ninguna labor.</b>`}</div></div>`):'';
   return `<h2>Mis días para servir</h2><p class="lead">El horario de cada mes se arma con esto.</p>
   <h3>1 · Mis días de la semana</h3><div class="info" style="margin:-4px 0 8px">Vale para todos los meses. Solo salen los días en que hay ${p.roles.length===1?'tu labor':'tus labores'}.</div><div class="card">${order.map(w=>{const on=p.days.includes(w);return `<div class="drow"><div class="dname"><b>${DOW[w]}</b><small>${SVC[w][0]} · ${SVC[w][1]}</small></div>
      <button class="sw" role="switch" aria-checked="${on}" data-a="day" data-v="${esc(w)}" aria-label="${DOW[w]}: ${on?'puedo':'no puedo'}"><span class="swl">${on?'Puedo':'No puedo'}</span><span class="swt"><span class="swk"></span></span></button></div>`}).join('')}</div>
