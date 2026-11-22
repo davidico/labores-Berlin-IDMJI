@@ -240,9 +240,14 @@ function genOnce(ym){
       if(p.predPref&&p.predPref[ym]===date&&/_pred$/.test(s.k)) v-=150;
       v+=pen(p,s,dow);return v};
     const cands=s=>state.people.filter(p=>!why(p,s,date,as,slots)).sort((a,b)=>score(a,s)-score(b,s));
+    // Intérprete que eligió este día para la predicación (Mis días): se le reserva antes que cualquier otro puesto
+    // (así ese día ya no queda en la puerta ni en otra labor que no se combine).
+    for(const p of state.people){if(p.deleted||!p.predPref||p.predPref[ym]!==date)continue;
+      const s=slots.find(z=>/_pred$/.test(z.k)&&p.roles.includes(z.role)&&!as[z.k]);if(s&&!why(p,s,date,as,slots))as[s.k]=p.id}
     // Al azar se llena primero «inicia» o «finaliza», para que no sea siempre la misma persona la que inicia.
     const ORD=Math.random()<.5?ORDER:ORDER.map(k=>k==='pul_ini'?'pul_fin':k==='pul_fin'?'pul_ini':k);
     for(const k of ORD){const s=byK[k];if(!s)continue;
+      if(as[k])continue;
       if(s.pair){const s2=byK[s.pair];
         for(const p of cands(s)){as[k]=p.id;const q=cands(s2).find(x=>x.sex===p.sex);if(q){as[s2.k]=q.id;break}delete as[k]}
         continue}
@@ -588,7 +593,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '13.3';
+const APPV = '13.4';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
