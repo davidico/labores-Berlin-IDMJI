@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **13.9**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **14.0**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v145`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v146`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -104,6 +104,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 - **Preámbulo para todo púlpito:** los de púlpito ven el preámbulo sugerido los martes, sábados (estudio bíblico) y domingos con transmisión aunque no les toque (`it.pre` en `myItems`): sección «Preámbulo sugerido» con etiqueta gris (sin dorado) y la nota «Este día no te toca el púlpito…»; quien sirve ese día lo sigue viendo como siempre (etiqueta dorada).
 - **Púlpito Lun/Mié/Vie (inicia / finaliza):** el generador prefiere dos personas distintas (+500 en `score` y en `refill` si ya tiene el otro puesto de púlpito ese día); la misma persona solo si no hay nadie más disponible. Cada día se llena al azar primero «inicia» o «finaliza». Además se reparte por semana: quien ya inició esa semana tiene +120 para volver a iniciar (igual con finalizar, +8 por cada vez en el mes) y, al terminar el día, si cambiar inicia↔finaliza repite menos, se cambian. David evita lun/mié (`freeAlab`, para que Gabriela vaya a la alabanza), pero se le pone si hace falta.
 - **Día elegido para interpretar la predicación (`predPref[ym]`, en Mis días):** el generador lo reserva **antes** de llenar los demás puestos (`genOnce`), así ese día la persona interpreta la predicación (y los testimonios) y ya no queda en la puerta ni en otra labor que no combine (p. ej. Carlos: puerta fija los domingos y preferido los jueves).
+- **Puesto fijo manda:** quien tiene un puesto fijo ese día (`state.fixed`, p. ej. Carlos en la puerta los domingos) solo se pone en otro puesto si de verdad no hay nadie más (+1500 en `score`, `fixedOn`), y su día elegido de predicación no se reserva si cae en ese día.
 - **Cargo «Interpreta predicación» (`predicacion`, área trad):** en cuanto alguien lo tiene (`predOn()`), solo quienes lo tienen interpretan la predicación (`de_pred`/`en_pred`, regla en `why()`); los testimonios siguen igual. Mientras nadie lo tenga, no hay restricción. «Elegir día de predicación» (`predPick`) solo les sale a ellos. Las predicaciones se llenan antes que puerta y ofrendas (`ORDER`).
 - **Introducción + testimonios:** la misma persona puede interpretar la introducción y los testimonios del mismo idioma (`combo`: `trI|trT`). Introducción + predicación sigue sin combinarse.
 - **Al menos una predicación al mes:** en `score`, quien todavía no interpretó ninguna predicación ese mes tiene −200, y −300 más si también tiene «Entrega de ofrendas» (prioridad).
