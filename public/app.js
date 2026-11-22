@@ -10,8 +10,10 @@ const DOW=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const DOWS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const MESS=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-const ROLES={pulpito:'Púlpito',puerta:'Puerta',sonido:'Sonido',trad_de:'Traducción alemán',trad_en:'Traducción inglés',ofrendas:'Ofrendas (recogen)',guardar:'Ofrendas (guardan)',guardar_sup:'Ofrendas (guardan, reemplazo)',microfonos:'Micrófonos',entrega:'Entrega de ofrendas'};
-const ROLEAREA={pulpito:'pulpito',puerta:'puerta',sonido:'sonido',trad_de:'trad',trad_en:'trad',ofrendas:'ofr',guardar:'ofr',guardar_sup:'ofr',microfonos:'mic',entrega:'ofr'};
+const ROLES={pulpito:'Púlpito',puerta:'Puerta',sonido:'Sonido',trad_de:'Traducción alemán',trad_en:'Traducción inglés',ofrendas:'Ofrendas (recogen)',guardar:'Ofrendas (guardan)',guardar_sup:'Ofrendas (guardan, reemplazo)',microfonos:'Micrófonos',entrega:'Entrega de ofrendas',predicacion:'Interpreta predicación'};
+const ROLEAREA={pulpito:'pulpito',puerta:'puerta',sonido:'sonido',trad_de:'trad',trad_en:'trad',ofrendas:'ofr',guardar:'ofr',guardar_sup:'ofr',microfonos:'mic',entrega:'ofr',predicacion:'trad'};
+/* «Interpreta predicación»: cuando al menos una persona tiene este cargo, solo ellas interpretan la predicación (de_pred / en_pred). */
+const predOn=()=>state.people.some(x=>!x.deleted&&(x.roles||[]).includes('predicacion'));
 const AREAC={pulpito:'--a-pul',puerta:'--a-puer',sonido:'--a-son',trad:'--a-trad',ofr:'--a-ofr',mic:'--a-mic'};
 const AREAN={pulpito:'Púlpito',puerta:'Puerta',sonido:'Sonido',trad:'Traducción',ofr:'Ofrendas',mic:'Micrófonos'};
 const INTROT=['Llamamiento de Dios a nuestra Hna. María Luisa cuando ella tenía 8 años','Somos cristianos practicantes de la Biblia y guiados por el Espíritu','Promesa: «De este pequeño redil levantaré mi Iglesia en medio de las naciones»','Destacar el libro «Vivencias»','Promesa: «Dios le enseñaría la doctrina a nuestra Hna. María Luisa y viajaría para llevar su palabra»'];
@@ -42,7 +44,7 @@ function slotsFor(dow){
   a.push(S('ent','Entrega de ofrendas','entrega','ent','ofr'));
   return a;
 }
-const ORDER=['predica','pul','pul_ini','pul_fin','sonido','grd1','grd2','grd3','puerta','de_pred','de_test','en_pred','en_test','ofr1','ofr3','de_intro','en_intro','mic1','mic2','ent'];
+const ORDER=['predica','pul','pul_ini','pul_fin','sonido','de_pred','de_test','en_pred','en_test','grd1','grd2','grd3','puerta','ofr1','ofr3','de_intro','en_intro','mic1','mic2','ent'];
 function leipThu(date){const d=pd(date);if(d.getDay()!==4)return false;const sat=ds(new Date(d.getTime()+2*864e5));return state.leipzig.some(l=>l.date===sat)}
 // Domingo con transmisión: no hay introducción (no existe el puesto `pul`); en el púlpito trabaja solo quien predica (el pastor), que da el saludo y el preámbulo.
 // Orden: saludo y preámbulo (intérprete) → video de la transmisión → testimonios y despedida (intérprete). No hay puesto de predicación.
@@ -192,6 +194,7 @@ function why(p,s,date,as,slots){
   if(p.noSlots&&p.noSlots.includes(s.k)) return 'no hace esta parte';
   if(p.introNotWith&&s.tag==='trI'&&as.pul===p.introNotWith) return 'la introducción de púlpito la tiene '+((person(p.introNotWith)||{}).name||'');
   if(p.maxOne&&slots.some(o=>o.k!==s.k&&as[o.k]===p.id)) return 'solo hace una labor por culto';
+  if(/_pred$/.test(s.k)&&!p.roles.includes('predicacion')&&predOn()) return 'no tiene «Interpreta predicación»';
   if(noAv(p,date.slice(0,7))) return 'no envió su disponibilidad de este mes';
   if(!p.days.includes(pd(date).getDay())) return 'no sirve este día de la semana';
   if(p.blocked.includes(date)) return 'marcó la fecha como no disponible';
@@ -226,12 +229,15 @@ function genOnce(ym){
   const sched={},cnt={};GEN=sched;GENYM=ym;
   for(const date of monthDates(ym)){
     const dow=pd(date).getDay(),slots=slotsAt(date),as={},byK=Object.fromEntries(slots.map(s=>[s.k,s]));
+    const slots0=x=>Object.keys(x);
     const prevD=Object.keys(sched).filter(o=>o<date),wkSame=prevD.filter(o=>mondayOf(o)===mondayOf(date)).map(o=>sched[o]),monSame=prevD.map(o=>sched[o]);
     const score=(p,s)=>{const c=cnt[p.id]||{t:0};let v=(c[s.area]||0)*10+c.t*2+Math.random()*3;
       v+=Object.values(as).filter(x=>x===p.id).length*6;
       // Púlpito inicia / finaliza: mejor dos personas distintas; la misma solo si no hay nadie más ese día.
       if(s.area==='pulpito'&&slots.some(o=>o.k!==s.k&&o.area==='pulpito'&&as[o.k]===p.id)) v+=500;
       // Que no le toque «inicia» (o «finaliza») dos veces la misma semana si hay otra opción; y repartir en el mes.
+      // Intérpretes: repartir entre todos; que nadie interprete varios días la misma semana ni la misma parte muchas veces en el mes.
+      if(s.area==='trad'){v+=wkSame.filter(x=>slots0(x).some(k=>/^(de|en)_/.test(k)&&x[k]===p.id)).length*60+monSame.filter(x=>Object.keys(x).some(k=>k.slice(3)===s.k.slice(3)&&x[k]===p.id)).length*20}
       if(s.k==='pul_ini'||s.k==='pul_fin'){v+=wkSame.filter(x=>x[s.k]===p.id).length*120+monSame.filter(x=>x[s.k]===p.id).length*8}
       if(state.fixed[s.k]&&state.fixed[s.k][dow]===p.id) v-=1000;
       if(s.prefer){const i=s.prefer.indexOf(p.id);if(i>=0)v-=(s.prefer.length-i)*500}
@@ -593,7 +599,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '13.4';
+const APPV = '13.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -829,7 +835,7 @@ function calBody(p){const c=ui.cal,ios=isIOS()||/Macintosh/.test(navigator.userA
      <div class="info" style="margin-top:6px">Así queda en la app <b>Calendario</b> del iPhone.</div>
       <button class="linkbtn" data-a="cal-g" style="font-size:15px;margin-top:4px;display:block">${ui.calG?'Ocultar los pasos de Google Calendar':'¿Usas Google Calendar? Ver cómo agregarlo'}</button>${ui.calG?`<div style="margin-top:6px;padding-top:4px;border-top:1px dashed var(--line)">${goog}</div>`:''}`:goog;}
   return h}
-function predPick(p,ym,dates){const ok=dates.filter(d=>!p.blocked.includes(d)&&slotsAt(d).some(z=>/_pred$/.test(z.k)&&p.roles.includes(z.role)));if(!ok.length)return'';
+function predPick(p,ym,dates){if(predOn()&&!p.roles.includes('predicacion'))return'';const ok=dates.filter(d=>!p.blocked.includes(d)&&slotsAt(d).some(z=>/_pred$/.test(z.k)&&p.roles.includes(z.role)));if(!ok.length)return'';
   const cur=(p.predPref||{})[ym]||'';
   return `<label class="field" style="margin-top:12px">Fecha en que prefieres traducir la predicación <span class="info" style="display:inline;margin:0">(opcional)</span>
     <select data-c="pred-pref" data-v="${esc(ym)}"><option value="">Me da igual</option>${ok.map(d=>`<option value="${d}" ${d===cur?'selected':''}>${fmt(d)}</option>`).join('')}</select></label>
