@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **13.7**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **13.8**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v143`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v144`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -107,7 +107,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 - **Cargo «Interpreta predicación» (`predicacion`, área trad):** en cuanto alguien lo tiene (`predOn()`), solo quienes lo tienen interpretan la predicación (`de_pred`/`en_pred`, regla en `why()`); los testimonios siguen igual. Mientras nadie lo tenga, no hay restricción. «Elegir día de predicación» (`predPick`) solo les sale a ellos. Las predicaciones se llenan antes que puerta y ofrendas (`ORDER`).
 - **Introducción + testimonios:** la misma persona puede interpretar la introducción y los testimonios del mismo idioma (`combo`: `trI|trT`). Introducción + predicación sigue sin combinarse.
 - **Al menos una predicación al mes:** en `score`, quien todavía no interpretó ninguna predicación ese mes tiene −200, y −300 más si también tiene «Entrega de ofrendas» (prioridad).
-- **Intérpretes repartidos:** en `score`, +60 por cada día de esa semana en que ya interpretó y +20 por cada vez en el mes que ya hizo esa misma parte (intro/pred/test).
+- **Intérpretes repartidos:** en `score`, +60 por cada día de esa semana en que ya interpretó y +80 por cada vez en el mes que ya hizo esa misma parte (intro/pred/test). Quien todavía no tuvo introducción en el mes: −150. Las introducciones se llenan antes que ofrendas y puerta (`ORDER`), así quien tiene «solo una labor por culto» (`maxOne`, p. ej. Gabriela) no queda siempre en ofrendas.
 - **«Ver como»:** solo para mirar; las acciones que guardan están bloqueadas (`VIEWOK`).
 
 ## Notificaciones automáticas (hora de Berlín)

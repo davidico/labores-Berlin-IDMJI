@@ -44,7 +44,7 @@ function slotsFor(dow){
   a.push(S('ent','Entrega de ofrendas','entrega','ent','ofr'));
   return a;
 }
-const ORDER=['predica','pul','pul_ini','pul_fin','sonido','de_pred','de_test','en_pred','en_test','grd1','grd2','grd3','puerta','ofr1','ofr3','de_intro','en_intro','mic1','mic2','ent'];
+const ORDER=['predica','pul','pul_ini','pul_fin','sonido','de_pred','de_test','en_pred','en_test','de_intro','en_intro','grd1','grd2','grd3','puerta','ofr1','ofr3','mic1','mic2','ent'];
 function leipThu(date){const d=pd(date);if(d.getDay()!==4)return false;const sat=ds(new Date(d.getTime()+2*864e5));return state.leipzig.some(l=>l.date===sat)}
 // Domingo con transmisión: no hay introducción (no existe el puesto `pul`); en el púlpito trabaja solo quien predica (el pastor), que da el saludo y el preámbulo.
 // Orden: saludo y preámbulo (intérprete) → video de la transmisión → testimonios y despedida (intérprete). No hay puesto de predicación.
@@ -238,9 +238,11 @@ function genOnce(ym){
       if(s.area==='pulpito'&&slots.some(o=>o.k!==s.k&&o.area==='pulpito'&&as[o.k]===p.id)) v+=500;
       // Que no le toque «inicia» (o «finaliza») dos veces la misma semana si hay otra opción; y repartir en el mes.
       // Intérpretes: repartir entre todos; que nadie interprete varios días la misma semana ni la misma parte muchas veces en el mes.
-      if(s.area==='trad'){v+=wkSame.filter(x=>slots0(x).some(k=>/^(de|en)_/.test(k)&&x[k]===p.id)).length*60+monSame.filter(x=>Object.keys(x).some(k=>k.slice(3)===s.k.slice(3)&&x[k]===p.id)).length*20}
+      if(s.area==='trad'){v+=wkSame.filter(x=>slots0(x).some(k=>/^(de|en)_/.test(k)&&x[k]===p.id)).length*60+monSame.filter(x=>Object.keys(x).some(k=>k.slice(3)===s.k.slice(3)&&x[k]===p.id)).length*80}
       // Predicación: que cada intérprete que la hace la tenga al menos una vez en el mes; prioridad a quien además entrega ofrendas.
       if(/_pred$/.test(s.k)&&!monSame.some(x=>Object.keys(x).some(k=>/_pred$/.test(k)&&x[k]===p.id))){v-=200;if(p.roles.includes('entrega'))v-=300}
+      // Introducción: que cada intérprete la tenga al menos una vez en el mes (p. ej. Gabriela, que si no queda siempre en ofrendas).
+      if(/_intro$/.test(s.k)&&!monSame.some(x=>Object.keys(x).some(k=>/_intro$/.test(k)&&x[k]===p.id)))v-=150;
       if(s.k==='pul_ini'||s.k==='pul_fin'){v+=wkSame.filter(x=>x[s.k]===p.id).length*120+monSame.filter(x=>x[s.k]===p.id).length*8}
       if(state.fixed[s.k]&&state.fixed[s.k][dow]===p.id) v-=1000;
       if(s.prefer){const i=s.prefer.indexOf(p.id);if(i>=0)v-=(s.prefer.length-i)*500}
@@ -602,7 +604,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '13.7';
+const APPV = '13.8';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
