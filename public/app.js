@@ -228,6 +228,8 @@ function genOnce(ym){
     const dow=pd(date).getDay(),slots=slotsAt(date),as={},byK=Object.fromEntries(slots.map(s=>[s.k,s]));
     const score=(p,s)=>{const c=cnt[p.id]||{t:0};let v=(c[s.area]||0)*10+c.t*2+Math.random()*3;
       v+=Object.values(as).filter(x=>x===p.id).length*6;
+      // Púlpito inicia / finaliza: mejor dos personas distintas; la misma solo si no hay nadie más ese día.
+      if(s.area==='pulpito'&&slots.some(o=>o.k!==s.k&&o.area==='pulpito'&&as[o.k]===p.id)) v+=500;
       if(state.fixed[s.k]&&state.fixed[s.k][dow]===p.id) v-=1000;
       if(s.prefer){const i=s.prefer.indexOf(p.id);if(i>=0)v-=(s.prefer.length-i)*500}
       if(p.pref&&p.pref[s.area]&&!p.pref[s.area].includes(dow)) v+=40;
@@ -235,7 +237,9 @@ function genOnce(ym){
       if(p.predPref&&p.predPref[ym]===date&&/_pred$/.test(s.k)) v-=150;
       v+=pen(p,s,dow);return v};
     const cands=s=>state.people.filter(p=>!why(p,s,date,as,slots)).sort((a,b)=>score(a,s)-score(b,s));
-    for(const k of ORDER){const s=byK[k];if(!s)continue;
+    // Al azar se llena primero «inicia» o «finaliza», para que no sea siempre la misma persona la que inicia.
+    const ORD=Math.random()<.5?ORDER:ORDER.map(k=>k==='pul_ini'?'pul_fin':k==='pul_fin'?'pul_ini':k);
+    for(const k of ORD){const s=byK[k];if(!s)continue;
       if(s.pair){const s2=byK[s.pair];
         for(const p of cands(s)){as[k]=p.id;const q=cands(s2).find(x=>x.sex===p.sex);if(q){as[s2.k]=q.id;break}delete as[k]}
         continue}
@@ -253,7 +257,7 @@ function refill(ym,date,k){const as=state.schedules[ym][date],sl=slotsAt(date),s
   const pr=(s.pair||s.pairOf)?person(as[s.pair||s.pairOf]):null;
   const n=id=>Object.values(state.schedules[ym]).reduce((a,v)=>a+Object.values(v).filter(z=>z===id).length,0);
   const pf=x=>s.prefer&&s.prefer.includes(x.id)?s.prefer.indexOf(x.id)-99:0;
-  const dw=pd(date).getDay(),sc=x=>pf(x)*1000+pen(x,s,dw)+n(x.id)*10;
+  const dw=pd(date).getDay(),same=x=>s.area==='pulpito'&&sl.some(o=>o.k!==k&&o.area==='pulpito'&&as[o.k]===x.id)?500:0,sc=x=>pf(x)*1000+pen(x,s,dw)+n(x.id)*10+same(x);
   const c=state.people.filter(x=>!why(x,s,date,as,sl)&&(!pr||pr.sex===x.sex)).sort((a,b)=>sc(a)-sc(b));
   if(c.length){as[k]=c[0].id;return true}return false}
 function fixDate(date){const ym=date.slice(0,7);const S=state.schedules[ym];if(!S||!S[date])return;const as=S[date],sl=slotsAt(date);
@@ -576,7 +580,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '13.0';
+const APPV = '13.1';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
