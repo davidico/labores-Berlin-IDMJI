@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **13.8**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **13.9**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v144`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v145`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -100,7 +100,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 - **Ofrendas:** «pareja 1 / pareja 2» y cada uno ve a su pareja (sin teléfono: el teléfono solo lo ve el admin). Quien tiene «Entrega de ofrendas» ve en su tarjeta quiénes recogen y quiénes guardan ese culto.
 - **Avisos por cambios del admin:** solo en meses publicados y fechas futuras; se avisa a quien entra y a quien sale (asignar, Leipzig, volver a generar, quitar persona → `schedDiffNotify()`). «Volver a generar» no toca los días que ya pasaron.
 - **Quitar persona:** se marca `deleted` (no se borra del arreglo), sale de las labores que vienen (se rellenan) y se borran sus filas en members, push_subs y private_info.
-- **Sin disponibilidad no se asigna:** si el admin pidió la disponibilidad de un mes (`avReqs[ym]`) y la persona no la envió (`done[id]`), ese mes no se le asigna nada (`noAv()` en `why()`: «no envió su disponibilidad de este mes»). **Los pastores son la excepción** (pueden siempre). El pedido en Mis días y los avisos del día 15 y 20 lo dicen (a los que no son pastor).
+- **Sin disponibilidad no se asigna:** si el admin pidió la disponibilidad de un mes (`avReqs[ym]`) y la persona no la envió (`done[id]`), ese mes no se le asigna nada (`noAv()` en `why()`: «no envió su disponibilidad de este mes»). **Los pastores son la excepción** (pueden siempre). Tampoco se aplica a quien **no tiene cuenta en la app** (sin correo, p. ej. Marion y Tomasa, que guardan ofrendas): no pueden enviarla. El pedido en Mis días y los avisos del día 15 y 20 lo dicen (a los que no son pastor).
 - **Preámbulo para todo púlpito:** los de púlpito ven el preámbulo sugerido los martes, sábados (estudio bíblico) y domingos con transmisión aunque no les toque (`it.pre` en `myItems`): sección «Preámbulo sugerido» con etiqueta gris (sin dorado) y la nota «Este día no te toca el púlpito…»; quien sirve ese día lo sigue viendo como siempre (etiqueta dorada).
 - **Púlpito Lun/Mié/Vie (inicia / finaliza):** el generador prefiere dos personas distintas (+500 en `score` y en `refill` si ya tiene el otro puesto de púlpito ese día); la misma persona solo si no hay nadie más disponible. Cada día se llena al azar primero «inicia» o «finaliza». Además se reparte por semana: quien ya inició esa semana tiene +120 para volver a iniciar (igual con finalizar, +8 por cada vez en el mes) y, al terminar el día, si cambiar inicia↔finaliza repite menos, se cambian. David evita lun/mié (`freeAlab`, para que Gabriela vaya a la alabanza), pero se le pone si hace falta.
 - **Día elegido para interpretar la predicación (`predPref[ym]`, en Mis días):** el generador lo reserva **antes** de llenar los demás puestos (`genOnce`), así ese día la persona interpreta la predicación (y los testimonios) y ya no queda en la puerta ni en otra labor que no combine (p. ej. Carlos: puerta fija los domingos y preferido los jueves).

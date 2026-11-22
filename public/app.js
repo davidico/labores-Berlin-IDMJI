@@ -185,7 +185,8 @@ const fmt=s=>{const d=pd(s);return `${DOWS[d.getDay()]} ${d.getDate()} ${MESS[d.
 
 /* Si el admin pidió la disponibilidad del mes y la persona no la envió, ese mes no se le asigna nada (no puede ningún día).
    Los pastores son la excepción: pueden siempre. */
-const noAv=(p,ym)=>{const av=(state.avReqs||{})[ym];return !!av&&!p.pastor&&!(av.done&&av.done[p.id])};
+/* Quien no tiene cuenta en la app (sin correo, p. ej. Marion y Tomasa) no puede enviarla: a esa persona no se le aplica. */
+const noAv=(p,ym)=>{const av=(state.avReqs||{})[ym];return !!av&&!p.pastor&&!!p.email&&!(av.done&&av.done[p.id])};
 function why(p,s,date,as,slots){
   if(!p.roles.includes(s.role)&&!(s.altRole&&p.roles.includes(s.altRole))) return 'no tiene esta labor';
   if(s.onlyPastor&&!p.pastor) return 'solo el pastor';
@@ -604,7 +605,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '13.8';
+const APPV = '13.9';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
