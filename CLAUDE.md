@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **13.2**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **13.3**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v138`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v139`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -145,6 +145,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - **Mi calendario › Mi mes:** al tocar un día de la cuadrícula se abre una ventana (`calSheet`, `ui.calPop`) con lo que toca ese día; ya no se muestra debajo. botones «Calendario | Lista» (`ui.cv`, se recuerda en el aparato). La lista es compacta (una fila por cada culto del mes con labor, también los pasados en gris; hoy con el número en dorado: día, hora, culto y labores en texto), sin detalles ni botones.
 - **Horario en celular (`horMobile`, <1024 px; en PC sigue la tabla grande):** «Organización del mes» plegada en una fila; barra «N puestos por revisar · Ver/Siguiente» (`gap-go`); dos vistas: **Por día** (semana con flechas `ui.hw`, 7 botones de día `ui.hd`, el culto completo agrupado por equipo, tocar un nombre abre el selector) y **Tabla** compacta (nombres abreviados con `shortNames()`, cabe sin deslizar; tocar una celda lleva a ese día).
 - «No puedo ir» y «Llego tarde» quedan siempre visibles en cada tarjeta (no esconderlos en un menú), pero como acciones discretas: fila al pie con línea fina, enlaces de texto gris con ícono (`.acts.quiet` / `.qa`), no botones grandes.
+- En PC, junto al título «Labores Berlín» del menú lateral sale la versión (`.sver`, «v13.3», toma `APPV`).
 - Espaciado en pasos de 8 px; **16 px entre contenido y botones**.
 - Una acción principal por pantalla; lo poco usado o delicado en menú ⋯ o con confirmación.
 - Estado como etiqueta (● Publicado / ● Borrador), filas que dicen cómo va («2 de 22 enviaron ›»).
