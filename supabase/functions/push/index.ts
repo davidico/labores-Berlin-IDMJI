@@ -347,7 +347,7 @@ async function todayReminder() {
   const by: Record<string, Set<string>> = {};
   for (const [k, pid] of Object.entries(as)) { const l = lblFor(st, date, k); if (l && pid && ok.has(pid)) (by[pid] ??= new Set()).add(l); }
   let sent = 0;
-  for (const [pid, set] of Object.entries(by)) sent += await sendTo([pid], `Hoy te toca: ${[...set].join(', ')}`, `${sn} a las ${hr}.`);
+  for (const [pid, set] of Object.entries(by)) sent += await sendTo([pid], `Hoy colaboras en: ${[...set].join(', ')}`, `${sn} a las ${hr}.`);
   // deno-lint-ignore no-explicit-any
   for (const m of (st.meets || []).filter((m: any) => m.date === date)) {
     sent += await sendTo(invitees(st, m), `Hoy: ${m.title}`, `${m.time ? 'A las ' + m.time + '. ' : ''}${m.place || ''}`.trim() || 'Reunión convocada.');
@@ -376,7 +376,7 @@ async function daily() {
   const by: Record<string, Set<string>> = {};
   for (const [k, pid] of Object.entries(as)) { const l = lblFor(st, date, k); if (l && pid && ok.has(pid)) (by[pid] ??= new Set()).add(l); }
   let sent = 0;
-  for (const [pid, set] of Object.entries(by)) sent += await sendTo([pid], `Mañana te toca: ${[...set].join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.`);
+  for (const [pid, set] of Object.entries(by)) sent += await sendTo([pid], `Mañana colaboras en: ${[...set].join(', ')}`, `${sn} del ${DOW[dow]} a las ${hr}.`);
   // deno-lint-ignore no-explicit-any
   for (const m of (st.meets || []).filter((m: any) => m.date === date)) {
     sent += await sendTo(invitees(st, m), `Mañana: ${m.title}`, `${m.time ? 'A las ' + m.time + '. ' : ''}${m.place || ''}`.trim() || 'Reunión convocada.');

@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **14.0**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **14.1**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v146`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v147`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -136,6 +136,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 
 ## Convenciones de UI (las pidió el usuario)
 
+- **Lenguaje:** nunca «te toca» (suena a obligación); se dice **«colaboras en…»** («Hoy colaboras en: Sonido», «ahora colaboras en…», «ya no colaboras en…»), en la app y en los avisos al celular.
 - Tamaños de letra según buenas prácticas: texto principal 16 px, notas 15 px, secundario 14 px (en las tarjetas de Labores: títulos 17–18, texto 16, secundario 14–15); señales ✓ y «!» de 16 px y puntos de aviso de 8 px, discretos, etiquetas en mayúsculas y números de aviso nunca menos de 12 px. Áreas táctiles ≥ 44 px (enlaces ≥ 40 px).
 - **Tarjetas de Labores (`itemCard`, diseño «C»):** cabecera (fecha, culto, chips); arriba un cuadro dorado `todoBox` con lo que prepara esa persona según su labor (Tu predicación · Tu introducción con ✓/! de cita y testimonio · Tu interpretación con las fichas); debajo secciones con etiqueta (`isec`: Preámbulo sugerido de alabanza y estudio bíblico —sin cuadro dorado, solo la etiqueta en dorado—, Enseñanza del culto, Introducción, Tu pareja, Transmisión, Leipzig, Reunión). Las notas de `myItems` son objetos `{l, h}`.
 - **Recordatorio de la introducción (`introPend`/`introNag`):** a quien da la introducción **ese mismo día** y le falta la cita o el enlace del testimonio (los dos no obligatorios pero recomendados; **no hay** botón «No tengo testimonio»): un solo aviso amarillo arriba de Labores (el más próximo), número rojo en la pestaña y en el ícono de la app (`appBadge`, Badging API) y «!» amarillo pequeño en la tarjeta.
@@ -170,7 +171,7 @@ No hay tests automáticos. Se prueba con **Playwright (Python)** cargando `publi
 
 ## Pendientes
 
-- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 49 en Supabase, SHA-256 `bea76bdf…2029705c`, 21 nov 2026). Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
+- [x] `seguridad.sql` aplicado y función `push` desplegada (versión 50 en Supabase, SHA-256 `d625b33b…4e2005b05`, 23 nov 2026). Los teléfonos y correos pasan a `private_info` la próxima vez que David abra la app.
 - [x] (15 nov) Llamada de pg_cron con `timeout_milliseconds := 60000` (aplicado en Supabase y en `push.sql`): antes superaba los 5 s y no se veía la respuesta. Los resultados quedan en `net._http_response`.
 - [ ] Pendiente de seguridad: cualquier miembro todavía puede escribir horarios y avisos en el estado compartido (se puede recuperar con `app_state_history`); separarlo en tablas lo resolvería del todo.
 

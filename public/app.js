@@ -496,7 +496,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   if(w===0&&tr&&has(s=>s.area==='trad'&&/_intro$/.test(s.k))){const x=preTR(d);todo.push(todoBox('Interpretas el saludo y el preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Al comienzo, antes del video de la transmisión.</div>`))}
   if(w===0&&tr&&has(s=>s.area==='trad'&&/_test$/.test(s.k)))todo.push(todoBox('Interpretas los testimonios y la despedida','<div class="help" style="margin-top:0">Después del video de la transmisión.</div>'));
-  if(it.pre){const x=w===0?preTR(d):preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Este día no te toca el púlpito; es para que todos en púlpito lo tengan presente.</div>`))}
+  if(it.pre){const x=w===0?preTR(d):preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Este día no estás en el púlpito; es para que todos en púlpito lo tengan presente.</div>`))}
   if(w===0&&tr&&it.trPul){const x=preTR(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
   if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
@@ -529,7 +529,7 @@ function schedDiffNotify(before,why){const per={};
     for(const k of new Set([...Object.keys(a),...Object.keys(b)])){if(a[k]===b[k])continue;const s=slotOf(d,k)||slotsFor(pd(d).getDay()).find(z=>z.k===k),lbl=s?s.l:k;
       if(b[k])(per[b[k]]=per[b[k]]||{in:[],out:[]}).in.push(`${lbl} ${when}`);
       if(a[k])(per[a[k]]=per[a[k]]||{in:[],out:[]}).out.push(`${lbl} ${when}`)}}
-  let n=0;for(const id in per){const x=per[id],parts=[];if(x.in.length)parts.push('ahora te toca '+x.in.join('; '));if(x.out.length)parts.push('ya no te toca '+x.out.join('; '));
+  let n=0;for(const id in per){const x=per[id],parts=[];if(x.in.length)parts.push('ahora colaboras en '+x.in.join('; '));if(x.out.length)parts.push('ya no colaboras en '+x.out.join('; '));
     const txt=`Cambio en el horario: ${parts.join('. Y ')}${why?' ('+why+')':''}.`;n+=notify([id],txt,{push:{title:'Cambio en tu horario',body:txt.replace(/^Cambio en el horario: /,'')}})}
   return n}
 const admins=()=>state.people.filter(x=>x.admin).map(x=>x.id);
@@ -608,7 +608,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '14.0';
+const APPV = '14.1';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1038,7 +1038,7 @@ function misCal(p){
     h+=`<button class="cd ${areas.length?'':'free'} ${d===today?'today':''}" data-a="selday" data-v="${esc(d)}" aria-pressed="${ui.calPop===d}"><b>${pd(d).getDate()}${it&&it.notes.length?'<i class="nt"></i>':''}</b>${areas.slice(0,2).map(a=>`<span class="lab" style="--c:var(${AREAC[a]})">${SHORT[a]}</span>`).join('')+(it&&it.attend?`<span class="lab" style="--c:var(--gold)">${it.trPul?'Transm.':it.preach?'Predica':'Alabanza'}</span>`:'')+(it&&it.lz?'<span class="lab" style="--c:var(--gold)">Viaje</span>':'')}${areas.length>2?`<span class="more">+${areas.length-2}</span>`:''}</button>`}
   h+='</div>';
   const n=dates.filter(d=>items[d]&&items[d].slots.length).length;
-  h+=`<div class="info" style="margin:10px 0">${n?`${n} ${n===1?'día':'días'} con labor este mes. Toca un día para ver qué te toca.`:'No tienes labores este mes.'}</div>`;
+  h+=`<div class="info" style="margin:10px 0">${n?`${n} ${n===1?'día':'días'} con labor este mes. Toca un día para ver en qué colaboras.`:'No tienes labores este mes.'}</div>`;
   return h;
 }
 function calSheet(p){const d=ui.calPop,it=myItems(p)[d],w=pd(d).getDay();
@@ -1577,8 +1577,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'assign':{const[d,k,id]=v.split('|');const ym=d.slice(0,7);state.schedules[ym]=state.schedules[ym]||{};const as=state.schedules[ym][d]=state.schedules[ym][d]||{};const prev=as[k];if(id)as[k]=id;else delete as[k];ui.edit=null;
     // Avisar del cambio a la persona nueva y a la que salió (solo en meses publicados y fechas que no pasaron)
     if(prev!==id&&isPub(ym)&&d>=today){const s=slotOf(d,k),lbl=s?s.l:k,np0=person(id),op0=person(prev),nm=x=>x&&{...x,name:x.name.replace(/\.$/,'')},np=nm(np0),op=nm(op0),W=DOW[pd(d).getDay()].toLowerCase(),when=`el ${W} ${fmt(d).replace(/^\S+\s/,'')}`;
-      if(np)notify([id],`Cambio en el horario: ahora te toca ${lbl} ${when}${op?` (en lugar de ${op.name})`:''}.`,{push:{title:'Te pusieron en una labor',body:`${lbl} ${when}${op?` · en lugar de ${op.name}`:''}`}});
-      if(op)notify([prev],`Cambio en el horario: ya no te toca ${lbl} ${when}${np?`, ahora va ${np.name}`:''}.`,{push:{title:'Cambio en tu horario',body:`Ya no te toca ${lbl} ${when}${np?` · ahora va ${np.name}`:''}`}});
+      if(np)notify([id],`Cambio en el horario: ahora colaboras en ${lbl} ${when}${op?` (en lugar de ${op.name})`:''}.`,{push:{title:'Te pusieron en una labor',body:`${lbl} ${when}${op?` · en lugar de ${op.name}`:''}`}});
+      if(op)notify([prev],`Cambio en el horario: ya no colaboras en ${lbl} ${when}${np?`, ahora va ${np.name}`:''}.`,{push:{title:'Cambio en tu horario',body:`Ya no colaboras en ${lbl} ${when}${np?` · ahora va ${np.name}`:''}`}});
       const av=[np0,op0].filter(x=>x&&x.id!==state.me).map(x=>x.name);ui.flash=av.length?`Guardado. Se avisó a ${av.join(' y ')}.`:'Guardado.'}
     else if(prev!==id)ui.flash=!isPub(ym)?`Guardado. No se avisa a nadie porque el horario de ${MES[+ym.slice(5,7)-1]} todavía es borrador.`:'Guardado.';
     break}
