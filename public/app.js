@@ -608,7 +608,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '14.1';
+const APPV = '14.2';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -869,7 +869,7 @@ function lzGoingLine(l){const g=lzGoing(l);return g.length?`<b>Van (${g.length})
 const lzNext=()=>(state.leipzig||[]).filter(l=>l.date>=today&&!svcGone(l.date)).sort((a,b)=>a.date<b.date?-1:1);
 function lzAdmin(){return `<h3>Administrar visitas</h3><div class="card">
    ${state.leipzig.filter(l=>!svcGone(l.date)).sort((a,b)=>a.date<b.date?-1:1).map(l=>`<div class="li trow"><div class="main"><div class="tline" style="margin-top:0"><b class="lzt2">Visita a Leipzig · ${fmt(l.date)}</b><div class="tacts"><button class="ta del" data-a="lz-del" data-v="${esc(l.id)}" aria-label="Quitar esta visita">${IC_DEL}</button></div></div>
-     <div class="kv" style="margin-top:4px"><span>Predicación</span>${nameEd('lz',l.id,l.teaching||'','Por definir',!!l.teaching)}</div>${linkPair('ll',l,['de','en'])}<div class="lzvan"><div class="sub2" style="margin-top:0">${lzGoingLine(l)}</div>${(()=>{const p=me(),go=(l.going||[]).includes(p.id);return p.leipzig?'<div class="sub2">Tú viajas este día.</div>':go?`<div class="rsvpok yes" style="margin-top:8px"><span>✓ Vas a ir</span><button class="linkbtn" data-a="lz-go" data-v="${esc(l.id)}|0">Ya no puedo</button></div>`:`<button class="btn ghost sm" data-a="lz-go" data-v="${esc(l.id)}|1" style="margin-top:8px">Yo iré</button>`})()}</div></div></div>`).join('')||'<div class="info">Ninguna visita programada.</div>'}
+     <div class="kv" style="margin-top:4px"><span>Predicación</span>${nameEd('lz',l.id,l.teaching||'','Por definir',!!l.teaching)}</div>${linkPair('ll',l,['de','en'])}<div class="lzvan"><div class="sub2" style="margin-top:0">${lzGoingLine(l)}</div><div style="margin-top:8px">${lzRsvp(l,me())}</div></div></div></div>`).join('')||'<div class="info">Ninguna visita programada.</div>'}
    <div class="inline" style="margin-top:10px"><input id="lz-date" type="date" value="${esc(ui.lzD||'')}"><input id="lz-t" type="text" placeholder="Predicación (opcional, se puede poner después)" value="${esc(ui.lzT||'')}"><button class="btn sm" data-a="lz-add">Agregar visita</button></div><div class="info" style="margin-top:4px">Solo hace falta la fecha (un sábado). La predicación y las fichas se agregan cuando se sepan.</div>${ui.lzErr?`<div class="info" style="color:var(--warn);margin-top:6px">${esc(ui.lzErr)}</div>`:''}
    <div class="info" style="margin-top:6px">Viajan: ${esc(yList(state.people.filter(x=>x.leipzig&&!x.deleted).map(x=>x.name))||'nadie marcado').replace(/\.$/,'')}. Ese día no se les asigna nada en Berlín. Las visitas se ven aquí para todos.</div></div>`}
 function vLz(p){const ls=lzNext();
@@ -884,7 +884,7 @@ function vLz(p){const ls=lzNext();
       <div class="kv" style="margin-top:8px"><span>Predicación</span>${l.teaching?`<b>${esc(l.teaching)}</b>`:'<i>Por definir</i>'}</div>
       ${langs.length?`<div class="kv"><span>Fichas</span>${fichaRows('l',l,langs).replace('class="fichs"','class="fichs" style="margin-top:0"')}</div>${linkRep('l',l,l.date,langs,null)}`:''}
       <div class="kv lzvan"><span>Van</span>${lzGoing(l).length?lzGoing(l).map(x=>esc(x.name)).join(', '):'<i>Todavía nadie dijo que va</i>'}</div>
-      <div style="margin-top:10px">${trav?'<div class="rsvpok yes" style="margin-top:0"><span>Tú viajas este día.</span></div>':go?`<div class="rsvpok yes" style="margin-top:0"><span>✓ Vas a ir</span><button class="linkbtn" data-a="lz-go" data-v="${esc(l.id)}|0">Ya no puedo</button></div>`:`<button class="btn ghost sm" data-a="lz-go" data-v="${esc(l.id)}|1">Yo iré</button>`}</div></div>`}).join('')+'</div>'}
+      <div style="margin-top:10px">${lzRsvp(l,p)}</div></div>`}).join('')+'</div>'}
 /* Calendario de Leipzig: el año (12 meses con cuántas visitas hay) y el mes elegido día por día; tocar un día abre la visita. */
 function lzCal(p){const y=ui.lzy||+today.slice(0,4),vs=(state.leipzig||[]).filter(l=>l.date&&l.date.startsWith(y+'-')).sort((a,b)=>a.date<b.date?-1:1);
   if(!ui.lzm||!ui.lzm.startsWith(y+'-'))ui.lzm=y===+today.slice(0,4)?today.slice(0,7):`${y}-01`;
@@ -907,16 +907,23 @@ function lzSheet(p){const d=ui.lzPop,l=(state.leipzig||[]).find(x=>x.date===d),p
     b=`<div class="kv" style="margin-top:4px"><span>Predicación</span>${l.teaching?`<b>${esc(l.teaching)}</b>`:'<i>Por definir</i>'}</div>
      ${langs.length&&!past?`<div class="kv"><span>Fichas</span>${fichaRows('l',l,langs).replace('class="fichs"','class="fichs" style="margin-top:0"')}</div>`:''}
      <div class="kv lzvan"><span>${past?'Fueron':'Van'}</span>${lzGoing(l).length?lzGoing(l).map(x=>esc(x.name)).join(', '):'<i>Nadie dijo que va</i>'}</div>
-     ${past?'':`<div style="margin-top:12px">${p.leipzig?'<div class="rsvpok yes" style="margin-top:0"><span>Tú viajas este día.</span></div>':go?`<div class="rsvpok yes" style="margin-top:0"><span>✓ Vas a ir</span><button class="linkbtn" data-a="lz-go" data-v="${esc(l.id)}|0">Ya no puedo</button></div>`:`<button class="btn ghost sm" data-a="lz-go" data-v="${esc(l.id)}|1">Yo iré</button>`}</div>`}`}
+     ${past?'':`<div style="margin-top:12px">${lzRsvp(l,p)}</div>`}`}
   else b=`<div class="info" style="margin:8px 0 4px;font-size:16px">No hay visita a Leipzig este día.</div>${adm&&!past&&pd(d).getDay()===6?`<button class="btn sm" data-a="lz-addd" data-v="${d}" style="margin-top:12px">Agregar visita este sábado</button>`:''}`;
   return `<div class="scrim" data-a="lz-x"></div><div class="sheet calsheet" role="dialog" aria-label="${fmt(d)}"><div class="dayhead"><div><b style="font-size:18px">${l?'Visita a Leipzig · ':''}${DOWL(d)}</b></div><button class="x" data-a="lz-x" aria-label="Cerrar">✕</button></div>
    <div class="calsheet-b">${b}</div></div>`}
+/* Respuesta a una visita: «Yo iré» / «No iré»; ya respondido: «✓ Vas a ir · Ya no puedo» o «No irás · Cambiar». */
+function lzRsvp(l,p){if(!p)return'';const id=esc(l.id);
+  if(p.leipzig)return '<div class="rsvpok yes" style="margin-top:0"><span>Tú viajas este día.</span></div>';
+  if((l.going||[]).includes(p.id))return `<div class="rsvpok yes" style="margin-top:0"><span>✓ Vas a ir</span><button class="linkbtn" data-a="lz-go" data-v="${id}|no">Ya no puedo</button></div>`;
+  if((l.no||[]).includes(p.id))return `<div class="rsvpok no" style="margin-top:0"><span>No irás</span><button class="linkbtn" data-a="lz-go" data-v="${id}|0">Cambiar</button></div>`;
+  return `<div class="inline"><button class="btn sm" data-a="lz-go" data-v="${id}|1">Yo iré</button><button class="btn ghost sm" data-a="lz-go" data-v="${id}|no">No iré</button></div>`}
 function lzInvite(p){const l=state.leipzig.filter(x=>x.date>=today&&!svcGone(x.date)).sort((a,b)=>a.date<b.date?-1:1)[0];if(!l)return'';
   const from=pd(l.date);from.setDate(from.getDate()-3);if(today<ds(from))return'';
+  if((l.no||[]).includes(p.id))return'';
   const go=(l.going||[]).includes(p.id),trav=!!p.leipzig;
   return `<div class="card lzinv"><div class="dkeye" style="color:var(--gold)">Invitación</div><b class="lzt">Visita a Leipzig · ${DOWL(l.date)}</b>
     <div class="info" style="margin-top:4px">Predicación: ${esc(l.teaching||'por definir')}</div>
-    ${trav?'<div class="note" style="margin-top:8px">Tú viajas ese día.</div>':go?`<div class="inline" style="margin-top:10px"><span class="lzok">✓ Vas a Leipzig</span><button class="btn ghost sm" data-a="lz-go" data-v="${esc(l.id)}|0">Ya no puedo ir</button></div>`:`<div class="inline" style="margin-top:10px"><button class="btn sm" data-a="lz-go" data-v="${esc(l.id)}|1">Yo iré</button></div>`}
+    <div style="margin-top:10px">${lzRsvp(l,p)}</div>
     ${seesLzGoing(p)?`<div class="note" style="margin-top:10px">${lzGoingLine(l)}</div>`:''}</div>`}
 /* ---- ¿Hay transmisión el domingo? (lo responde el pastor desde la notificación o aquí) ---- */
 // Las transmisiones siempre son en domingo: se agrega al próximo domingo que no tenga una
@@ -1536,7 +1543,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'upd':location.reload();return;
   case'cal-hide':ui.calHide=true;try{localStorage.setItem('lb-calhide','1')}catch(e){}break;
   case'menu':ui.menu=!ui.menu;ui.bell=false;break;
-  case'lz-go':{const[id,on]=v.split('|');const l=state.leipzig.find(x=>x.id===id);if(!l)break;l.going=(l.going||[]).filter(x=>x!==state.me);if(on==='1'){l.going.push(state.me);ui.flash=`Anotado: vas a Leipzig el ${fmt(l.date)}.`}else ui.flash='Anotado: ya no vas.';break}
+  case'lz-go':{const[id,on]=v.split('|');const l=state.leipzig.find(x=>x.id===id);if(!l)break;l.going=(l.going||[]).filter(x=>x!==state.me);l.no=(l.no||[]).filter(x=>x!==state.me);
+    if(on==='1'){l.going.push(state.me);ui.flash=`Anotado: vas a Leipzig el ${fmt(l.date)}.`}else if(on==='no'){l.no.push(state.me);ui.flash='Anotado: no irás. Ya no te llega la invitación.'}break}
   case'n-go':{const n=state.notifs.find(x=>x.id===v);if(!n)return;if(!ui.viewAs&&!n.read.includes(state.me)){n.read.push(state.me);save()}nGo(goFor(n,p));return}
   case'rep-open':ui.repOpen=v;ui.repLang=null;render();return;
   case'rep-lang':ui.repLang=v;{const n=($('rep-note')||{}).value;render();const x=$('rep-note');if(x&&n)x.value=n}return;

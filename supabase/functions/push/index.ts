@@ -291,7 +291,7 @@ async function leipzigInvite() {
   if (!l) return { skipped: true, noVisit: sat };
   const going: string[] = l.going || [];
   // deno-lint-ignore no-explicit-any
-  const to: string[] = (st.people || []).filter((x: any) => !x.deleted && !x.leipzig && !going.includes(x.id)).map((x: any) => x.id);
+  const to: string[] = (st.people || []).filter((x: any) => !x.deleted && !x.leipzig && !going.includes(x.id) && !(l.no || []).includes(x.id)).map((x: any) => x.id);
   if (!to.length) return { skipped: true, nobody: true };
   if (!(await once(`lz-${sat}-${today}`))) return { skipped: true, already: today };
   const pred = l.teaching ? ` Predicación: ${l.teaching}.` : '';
@@ -542,7 +542,7 @@ Deno.serve(async (req) => {
       }
       // Quitar su id de visitas, disponibilidad, reuniones, avisos y asignaciones fijas
       // deno-lint-ignore no-explicit-any
-      for (const l of (st.leipzig || []) as any[]) if (Array.isArray(l.going)) l.going = l.going.filter((x: string) => x !== pid);
+      for (const l of (st.leipzig || []) as any[]) if (Array.isArray(l.going)) l.going = l.going.filter((x: string) => x !== pid); if (Array.isArray(l.no)) l.no = l.no.filter((x: string) => x !== pid);
       // deno-lint-ignore no-explicit-any
       for (const av of Object.values(st.avReqs || {}) as any[]) if (av && av.done) delete av.done[pid];
       // deno-lint-ignore no-explicit-any
