@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **14.4**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **14.5**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v150`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v151`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -99,6 +99,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 - **Fichas:** enlaces de Drive por enseñanza y por idioma. Todo el equipo de alemán ve el de alemán y todo el de inglés el de inglés (por reemplazos de último momento). Leipzig: solo el equipo de traducción; quienes viajan ven los dos.
 - **Ofrendas:** «pareja 1 / pareja 2» y cada uno ve a su pareja (sin teléfono: el teléfono solo lo ve el admin). Quien tiene «Entrega de ofrendas» ve en su tarjeta quiénes recogen y quiénes guardan ese culto.
 - **Avisos por cambios del admin:** solo en meses publicados y fechas futuras; se avisa a quien entra y a quien sale (asignar, Leipzig, volver a generar, quitar persona → `schedDiffNotify()`). «Volver a generar» no toca los días que ya pasaron.
+- **«Llego tarde» de quien solo guarda ofrendas:** guardar es en medio del culto, así que el aviso (`late()`) no pide ayuda ni trae «Yo ayudo»; va solo al equipo de ofrendas de ese culto y al admin, con «no hace falta reemplazo».
 - **Quitar persona:** se marca `deleted` (no se borra del arreglo), sale de las labores que vienen (se rellenan) y se borran sus filas en members, push_subs y private_info.
 - **Sin disponibilidad no se asigna:** si el admin pidió la disponibilidad de un mes (`avReqs[ym]`) y la persona no la envió (`done[id]`), ese mes no se le asigna nada (`noAv()` en `why()`: «no envió su disponibilidad de este mes»). **Los pastores son la excepción** (pueden siempre). Tampoco se aplica a quien **no tiene cuenta en la app** (sin correo, p. ej. Marion y Tomasa, que guardan ofrendas): no pueden enviarla. El pedido en Mis días y los avisos del día 15 y 20 lo dicen (a los que no son pastor).
 - **Preámbulo para todo púlpito:** los de púlpito ven el preámbulo sugerido los martes, sábados (estudio bíblico) y domingos con transmisión aunque no les toque (`it.pre` en `myItems`): sección «Preámbulo sugerido» con etiqueta gris (sin dorado) y la nota «Este día no te toca el púlpito…»; quien sirve ese día lo sigue viendo como siempre (etiqueta dorada).
