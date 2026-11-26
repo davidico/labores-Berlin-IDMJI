@@ -173,7 +173,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 ## Forma de trabajar (la pidió la usuaria, 26 nov)
 
 - **Fable = arquitecto, Opus = quien implementa.** Para cambios que no son de una línea: primero un agente con `model: "fable"` (tipo Plan) diseña el cambio (qué funciones tocar, reglas, casos borde, cómo probar); luego Opus lo implementa, prueba y publica. Los arreglos mínimos (un texto, un color) se hacen directo.
-- **Skill «impecable» (impeccable):** la usuaria quiere tenerlo siempre en cuenta para el diseño. Todavía no está instalado en su cuenta (búsqueda vacía el 26 nov); si aparece en la lista de skills, cargarlo antes de cualquier cambio visual. Mientras tanto, seguir las «Convenciones de UI» de arriba.
+- **Skill «impecable» (impeccable, github.com/pbakaus/impeccable, v4.11.1, Apache 2.0):** instalado en el proyecto en `.claude/skills/impeccable` (+ sus agentes en `.claude/agents/impeccable-*.md`); se carga solo en sesiones nuevas. **Usarlo siempre en cambios visuales** (`/impeccable polish|critique|audit …`), respetando las «Convenciones de UI» de arriba (mandan las de la usuaria). Sin hooks automáticos ni motor de detección (el motor se baja de GitHub releases y los hooks no se permitieron en el entorno de la nube).
 
 ## Pruebas
 
