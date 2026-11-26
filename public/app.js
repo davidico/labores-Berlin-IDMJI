@@ -631,7 +631,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
 /* Avisos viejos de «llego tarde» de quien solo guarda ofrendas: no piden ayuda (guardar es en medio del culto). */
 const grdOnly=n=>/\((Ofrendas · guardan(, )?)+\)/.test(n.text||'');
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,rd=nReqDone(n),cta=lt?'':rd==='done'?'<small class="nok">✓ Ya hay reemplazo</small>':rd?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '15.5';
+const APPV = '15.6';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1027,18 +1027,20 @@ function vDash(p){const items=myItems(p);for(const d in items)if(svcGone(d))dele
 /* ---- mensajes por equipo ---- */
 function teamIds(area){return state.people.filter(x=>!x.kiosk).filter(x=>area==='all'||x.roles.some(r=>ROLEAREA[r]===area)||(area==='pulpito'&&x.pastor)).map(x=>x.id)}
 function msgsFor(p,ym){const a=myAreas(p);return state.msgs.filter(m=>m.month===ym&&(m.area==='all'||a.includes(m.area)||m.from===p.id))}
-function msgCard(m,del,extra){const f=person(m.from),[y,mo]=m.month.split('-').map(Number);
-  return `<div class="card"><div class="dayhead"><span class="msgfrom">${esc(f?f.name:'Púlpito')}${f&&f.pastor?' · Pastor':''}</span>${del?`<button class="x" data-a="msg-del" data-v="${esc(m.id)}" aria-label="Borrar mensaje">✕</button>`:''}</div><div class="dayhead"><span class="info" style="margin:0;display:flex;align-items:center;gap:6px"><i class="dot" style="--c:var(${m.area==='all'?'--gold':AREAC[m.area]})"></i>${m.area==='all'?'Para todos':'Equipo de '+AREAN[m.area].toLowerCase()} · ${MES[mo-1]}</span></div>
+function msgCard(m,del,extra,close){const f=person(m.from),[y,mo]=m.month.split('-').map(Number);
+  return `<div class="card"><div class="dayhead"><span class="msgfrom">${esc(f?f.name:'Púlpito')}${f&&f.pastor?' · Pastor':''}</span>${del?`<button class="x" data-a="msg-del" data-v="${esc(m.id)}" aria-label="Borrar mensaje">✕</button>`:close?`<button class="x msgx" data-a="msg-hide" data-v="${esc(m.id)}" aria-label="Cerrar este mensaje" title="Cerrar este mensaje">✕</button>`:''}</div><div class="dayhead"><span class="info" style="margin:0;display:flex;align-items:center;gap:6px"><i class="dot" style="--c:var(${m.area==='all'?'--gold':AREAC[m.area]})"></i>${m.area==='all'?'Para todos':'Equipo de '+AREAN[m.area].toLowerCase()} · ${MES[mo-1]}</span></div>
     <div class="pre" style="margin-top:8px">${linkify(m.text)}</div>${extra||''}</div>`}
 /* Mensajes del mes: los del mes actual y, desde el día 21, también los del mes siguiente. */
 const nextYm=()=>{const d=new Date();d.setMonth(d.getMonth()+1,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`};
 function misMsgs(p){const ms=[...new Set([today.slice(0,7),+today.slice(8,10)>20?nextYm():today.slice(0,7)])].flatMap(ym=>msgsFor(p,ym));
   if(!ms.length)return'';
   // «Entendido» oculta el mensaje para esa persona; los leídos se pueden volver a ver
-  const nw=ms.filter(m=>!(m.seen||[]).includes(p.id)),old=ms.filter(m=>(m.seen||[]).includes(p.id));
+  // «✕» lo cierra para siempre para esa persona (msgs[].hid[])
+  const vis=ms.filter(m=>!(m.hid||[]).includes(p.id));if(!vis.length)return'';
+  const nw=vis.filter(m=>!(m.seen||[]).includes(p.id)),old=vis.filter(m=>(m.seen||[]).includes(p.id));
   const ok=m=>`<button class="btn ghost sm" data-a="msg-ok" data-v="${esc(m.id)}" style="margin-top:12px">Entendido</button>`;
-  return (nw.length?`<h3 style="margin-top:4px">Mensajes del mes</h3><div class="list">${nw.map(m=>msgCard(m,false,ok(m))).join('')}</div>`:'')+
-    (old.length?`<button class="linkbtn" data-a="msg-old" style="display:block;margin:4px 0 12px;min-height:40px;font-size:15px">${ui.msgOld?'Ocultar mensajes leídos':`Ver mensajes leídos (${old.length})`}</button>${ui.msgOld?`<div class="list" style="margin-bottom:12px">${old.map(m=>msgCard(m,false)).join('')}</div>`:''}`:'')}
+  return (nw.length?`<h3 style="margin-top:4px">Mensajes del mes</h3><div class="list">${nw.map(m=>msgCard(m,false,ok(m),true)).join('')}</div>`:'')+
+    (old.length?`<button class="linkbtn" data-a="msg-old" style="display:block;margin:4px 0 12px;min-height:40px;font-size:15px">${ui.msgOld?'Ocultar mensajes leídos':`Ver mensajes leídos (${old.length})`}</button>${ui.msgOld?`<div class="list" style="margin-bottom:12px">${old.map(m=>msgCard(m,false,'',true)).join('')}</div>`:''}`:'')}
 function msgBlock(p){const ms=state.msgs.filter(m=>m.month===ui.month),mo=+ui.month.slice(5,7);let h='';
   if(ui.compose)h+=`<div class="panel" style="margin-top:12px"><b>Mensaje para ${MES[mo-1]}</b>
     <label class="field" style="margin-top:8px">Para<select id="msg-area"><option value="all">Todos los equipos</option>${Object.entries(AREAN).map(([k,l])=>`<option value="${k}">Equipo de ${l.toLowerCase()}</option>`).join('')}</select></label>
@@ -1080,7 +1082,7 @@ function calSheet(p){const d=ui.calPop,it=myItems(p)[d],w=pd(d).getDay();
 function misTeam(p){
   const sched=canSeeMonth(p,ui.cm)?state.schedules[ui.cm]:null;const areas=myAreas(p);
   const grids=GRIDS.filter(g=>g.role?p.roles.includes(g.role):(g.areas||[g.area]).some(a=>areas.includes(a)));
-  const mm=msgsFor(p,ui.cm);
+  const mm=msgsFor(p,ui.cm).filter(m=>!(m.hid||[]).includes(p.id));
   let h=monthNav()+(mm.length?`<div class="list" style="margin-bottom:12px">${mm.map(m=>msgCard(m,false)).join('')}</div>`:'')+`<p class="lead">El horario completo de ${grids.map(g=>g.title.toLowerCase()).join(', ')}. Tu nombre está resaltado.</p>`;
   if(!sched)return h+`<div class="card empty-state">El horario de este mes todavía no está publicado.</div>`;
   return h+gridView(weeksOf(ui.cm),sched,{grids,ro:true,me:p.id});
@@ -1518,6 +1520,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'pdf':savePdf(ui.month);return;
   case'dlpdf':dlPdf(v);return;
   case'msg-ok':{const m=state.msgs.find(x=>x.id===v);if(m&&!(m.seen||[]).includes(p.id)){m.seen=[...(m.seen||[]),p.id];ui.flash='Mensaje guardado en «leídos».'}break}
+  case'msg-hide':{const m=state.msgs.find(x=>x.id===v);if(m&&!(m.hid||[]).includes(p.id)){m.hid=[...(m.hid||[]),p.id];ui.flash='Mensaje cerrado. Ya no lo vas a ver.'}break}
   case'msg-old':ui.msgOld=!ui.msgOld;break;
   case'msg-open':ui.compose=true;break;
   case'msg-x':ui.compose=false;break;

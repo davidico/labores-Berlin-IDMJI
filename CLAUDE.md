@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **15.5**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **15.6**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v161`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v162`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -157,14 +157,14 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - **Mi calendario › Mi mes:** al tocar un día de la cuadrícula se abre una ventana (`calSheet`, `ui.calPop`) con lo que toca ese día; ya no se muestra debajo. botones «Calendario | Lista» (`ui.cv`, se recuerda en el aparato). La lista es compacta (una fila por cada culto del mes con labor, también los pasados en gris; hoy con el número en dorado: día, hora, culto y labores en texto), sin detalles ni botones.
 - **Horario en celular (`horMobile`, <1024 px; en PC sigue la tabla grande):** «Organización del mes» plegada en una fila; barra «N puestos por revisar · Ver/Siguiente» (`gap-go`); dos vistas: **Por día** (semana con flechas `ui.hw`, 7 botones de día `ui.hd`, el culto completo agrupado por equipo, tocar un nombre abre el selector) y **Tabla** compacta (nombres abreviados con `shortNames()`, cabe sin deslizar; tocar una celda lleva a ese día).
 - «No puedo ir» y «Llego tarde» quedan siempre visibles en cada tarjeta (no esconderlos en un menú), pero como acciones discretas: fila al pie con línea fina, enlaces de texto gris con ícono (`.acts.quiet` / `.qa`), no botones grandes.
-- En PC, junto al título «Labores Berlín» del menú lateral sale la versión (`.sver`, «v15.5», toma `APPV`).
+- En PC, junto al título «Labores Berlín» del menú lateral sale la versión (`.sver`, «v15.6», toma `APPV`).
 - Espaciado en pasos de 8 px; **16 px entre contenido y botones**.
 - Una acción principal por pantalla; lo poco usado o delicado en menú ⋯ o con confirmación.
 - Estado como etiqueta (● Publicado / ● Borrador), filas que dicen cómo va («2 de 22 enviaron ›»).
 - Hojas que suben desde abajo en el celular, centradas en PC.
 - Lo pasado se oculta o queda gris y bloqueado.
 - Confirmar lo que pasó con un mensaje corto (`ui.flash`).
-- **Reuniones:** al responder, los botones «Asisto / No puedo» se reemplazan por la respuesta («✓ Listo, asistes. ¡Te esperamos!» o «Avisaste que no puedes asistir») con «Cambiar» (`ui.rsvpEd`). Nunca dejar dos botones iguales después de responder. Quien respondió «Asisto» ya no ve la tarjeta arriba: la reunión pasa a la tarjeta de ese día en Labores (sección «Reunión» con «✓ Asistes · Cambiar»; si ese día no tiene labor, sale una tarjeta «Sábado · Reunión 13:00») y a la lista del Calendario. Quien dijo «No puedo» ve arriba solo una línea con «Cambiar». La reunión desaparece cuando pasa su fecha; los «Mensajes del mes» se ven todo el mes para el que se escribieron (y desde el día 21 también los del mes siguiente, `misMsgs` con `nextYm()`; no depende de `defaultMonth`). **Pastor, admin y púlpito** ven en la reunión (tarjeta del día en Labores y al tocar el día en Mi calendario) quiénes asisten, quiénes no pueden y «Sin responder (n)» plegado (`meetWho`). Cada mensaje tiene «Entendido» (`msg-ok`, guarda `msgs[].seen[]`): lo oculta solo para esa persona; «Ver mensajes leídos (n)» los vuelve a mostrar.
+- **Reuniones:** al responder, los botones «Asisto / No puedo» se reemplazan por la respuesta («✓ Listo, asistes. ¡Te esperamos!» o «Avisaste que no puedes asistir») con «Cambiar» (`ui.rsvpEd`). Nunca dejar dos botones iguales después de responder. Quien respondió «Asisto» ya no ve la tarjeta arriba: la reunión pasa a la tarjeta de ese día en Labores (sección «Reunión» con «✓ Asistes · Cambiar»; si ese día no tiene labor, sale una tarjeta «Sábado · Reunión 13:00») y a la lista del Calendario. Quien dijo «No puedo» ve arriba solo una línea con «Cambiar». La reunión desaparece cuando pasa su fecha; los «Mensajes del mes» se ven todo el mes para el que se escribieron (y desde el día 21 también los del mes siguiente, `misMsgs` con `nextYm()`; no depende de `defaultMonth`). **Pastor, admin y púlpito** ven en la reunión (tarjeta del día en Labores y al tocar el día en Mi calendario) quiénes asisten, quiénes no pueden y «Sin responder (n)» plegado (`meetWho`). Cada mensaje tiene «Entendido» (`msg-ok`, guarda `msgs[].seen[]`): lo oculta solo para esa persona; «Ver mensajes leídos (n)» los vuelve a mostrar. Cada mensaje tiene además una **✕** arriba a la derecha (`msg-hide`, guarda `msgs[].hid[]`) que lo cierra para siempre para esa persona (ni en «leídos» ni en Mi calendario).
 - Editar con lápiz junto al texto; acciones de fila juntas (mover en grupo, quitar aparte y en naranja).
 - Buscador en listas largas (sin tildes ni mayúsculas, `normQ`).
 - Funcionar bien en celular y en PC (menú lateral ≥ 1024 px). **Todo cambio debe verse igual en los dos** (Labores en PC es `vDash`/`dkAgenda`).
