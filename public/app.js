@@ -151,7 +151,7 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
   if(SESSION&&LOADED&&!writing)refetch().then(()=>{resolveMe();softRender()}).catch(()=>{})}});
 setInterval(()=>{today=ds(new Date());if(document.visibilityState==="visible"&&quiet())try{render()}catch(e){}},10*60e3);
 function defaultMonth(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
-const ui={cv:(()=>{try{return localStorage.getItem('lb-cv')||'cal'}catch(e){return 'cal'}})(),tab:'mis',month:defaultMonth(),area:'all',view:'grid',mv:'cal',cm:defaultMonth(),sel:null,edit:null,open:null,regen:false,delp:null};
+const ui={cv:(()=>{try{return localStorage.getItem('lb-cv')||'cal'}catch(e){return 'cal'}})(),tab:'mis',month:defaultMonth(),area:'all',view:(window.matchMedia&&matchMedia('(min-width:1024px)').matches)?'grid':'cards',mv:'cal',cm:defaultMonth(),sel:null,edit:null,open:null,regen:false,delp:null};
 // Enlace desde la notificación de transmisión: ?tr=AAAA-MM-DD (y &a=si|no si se tocó un botón de la notificación)
 try{const q=new URLSearchParams(location.search);if(/^\d{4}-\d\d-\d\d$/.test(q.get('tr')||'')){ui.trQ=q.get('tr');ui.trA=['si','no'].includes(q.get('a'))?q.get('a'):null;ui.tab='mis'}if(q.get('n'))ui.goN=q.get('n');if(q.get('go'))ui.goQ={tab:{ic:'mis',disp:'disp',hor:'hor',ens:'ens',lz:'lz',mis:'mis'}[q.get('go')]||'mis',d:/^\d{4}-\d\d-\d\d$/.test(q.get('d')||'')?q.get('d'):null,ed:q.get('go')==='ic'?'ic':null,lz:q.get('go')==='lz'?1:0};if(q.has('tr')||q.has('n')||q.has('go'))history.replaceState(null,'',location.pathname)}catch(e){}
 
@@ -631,7 +631,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
 /* Avisos viejos de «llego tarde» de quien solo guarda ofrendas: no piden ayuda (guardar es en medio del culto). */
 const grdOnly=n=>/\((Ofrendas · guardan(, )?)+\)/.test(n.text||'');
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,rd=nReqDone(n),cta=lt?'':rd==='done'?'<small class="nok">✓ Ya hay reemplazo</small>':rd?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '15.6';
+const APPV = '15.7';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1496,7 +1496,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'install-x':ui.hideInstall=true;try{localStorage.setItem('lb-noinstall','1')}catch(e){}break;
   case'ic-go':{const[d,ed]=v.split('|');nGo({tab:'mis',d,ed});return}
   case'it-none':{state.intro=state.intro||{};const x=state.intro[v]=state.intro[v]||{};x.noLink=true;ui.flash='Listo: ya no se te recuerda el testimonio.';break}
-  case'tab':ui.calPop=null;ui.lzPop=null;if(v==='aj'&&ui.tab!=='aj')ui.prevTab=ui.tab;ui.menu=false;ui.bell=false;ui.tab=v;ui.edit=null;scrollTo(0,0);break;
+  case'tab':ui.calPop=null;ui.lzPop=null;if(v==='aj'&&ui.tab!=='aj')ui.prevTab=ui.tab;if(v==='hor'&&ui.tab!=='hor'&&!DESK()){ui.view='cards';ui.hw=null;ui.hd=null}ui.menu=false;ui.bell=false;ui.tab=v;ui.edit=null;scrollTo(0,0);break;
   case'month':{ui.hw=null;ui.hd=null;const[y,m]=ui.month.split('-').map(Number);const d=new Date(y,m-1+(+v),1);ui.month=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;ui.regen=false;break}
   case'area':ui.area=v;break;
   case'view':ui.view=v;ui.edit=null;break;
