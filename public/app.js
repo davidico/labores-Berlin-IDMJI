@@ -608,7 +608,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small><span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help?(n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:(n.date>=today?`<button class="btn sm" style="margin-top:6px" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>`:'')):''}</div></div>`}
-const APPV = '14.2';
+const APPV = '14.3';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -884,7 +884,7 @@ function vLz(p){const ls=lzNext();
       <div class="kv" style="margin-top:8px"><span>Predicación</span>${l.teaching?`<b>${esc(l.teaching)}</b>`:'<i>Por definir</i>'}</div>
       ${langs.length?`<div class="kv"><span>Fichas</span>${fichaRows('l',l,langs).replace('class="fichs"','class="fichs" style="margin-top:0"')}</div>${linkRep('l',l,l.date,langs,null)}`:''}
       <div class="kv lzvan"><span>Van</span>${lzGoing(l).length?lzGoing(l).map(x=>esc(x.name)).join(', '):'<i>Todavía nadie dijo que va</i>'}</div>
-      <div style="margin-top:10px">${lzRsvp(l,p)}</div></div>`}).join('')+'</div>'}
+      <div style="margin-top:16px">${lzRsvp(l,p)}</div></div>`}).join('')+'</div>'}
 /* Calendario de Leipzig: el año (12 meses con cuántas visitas hay) y el mes elegido día por día; tocar un día abre la visita. */
 function lzCal(p){const y=ui.lzy||+today.slice(0,4),vs=(state.leipzig||[]).filter(l=>l.date&&l.date.startsWith(y+'-')).sort((a,b)=>a.date<b.date?-1:1);
   if(!ui.lzm||!ui.lzm.startsWith(y+'-'))ui.lzm=y===+today.slice(0,4)?today.slice(0,7):`${y}-01`;
@@ -916,14 +916,14 @@ function lzRsvp(l,p){if(!p)return'';const id=esc(l.id);
   if(p.leipzig)return '<div class="rsvpok yes" style="margin-top:0"><span>Tú viajas este día.</span></div>';
   if((l.going||[]).includes(p.id))return `<div class="rsvpok yes" style="margin-top:0"><span>✓ Vas a ir</span><button class="linkbtn" data-a="lz-go" data-v="${id}|no">Ya no puedo</button></div>`;
   if((l.no||[]).includes(p.id))return `<div class="rsvpok no" style="margin-top:0"><span>No irás</span><button class="linkbtn" data-a="lz-go" data-v="${id}|0">Cambiar</button></div>`;
-  return `<div class="inline"><button class="btn sm" data-a="lz-go" data-v="${id}|1">Yo iré</button><button class="btn ghost sm" data-a="lz-go" data-v="${id}|no">No iré</button></div>`}
+  return `<div class="inline lzbtns"><button class="btn sm" data-a="lz-go" data-v="${id}|1">Yo iré</button><button class="btn ghost sm" data-a="lz-go" data-v="${id}|no">No iré</button></div>`}
 function lzInvite(p){const l=state.leipzig.filter(x=>x.date>=today&&!svcGone(x.date)).sort((a,b)=>a.date<b.date?-1:1)[0];if(!l)return'';
   const from=pd(l.date);from.setDate(from.getDate()-3);if(today<ds(from))return'';
   if((l.no||[]).includes(p.id))return'';
   const go=(l.going||[]).includes(p.id),trav=!!p.leipzig;
   return `<div class="card lzinv"><div class="dkeye" style="color:var(--gold)">Invitación</div><b class="lzt">Visita a Leipzig · ${DOWL(l.date)}</b>
     <div class="info" style="margin-top:4px">Predicación: ${esc(l.teaching||'por definir')}</div>
-    <div style="margin-top:10px">${lzRsvp(l,p)}</div>
+    <div style="margin-top:16px">${lzRsvp(l,p)}</div>
     ${seesLzGoing(p)?`<div class="note" style="margin-top:10px">${lzGoingLine(l)}</div>`:''}</div>`}
 /* ---- ¿Hay transmisión el domingo? (lo responde el pastor desde la notificación o aquí) ---- */
 // Las transmisiones siempre son en domingo: se agrega al próximo domingo que no tenga una
