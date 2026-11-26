@@ -80,11 +80,13 @@ try{const b=localStorage.getItem(BASEK);if(b){BASE=JSON.parse(b);lastJson=b}}cat
 let PRIV={},PRIVTBL=false;
 const sharedObj=()=>{const{me,...rest}=state;if(!state.privMoved)return rest;return {...rest,people:(rest.people||[]).map(({phone,email,...x})=>x)}};
 async function loadPriv(){try{const{data,error}=await SB.from('private_info').select('person_id,phone,email');if(error)throw error;PRIVTBL=true;PRIV={};for(const x of data||[])PRIV[x.person_id]={phone:x.phone||'',email:x.email||''}}catch(e){PRIVTBL=false}}
-function applyPriv(){if(!PRIVTBL)return;for(const p of state.people||[]){const x=PRIV[p.id];if(x){p.phone=x.phone;p.email=x.email}}}
+/* Cuenta de la computadora de sonido (kiosk): admin sin Personas ni «Ver como»; no guarda en memoria teléfonos ni correos de nadie. */
+const isKiosk=()=>{const r=MYPID&&person(MYPID);return !!(r&&r.kiosk)};
+function applyPriv(){if(!PRIVTBL)return;if(isKiosk()&&state.privMoved){for(const p of state.people||[]){delete p.phone;delete p.email}return}for(const p of state.people||[]){const x=PRIV[p.id];if(x){p.phone=x.phone;p.email=x.email}}}
 function savePriv(p){if(!PRIVTBL||!p)return;PRIV[p.id]={phone:p.phone||'',email:(p.email||'').toLowerCase()};
   SB.from('private_info').upsert({person_id:p.id,...PRIV[p.id],updated_at:new Date().toISOString()}).then(r=>{if(r&&r.error){ui.toast='No se pudo guardar el teléfono o el correo. Revisa la conexión.';render()}},()=>{})}
 // Una sola vez, en el aparato del admin: pasa teléfonos y correos a la tabla privada y los quita del estado compartido.
-async function movePriv(){const r=realMe();if(!PRIVTBL||state.privMoved||!r||!r.admin||ui.viewAs)return;
+async function movePriv(){const r=realMe();if(!PRIVTBL||state.privMoved||!r||!r.admin||r.kiosk||ui.viewAs)return;
   const rows=state.people.filter(p=>p.phone||p.email||PRIV[p.id]).map(p=>({person_id:p.id,phone:(PRIV[p.id]&&PRIV[p.id].phone)||p.phone||'',email:((PRIV[p.id]&&PRIV[p.id].email)||p.email||'').toLowerCase(),updated_at:new Date().toISOString()}));
   try{if(rows.length){const{error}=await SB.from('private_info').upsert(rows);if(error)return}
     for(const x of rows)PRIV[x.person_id]={phone:x.phone,email:x.email};state.privMoved=1;save()}catch(e){}}
@@ -357,14 +359,14 @@ const canSeeAll=p=>p.admin||p.pastor||p.roles.includes('pulpito');
 function tabsFor(p){const t=[['mis','Labores'],['cal','Mi calendario']];if(p.roles&&p.roles.length&&avPending(p).length)t.push(['disp','Mis días']);if(lzNext().length||p.admin||p.pastor)t.push(['lz','Leipzig']);
   if(canSeeAll(p))t.push(['hor','Horario']);
   if(p.admin||p.pastor||p.roles.includes('pulpito')||p.roles.some(r=>r.startsWith('trad')))t.push(['ens','Predica\u00ADciones']);
-  if(p.admin)t.push(['per','Personas']);return t}
+  if(p.admin&&!p.kiosk)t.push(['per','Personas']);return t}
 /* Pestañas que van en el menú ⋯ en vez de la barra: el admin no necesita Predicaciones, Mis días ni Leipzig a la vista; púlpito (no admin), Horario y, si no es pastor, también Predicaciones. */
 function menuTabs(p){const k=p.admin?['ens','disp','lz']:(p.roles||[]).includes('pulpito')?(p.pastor?['hor']:['hor','ens']):[];return tabsFor(p).filter(t=>k.includes(t[0]))}
 
 function authView(){const m=ui.authMode||'login';const msg=ui.authMsg?`<div class="banner ${ui.authOk?'ok':'warnbn'}">${esc(ui.authMsg)}</div>`:'';
   const head=`<div class="wrap"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114 · Berlín</small></div></div>`;
   if(m==='newpass')return head+`<h2>Nueva contraseña</h2>${msg}<div class="card"><label class="field">Contraseña nueva${pwIn('new-password',false)}</label><button class="btn" data-a="auth-newpass">Guardar contraseña</button></div></div>`;
-  const em=`<label class="field">Correo<input id="au-email" type="email" autocomplete="email" required value="${esc(ui.authEmail||'')}"></label>`;
+  const em=`<label class="field">Correo<input id="au-email" type="text" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="username" required value="${esc(ui.authEmail||'')}"></label>`;
   if(m==='signup')return head+`<div class="authbox">
    <div class="authtag">Primera vez</div><h2 style="margin-top:6px">Crear tu cuenta</h2>
    <ol class="steps"><li>Escribe el <b>correo que le diste al administrador</b>.</li><li>Elige una contraseña de <b>al menos 6 caracteres</b>.</li></ol>${msg}
@@ -387,7 +389,7 @@ const AUTHERR=e=>{const t=(e&&e.message||'').toLowerCase();if(t.includes('invali
 function pwIn(ac,req){return `<span class="pwrap"><input id="au-pass" type="password" autocomplete="${ac}" minlength="6"${req?' required':''}><button type="button" class="pweye" data-pw aria-label="Mostrar contraseña">Ver</button></span>`}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pw]');if(!b)return;e.preventDefault();e.stopPropagation();const i=$('au-pass');if(!i)return;const show=i.type==='password';i.type=show?'text':'password';b.textContent=show?'Ocultar':'Ver';b.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña')},true);
 document.addEventListener('submit',async e=>{if(e.target.id!=='auth-form')return;e.preventDefault();const m=e.target.dataset.mode,email=$('au-email').value.trim(),pass=$('au-pass')?$('au-pass').value:'';ui.authEmail=email;ui.authMsg='';ui.authOk=false;
-  let r;if(m==='login')r=await SB.auth.signInWithPassword({email,password:pass});
+  let r;if(m==='login')r=await SB.auth.signInWithPassword({email:email.includes('@')?email:email.toLowerCase()+'@labores-berlin.pages.dev',password:pass});
   else if(m==='signup'){try{localStorage.setItem('lb-priv',window.PRIV_V+'|'+Date.now()+'|'+email.toLowerCase())}catch(e){}r=await SB.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}});if(!r.error){ui.authOk=true;ui.authMsg='Te enviamos un correo. Ábrelo y toca el enlace para confirmar tu cuenta.'}}
   else{r=await SB.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(!r.error){ui.authOk=true;ui.authMsg='Listo. Revisa tu correo para crear una contraseña nueva.'}}
   if(r&&r.error){ui.authMsg=AUTHERR(r.error)}render()});
@@ -404,6 +406,7 @@ function render(){if(ui.flash&&ui.flashFor!==ui.flash){ui.flashFor=ui.flash;clea
   const tabs=tabsFor(p);if(ui.tab!=='aj'&&!(ui.tab==='disp'&&p.roles&&p.roles.length)&&!tabs.some(t=>t[0]===ui.tab))ui.tab='mis';
   {const r=realMe();if(r&&!privOk(r)){let pend='';try{pend=localStorage.getItem('lb-priv')||''}catch(e){}const pe=pend.split('|');if(pe[0]===window.PRIV_V&&(!pe[2]||pe[2]===((SESSION&&SESSION.user.email)||'').toLowerCase())){r.privacy={v:window.PRIV_V,ts:+pend.split('|')[1]||Date.now()};try{localStorage.removeItem('lb-priv')}catch(e){}save()}}}
   const gate=!ui.viewAs&&!privOk(realMe());
+  if(ui.tab==='per'&&p.kiosk)ui.tab='mis';
   let body;try{body=gate?privGate(p):{mis:DESK()?vDash:vMis,cal:vCal,disp:vDisp,hor:vHor,ens:vEns,per:vPer,aj:vAj,lz:vLz}[ui.tab](p)}catch(e){console.error(e);body=`<div class="card" style="margin-top:10px"><b>Algo falló al mostrar esta pantalla.</b><div class="info" style="margin:6px 0 10px">Avísale al administrador. Detalle: ${esc(String(e&&e.message||e))}</div><button class="btn sm" data-a="upd">Recargar</button></div>`}
   const dash=DESK()&&ui.tab==='mis'&&!gate;
   $('app').innerHTML=`<div class="wrap ${(ui.tab==='hor'&&ui.view==='grid')||(ui.tab==='cal'&&ui.mv==='equipo')?'wide':''} ${dash?'dash':''}"><div class="top"><div class="brand">Labores Berlín<small>Pistoriusstraße 114</small></div>
@@ -532,7 +535,7 @@ function schedDiffNotify(before,why){const per={};
   let n=0;for(const id in per){const x=per[id],parts=[];if(x.in.length)parts.push('ahora colaboras en '+x.in.join('; '));if(x.out.length)parts.push('ya no colaboras en '+x.out.join('; '));
     const txt=`Cambio en el horario: ${parts.join('. Y ')}${why?' ('+why+')':''}.`;n+=notify([id],txt,{push:{title:'Cambio en tu horario',body:txt.replace(/^Cambio en el horario: /,'')}})}
   return n}
-const admins=()=>state.people.filter(x=>x.admin).map(x=>x.id);
+const admins=()=>state.people.filter(x=>x.admin&&!x.kiosk).map(x=>x.id);
 function svcPeople(d,pred){const as=schedOf(d)||{},out=[];for(const s of slotsAt(d))if(as[s.k]&&pred(s))out.push(as[s.k]);return out}
 function notify(to,text,extra){const ids=[...new Set(to)].filter(i=>i&&i!==state.me&&person(i)&&!person(i).deleted);if(!ids.length)return 0;const nid=uid();state.notifs.unshift({id:nid,ts:Date.now(),to:ids,text,read:[],by:state.me,...(extra&&extra.push?(({push,...r})=>r)(extra):(extra||{}))});pushOut(ids,extra&&extra.push?extra.push.title:'Labores Berlín',extra&&extra.push?extra.push.body:text,'/?n='+nid);state.notifs=state.notifs.slice(0,300);return ids.length}
 function candFor(d,k,from,asIn){const slots=slotsAt(d),s=slots.find(z=>z.k===k),as={...(asIn||schedOf(d)||{})};delete as[k];
@@ -620,7 +623,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
 /* Avisos viejos de «llego tarde» de quien solo guarda ofrendas: no piden ayuda (guardar es en medio del culto). */
 const grdOnly=n=>/\((Ofrendas · guardan(, )?)+\)/.test(n.text||'');
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,cta=lt?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '14.8';
+const APPV = '14.9';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -729,7 +732,7 @@ function avisos(p,noN){let h='';
   return h}
 function monthNav(){const[y,m]=ui.cm.split('-').map(Number);return `<div class="mnav" style="margin:6px 0 12px"><button class="ib" data-a="cm" data-v="-1" aria-label="Mes anterior">‹</button><b>${MES[m-1]} ${y}</b><button class="ib" data-a="cm" data-v="1" aria-label="Mes siguiente">›</button></div>`}
 /* ---- reuniones por equipo ---- */
-const invitees=m=>m.areas.includes('all')?state.people.map(x=>x.id):[...new Set(m.areas.flatMap(teamIds))];
+const invitees=m=>m.areas.includes('all')?state.people.filter(x=>!x.kiosk).map(x=>x.id):[...new Set(m.areas.flatMap(teamIds))];
 const teamLbl=m=>m.areas.includes('all')?'Todos los equipos':m.areas.map(a=>AREAN[a]).join(', ');
 const myMeets=p=>state.meets.filter(m=>m.date>=today&&invitees(m).includes(p.id)).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1);
 function meetHead(m){const f=person(m.from),d=pd(m.date);return `<div class="msgfrom">${esc(m.title)}</div>
@@ -1013,7 +1016,7 @@ function vDash(p){const items=myItems(p);for(const d in items)if(svcGone(d))dele
     <section id="dk-lab" class="dkblock"><h4 class="dksec">Mis próximas labores</h4>${misList(p)}</section>
   </div><aside class="dkside">${dkNotifs(p)}${dkTeach(p)}${dkAvAdmin(p)}${dkQuick(p)}</aside></div>`}
 /* ---- mensajes por equipo ---- */
-function teamIds(area){return state.people.filter(x=>area==='all'||x.roles.some(r=>ROLEAREA[r]===area)||(area==='pulpito'&&x.pastor)).map(x=>x.id)}
+function teamIds(area){return state.people.filter(x=>!x.kiosk).filter(x=>area==='all'||x.roles.some(r=>ROLEAREA[r]===area)||(area==='pulpito'&&x.pastor)).map(x=>x.id)}
 function msgsFor(p,ym){const a=myAreas(p);return state.msgs.filter(m=>m.month===ym&&(m.area==='all'||a.includes(m.area)||m.from===p.id))}
 function msgCard(m,del,extra){const f=person(m.from),[y,mo]=m.month.split('-').map(Number);
   return `<div class="card"><div class="dayhead"><span class="msgfrom">${esc(f?f.name:'Púlpito')}${f&&f.pastor?' · Pastor':''}</span>${del?`<button class="x" data-a="msg-del" data-v="${esc(m.id)}" aria-label="Borrar mensaje">✕</button>`:''}</div><div class="dayhead"><span class="info" style="margin:0;display:flex;align-items:center;gap:6px"><i class="dot" style="--c:var(${m.area==='all'?'--gold':AREAC[m.area]})"></i>${m.area==='all'?'Para todos':'Equipo de '+AREAN[m.area].toLowerCase()} · ${MES[mo-1]}</span></div>
@@ -1466,7 +1469,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   if(a==='tab'||a==='month'){ui.mrow=null}
   switch(a){
   case'logout':if(ui.viewAs){ui.viewAs=null;resolveMe();ui.tab='per';break}dropSub().finally(()=>SB.auth.signOut());return;
-  case'viewas':ui.viewAs=v;resolveMe();ui.tab='mis';scrollTo(0,0);break;
+  case'viewas':{const r=realMe();if(!r||!r.admin||r.kiosk)return}ui.viewAs=v;resolveMe();ui.tab='mis';scrollTo(0,0);break;
   case'auth-mode':ui.authMode=v;ui.authMsg='';break;
   case'auth-newpass':{const pw=$('au-pass').value;SB.auth.updateUser({password:pw}).then(r=>{if(r.error){ui.authMsg=AUTHERR(r.error);ui.authOk=false}else{ui.authMode='login';ui.authMsg='';if(r.data&&r.data.user){SESSION={...SESSION,user:r.data.user};loadData()}}render()});return}
   case'push-on':ensureSub(true);return;
@@ -1675,7 +1678,7 @@ document.addEventListener('change',e=>{const t=e.target.closest('[data-c]');if(!
 document.addEventListener('focusout',e=>{if(e.target.matches('select.cell')){setTimeout(()=>{if(ui.edit&&!document.activeElement?.matches('select.cell')){ui.edit=null;render()}},150)}});
 function resolveMe(){const em=((SESSION&&SESSION.user&&SESSION.user.email)||'').toLowerCase();
   const real=(MYPID&&person(MYPID))||state.people.find(x=>(x.email||'').toLowerCase()===em&&em);
-  state.me=real?(ui.viewAs&&real.admin&&person(ui.viewAs)?ui.viewAs:real.id):null;
+  state.me=real?(ui.viewAs&&real.admin&&!real.kiosk&&person(ui.viewAs)?ui.viewAs:real.id):null;
   const r=real;AS=r&&(r.admin||r.pastor)?{
     upload:async f=>{const path=Date.now()+'-'+f.name.replace(/[^\w.\-]+/g,'_');const{error}=await SB.storage.from('fichas').upload(path,f,{contentType:'application/pdf'});if(error)throw error;return{id:path}},
     delete:async path=>{await SB.storage.from('fichas').remove([path])}}:null}
