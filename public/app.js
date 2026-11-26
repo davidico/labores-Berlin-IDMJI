@@ -150,7 +150,7 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
   // Al volver a la app: traer lo último (mientras el celular duerme no llegan los cambios en vivo)
   if(SESSION&&LOADED&&!writing)refetch().then(()=>{resolveMe();softRender()}).catch(()=>{})}});
 setInterval(()=>{today=ds(new Date());if(document.visibilityState==="visible"&&quiet())try{render()}catch(e){}},10*60e3);
-function defaultMonth(){const d=new Date();if(d.getDate()>20)d.setMonth(d.getMonth()+1,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
+function defaultMonth(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
 const ui={cv:(()=>{try{return localStorage.getItem('lb-cv')||'cal'}catch(e){return 'cal'}})(),tab:'mis',month:defaultMonth(),area:'all',view:'grid',mv:'cal',cm:defaultMonth(),sel:null,edit:null,open:null,regen:false,delp:null};
 // Enlace desde la notificación de transmisión: ?tr=AAAA-MM-DD (y &a=si|no si se tocó un botón de la notificación)
 try{const q=new URLSearchParams(location.search);if(/^\d{4}-\d\d-\d\d$/.test(q.get('tr')||'')){ui.trQ=q.get('tr');ui.trA=['si','no'].includes(q.get('a'))?q.get('a'):null;ui.tab='mis'}if(q.get('n'))ui.goN=q.get('n');if(q.get('go'))ui.goQ={tab:{ic:'mis',disp:'disp',hor:'hor',ens:'ens',lz:'lz',mis:'mis'}[q.get('go')]||'mis',d:/^\d{4}-\d\d-\d\d$/.test(q.get('d')||'')?q.get('d'):null,ed:q.get('go')==='ic'?'ic':null,lz:q.get('go')==='lz'?1:0};if(q.has('tr')||q.has('n')||q.has('go'))history.replaceState(null,'',location.pathname)}catch(e){}
@@ -439,11 +439,11 @@ function myItems(p){
   for(const t of state.trans)if(isPul||slotsAt(t.date).some(s=>s.area==='trad'&&((state.schedules[t.date.slice(0,7)]||{})[t.date]||{})[s.k]===p.id))add(t.date).notes.push({l:'Transmisión internacional',h:!isPul?'':svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre">${linkify(t.link)}</div>`:'<span class="fv empty">Aún sin datos (enlace y hora)</span>'});
   if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
   if(p.pastor&&p.roles.includes('pulpito'))for(const t of state.trans)if(canSeeMonth(p,t.date.slice(0,7))){const it=add(t.date);it.attend=true;it.trPul=true}
-  if(p.roles.includes('trad_en')){const tm=teachMap(),pastor=state.people.find(x=>x.pastor&&x.roles.includes('pulpito'));
-    for(const d in tm){if(pd(d).getDay()!==4||!canSeeMonth(p,d.slice(0,7))||transOn(d))continue;const as=schedOf(d)||{};
-      if(slotsAt(d).some(s=>s.area==='trad'&&as[s.k]===p.id))continue; // ese día interpreta (alemán): ya ve lo suyo
+  if(tradLangs(p).length){const tm=teachMap(),pastor=state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),lg=tradLangs(p);
+    for(const d in tm){const w=pd(d).getDay();if(!(w===4||w===0)||!canSeeMonth(p,d.slice(0,7))||transOn(d))continue;const as=schedOf(d)||{};
+      if(slotsAt(d).some(s=>s.area==='trad'&&as[s.k]===p.id))continue; // ese día interpreta: ya ve lo suyo
       const pr=davidDay(d)?person(as.predica):pastor,it=add(d);it.info=true;
-      it.notes.push({l:'Enseñanza del jueves · inglés',h:`<div class="tv">${esc(tm[d].title)}</div><div class="sub2">Predica: ${pr?esc(pr.name):'sin asignar'}</div>${fichaRows('t',tm[d],['en'])}${d>=today?linkRep('t',tm[d],d,['en'],davidDay(d)?pr:null):''}`});
+      it.notes.push({l:`Enseñanza del ${w===4?'jueves':'domingo'}`,h:`<div class="tv">${esc(tm[d].title)}</div><div class="sub2">Predica: ${pr?esc(pr.name):'sin asignar'}</div>${fichaRows('t',tm[d],lg)}${d>=today?linkRep('t',tm[d],d,lg,davidDay(d)?pr:null):''}`});
       if(as.pul)it.notes.push({l:'Introducción',h:introInfo(d,person(as.pul),false)})}}
   if(p.roles.includes('pulpito'))for(const ym in state.schedules){if(!canSeeMonth(p,ym))continue;
     for(const d of monthDates(ym)){const w=pd(d).getDay();if(!(w===2||w===6||(w===0&&transOn(d))))continue;
@@ -515,6 +515,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
     if(trPred&&!trIntro&&!tr)info.push(isec('Introducción',introInfo(d,person(as.pul),false)))}
   const trN=it.notes.find(n=>n&&n.l==='Transmisión internacional'),mtN=it.notes.find(n=>n&&n.meet);
   for(const n of it.notes)if(n!==trN)info.push(typeof n==='string'?isec('',n):isec(n.l,n.h));
+  if((w===4||w===0)&&(isTrad||(it.info&&!it.pre&&tradLangs(me()).length))){const tt=tradTeam(d,me());if(tt)info.push(isec('Quién interpreta',tt))}
   if(trN)todo.unshift(`<div class="trbox"><div class="trt"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Hay transmisión internacional</div>${trN.h?`<div class="trd">${trN.h}</div>`:''}</div>`);
   return `<div class="card mine v2" data-day="${esc(d)}"><div class="dbox"><b>${dd.getDate()}</b><span>${MESS[dd.getMonth()]}</span></div><div style="min-width:0">
     <div class="svc">${DOW[w]} · ${it.slots.length||it.attend||it.info?sn:mtN?'Reunión':'Aviso'} <small>${it.slots.length||it.attend||it.info?st:mtN?esc(mtN.meet.time||''):''}</small></div>
@@ -623,7 +624,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
 /* Avisos viejos de «llego tarde» de quien solo guarda ofrendas: no piden ayuda (guardar es en medio del culto). */
 const grdOnly=n=>/\((Ofrendas · guardan(, )?)+\)/.test(n.text||'');
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,cta=lt?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '14.9';
+const APPV = '15.0';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1052,7 +1053,7 @@ function misCal(p){
     let l=`<div class="calhead">${monthNav()}${tog}</div>`;
     if(!ds_.length)return l+`<div class="card info">${dates.some(d=>items[d])?'Ya pasaron todas tus labores de este mes.':'No tienes labores este mes.'}</div>`;
     l+='<div class="card llist2">'+ds_.map(d=>{const it=items[d],w=pd(d).getDay(),[sn,st]=SVC[w];
-      const mt=it.notes.find(n=>n&&n.meet);const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.trPul?'Púlpito · transmisión':it.preach?'Predicación':it.attend?'Alabanza (vas tú)':it.pre&&!it.slots.length?'Preámbulo sugerido':it.info?'Ficha e introducción (inglés)':it.lz?(it.lz==='trav'?'Viajas a Leipzig':'Vas a Leipzig'):mt?mt.meet.title:it.notes.map(n=>n.l||'Aviso').join(', ');
+      const mt=it.notes.find(n=>n&&n.meet);const what=it.slots.length?it.slots.map(s=>s.l).join(', ').replace('Púlpito · inicia, Púlpito · finaliza','Púlpito · inicia y finaliza'):it.trPul?'Púlpito · transmisión':it.preach?'Predicación':it.attend?'Alabanza (vas tú)':it.pre&&!it.slots.length?'Preámbulo sugerido':it.info&&!it.pre?'Ficha e introducción':it.lz?(it.lz==='trav'?'Viajas a Leipzig':'Vas a Leipzig'):mt?mt.meet.title:it.notes.map(n=>n.l||'Aviso').join(', ');
       return `<div class="lr${svcGone(d)?' past':''}${d===today?' today':''}"><span class="ld"><b>${pd(d).getDate()}</b><small>${DOWS[w]}</small></span><span class="lh">${it.slots.length||it.attend||it.info?st:mt?esc(mt.meet.time||''):''}</span><span class="lw"><b>${it.slots.length||it.attend||it.info?sn:it.lz?'Visita a Leipzig':mt?'Reunión':'Aviso'}</b><span>${esc(what)}${it.lz&&(it.slots.length||it.attend||it.info)?' · '+(it.lz==='trav'?'Viajas a Leipzig':'Vas a Leipzig'):''}${mt&&(it.slots.length||it.attend)?' · Reunión '+esc(mt.meet.time||''):''}</span></span></div>`}).join('')+'</div>';
     return l}
   let h=`<div class="calhead">${monthNav()}${tog}</div><div class="cal">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<span class="h">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}`;
@@ -1368,6 +1369,11 @@ function repsCard(p){if(!(p.admin||p.pastor))return'';const rs=(state.linkReps||
     <div class="info" style="margin-top:8px">Al cambiar el enlace con el lápiz, se marca solo como corregido y se le avisa a quien reportó.</div></div>`}
 const pdfLink=(kind,t,langs=['de','en'])=>{const ls=t?langs.filter(l=>t[LINKF[l]]):[];if(!ls.length)return langs.length?`<div class="info" style="margin-top:6px">Ficha: todavía no está.</div>`:'';
   return `<div class="inline" style="margin-top:6px;flex-wrap:wrap">${ls.map(l=>xlink(t[LINKF[l]],`Ficha en ${LANGN[l]}`)).join('')}</div>`};
+/* Quién interpreta cada parte del culto (por idioma). Solo si el mes ya se ve. */
+function tradTeam(d,p){if(!canSeeMonth(p,d.slice(0,7)))return'';const as=schedOf(d)||{},sl=slotsAt(d).filter(s=>s.area==='trad');if(!sl.length)return'';
+  const part=s=>/_intro$/.test(s.k)?(transOn(d)?'Saludo y preámbulo':'Introducción'):/_pred$/.test(s.k)?'Predicación':(transOn(d)?'Testimonios y despedida':'Testimonios');
+  return ['de','en'].map(l=>{const ss=sl.filter(s=>s.lang===l||s.k.startsWith(l+'_'));if(!ss.length)return'';
+    return `<div class="kv"><span>${LANGN[l][0].toUpperCase()+LANGN[l].slice(1)}</span>${ss.map(s=>{const x=person(as[s.k]);return `${part(s)}: ${x?(x.id===p.id?'<b>tú</b>':esc(x.name.split(' ')[0])):'<i>sin asignar</i>'}`}).join(' · ')}</div>`}).join('').replace('class="kv"','class="kv" style="margin-top:0"')}
 const tradLangs=p=>p?['de','en'].filter(l=>(p.roles||[]).includes('trad_'+l)):[];
 // Leipzig: los que viajan ven las dos fichas (alemán e inglés); el resto del equipo de traducción, la de su idioma.
 const lzLangs=p=>p&&p.leipzig?['de','en']:tradLangs(p);
@@ -1388,7 +1394,7 @@ async function uploadPdf(kv,file){const[kind,id,l='de']=kv.split('|');const t=pd
   try{const r=await AS.upload(file);const old=t[LANGF[l]];t[LANGF[l]]={id:r.id,name:file.name};save();if(old&&old.id!==r.id)AS.delete(old.id).catch(()=>{})}catch(e){ui.uplMsg=e&&e.code==='too_large'?'La ficha es muy grande (máximo 20 MB).':'No se pudo subir la ficha. Intenta de nuevo.'}
   ui.upl=null;render()}
 function cronograma(p){const tm=teachMap(),it=[];const allT=p.admin||p.pastor||p.roles.includes('pulpito');const pastor=state.people.find(x=>x.pastor);
-  for(const d in tm)if(!svcGone(d)){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<div class="big2">${esc(tm[d].title)}</div><div class="sub2">Predica: <b>${esc(pr?pr.name:'—')}</b></div>${pdfLink('t',tm[d],tradLangs(p))}${linkRep('t',tm[d],d,tradLangs(p),slotsAt(d).some(z=>z.k==='predica')?pr:null)}${tradLangs(p).length&&as.pul?`<div class="isec" style="margin-top:8px;padding-bottom:0"><div class="il">Introducción</div>${introInfo(d,person(as.pul),false)}</div>`:''}`,s:''})}
+  for(const d in tm)if(!svcGone(d)){const as=schedOf(d)||{};const pr=slotsAt(d).some(z=>z.k==='predica')?person(as.predica):pastor;it.push({d,h:`<div class="big2">${esc(tm[d].title)}</div><div class="sub2">Predica: <b>${esc(pr?pr.name:'—')}</b></div>${pdfLink('t',tm[d],tradLangs(p))}${linkRep('t',tm[d],d,tradLangs(p),slotsAt(d).some(z=>z.k==='predica')?pr:null)}${tradLangs(p).length&&as.pul?`<div class="isec" style="margin-top:8px;padding-bottom:0"><div class="il">Introducción</div>${introInfo(d,person(as.pul),false)}</div>`:''}${(tradLangs(p).length||allT)&&tradTeam(d,p)?`<div class="isec" style="margin-top:8px;padding-bottom:0"><div class="il">Quién interpreta</div>${tradTeam(d,p)}</div>`:''}`,s:''})}
   for(const t of state.trans)if(!svcGone(t.date))it.push({d:t.date,h:'<b>Transmisión internacional</b>',s:!allT?'':t.link?`<div class="pre">${linkify(t.link)}</div>`:'Aún sin datos (enlace y hora).'});
   if(0)for(const l of state.leipzig)if(!svcGone(l.date))it.push({d:l.date,h:`<div class="il2">Visita a Leipzig</div><div class="big2">${esc(l.teaching||'Predicación por definir')}</div>${seesLzGoing(p)?`<div class="sub2">${lzGoingLine(l)}</div>`:''}${pdfLink('l',l,lzLangs(p))}${lzLangs(p).length?linkRep('l',l,l.date,lzLangs(p),null):''}`,s:''});
   it.sort((a,b)=>a.d<b.d?-1:1);

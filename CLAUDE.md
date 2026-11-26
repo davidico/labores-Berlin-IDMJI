@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **14.9**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **15.0**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v155`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v156`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -111,6 +111,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 - **Al menos una predicación al mes:** en `score`, quien todavía no interpretó ninguna predicación ese mes tiene −200, y −300 más si también tiene «Entrega de ofrendas» (prioridad).
 - **Intérpretes repartidos:** en `score`, +60 por cada día de esa semana en que ya interpretó y +80 por cada vez en el mes que ya hizo esa misma parte (intro/pred/test). Quien todavía no tuvo introducción en el mes: −150. Las introducciones se llenan antes que ofrendas y puerta (`ORDER`), así quien tiene «solo una labor por culto» (`maxOne`, p. ej. Gabriela) no queda siempre en ofrendas.
 - **Cuenta de la computadora de sonido (`kiosk`):** persona `sonido` («Computadora de sonido», `admin:true, kiosk:true`, sin labores) con members `is_admin`. Entra con usuario **sonido** (el login acepta un nombre sin «@» y le agrega `@labores-berlin.pages.dev`). Tiene todo lo del admin **menos** la pestaña Personas y «Ver como»; no carga teléfonos ni correos (`isKiosk`/`applyPriv`), no hace `movePriv`, no recibe avisos de admin (`admins()`) ni cuenta en «todos» (`teamIds`, `invitees`). La contraseña la tiene la usuaria (no escribirla aquí).
+- **Mes por defecto** (Horario y Mi calendario, `defaultMonth`): siempre el mes actual (antes saltaba al siguiente desde el día 21).
 - **«Ver como»:** solo para mirar; las acciones que guardan están bloqueadas (`VIEWOK`).
 
 ## Notificaciones automáticas (hora de Berlín)
@@ -150,11 +151,11 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - **Pestaña Predicaciones (pastor), enseñanzas:** una línea dorada (`.tsep`) separa la lista de «Agregar»; título + lápiz; debajo, en una línea, la fecha a la izquierda y las acciones (fijar, subir/bajar, quitar) pequeñas a la derecha.
 - **Menú ⋯ (`menuSheet`) con pestañas (`menuTabs`):** al admin, Predicaciones, Mis días y Leipzig no le salen en la barra sino en el menú ⋯ (su barra: Labores, Mi calendario, Horario, Personas). A los de púlpito que no son admin, Horario va en el menú ⋯, y si no son pastor también Predicaciones (el pastor sigue viendo Predicaciones en la barra). Igual en celular y PC.
 - **Mis días (`vDisp`):** la pestaña solo aparece mientras hay un pedido de disponibilidad abierto (`avPending`, del 15 al cierre); siempre se puede abrir desde el menú del perfil («Mis días para servir»). Los meses que ya tienen horario (publicado o borrador) quedan bloqueados, solo para mirar, con el aviso de usar «No puedo ir». Solo se piden los días en que la persona puede ser necesaria según sus labores (`needDays(p)`: p. ej. ofrendas solo jue/dom; intérpretes jue/dom más mar/sáb (estudio bíblico, donde suele haber interpretación aunque el horario no tenga ese puesto); respeta `onlyPastor`, `noPastor`, `excl`, `noSlots`); los demás días no salen en los interruptores y en el calendario quedan como número suelto sin cuadro. 1) «Mis días de la semana» (interruptores fijos, `p.days`); 2) «Fechas en que no puedo»: un calendario por mes (`ui.dm`, flechas, días pasados bloqueados) que marca `p.blocked`; colores: blanco = puedo, naranja relleno y tachado = no puedo, gris tachado = día de la semana en «No puedo» (no se toca desde el calendario); leyenda debajo. Si el admin pidió la disponibilidad de ese mes (`avReqs`), arriba sale el pedido y abajo «Enviar mi disponibilidad» (`av-done`). En Labores, «Marcar mis días» lleva a esta pestaña (ya no hay calendario dentro de Labores ni lista con campo de fecha).
-- **Intérpretes de inglés, jueves:** en Labores ven cada jueves la tarjeta con «Enseñanza del jueves · inglés» (título, quién predica, ficha en inglés) e «Introducción» (quién, tema, cita), aunque tengan otra labor o ninguna (`it.info` en `myItems`). No sale si ese día interpretan en alemán (caso de quien tiene los dos idiomas).
+- **Intérpretes, jueves y domingos:** todo intérprete (alemán, inglés o los dos) ve en Labores cada jueves y domingo (sin transmisión) la tarjeta «Enseñanza del jueves/domingo» (título, quién predica, fichas de todos sus idiomas) e «Introducción», aunque no tenga labor ese día (`it.info` en `myItems`). En sus tarjetas y en Predicaciones sale además **«Quién interpreta»** (`tradTeam`: por idioma, introducción · predicación · testimonios; «tú» si es la persona; solo meses visibles).
 - **Mi calendario › Mi mes:** al tocar un día de la cuadrícula se abre una ventana (`calSheet`, `ui.calPop`) con lo que toca ese día; ya no se muestra debajo. botones «Calendario | Lista» (`ui.cv`, se recuerda en el aparato). La lista es compacta (una fila por cada culto del mes con labor, también los pasados en gris; hoy con el número en dorado: día, hora, culto y labores en texto), sin detalles ni botones.
 - **Horario en celular (`horMobile`, <1024 px; en PC sigue la tabla grande):** «Organización del mes» plegada en una fila; barra «N puestos por revisar · Ver/Siguiente» (`gap-go`); dos vistas: **Por día** (semana con flechas `ui.hw`, 7 botones de día `ui.hd`, el culto completo agrupado por equipo, tocar un nombre abre el selector) y **Tabla** compacta (nombres abreviados con `shortNames()`, cabe sin deslizar; tocar una celda lleva a ese día).
 - «No puedo ir» y «Llego tarde» quedan siempre visibles en cada tarjeta (no esconderlos en un menú), pero como acciones discretas: fila al pie con línea fina, enlaces de texto gris con ícono (`.acts.quiet` / `.qa`), no botones grandes.
-- En PC, junto al título «Labores Berlín» del menú lateral sale la versión (`.sver`, «v14.9», toma `APPV`).
+- En PC, junto al título «Labores Berlín» del menú lateral sale la versión (`.sver`, «v15.0», toma `APPV`).
 - Espaciado en pasos de 8 px; **16 px entre contenido y botones**.
 - Una acción principal por pantalla; lo poco usado o delicado en menú ⋯ o con confirmación.
 - Estado como etiqueta (● Publicado / ● Borrador), filas que dicen cómo va («2 de 22 enviaron ›»).
