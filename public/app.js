@@ -574,14 +574,20 @@ function accept(id){const r=state.reqs.find(x=>x.id===id),p=me();if(!r||r.status
 function decline(id){const r=state.reqs.find(x=>x.id===id);if(!r)return;r.declined.push(state.me);
   if(r.cands.every(c=>r.declined.includes(c))){r.status='none';const from=person(r.from),s=slotOf(r.date,r.k);
     notify(admins(),`Nadie pudo reemplazar a ${from?from.name:'un hermano'} el ${fmt(r.date)} (${s.l}). Asigna a alguien en el horario.`)}}
+const pastors=()=>state.people.filter(x=>x.pastor&&!x.deleted).map(x=>x.id);
+/* «Gracias por el aviso»: en los avisos de «llego tarde», el pastor, el admin o los de púlpito le agradecen a quien avisó. */
+const canThank=p=>!!p&&(p.pastor||p.admin||(p.roles||[]).includes('pulpito'));
+function thxRow(n,p){if(!(n.late||n.help)||!n.from||n.from===p.id)return'';
+  if(n.thx)return `<small class="nthx">✓ <b>${esc((person(n.thx.by)||{}).name||'')}</b> agradeció el aviso.</small>`;
+  return canThank(p)?`<button class="btn ghost sm" data-a="late-thx" data-v="${esc(n.id)}">Gracias por el aviso</button>`:''}
 function late(d,msg){const p=me(),as=schedOf(d)||{},mine=slotsAt(d).filter(s=>as[s.k]===p.id);
   const areas=new Set(mine.map(s=>s.area));if(p.roles.includes('guardar'))areas.add('ofr');
   const what=mine.length?mine.map(s=>s.l).join(', '):(p.roles.includes('guardar')?'Ofrendas · guardan':'sin labor asignada');
   // Guardar las ofrendas es más tarde, en medio del culto: no hace falta que alguien ayude mientras llega.
   const onlyGrd=mine.length?mine.every(s=>s.tag==='grd'):p.roles.includes('guardar');
-  if(onlyGrd){const n=notify([...svcPeople(d,z=>z.area==='ofr'),...admins()],`${p.name} llega un poco tarde al culto del ${fmt(d)} (${what})${msg?': «'+msg+'»':'.'} Guardar las ofrendas es más tarde en el culto, así que no hace falta reemplazo.`,{from:p.id,date:d});
+  if(onlyGrd){const n=notify([...svcPeople(d,z=>z.area==='ofr'||z.area==='pulpito'),...pastors(),...admins()],`${p.name} llega un poco tarde al culto del ${fmt(d)} (${what})${msg?': «'+msg+'»':'.'} Guardar las ofrendas es más tarde en el culto, así que no hace falta reemplazo.`,{from:p.id,date:d,late:true});
     ui.flash=`Aviso enviado a ${n} ${n===1?'persona':'personas'}.`;return}
-  const n=notify([...svcPeople(d,z=>areas.has(z.area)||z.area==='pulpito'),...admins()],`${p.name} llega tarde al culto del ${fmt(d)} (${what})${msg?': «'+msg+'»':'.'} ¿Alguien puede ayudar mientras llega?`,{help:true,from:p.id,date:d});
+  const n=notify([...svcPeople(d,z=>areas.has(z.area)||z.area==='pulpito'),...admins()],`${p.name} llega tarde al culto del ${fmt(d)} (${what})${msg?': «'+msg+'»':'.'} ¿Alguien puede ayudar mientras llega?`,{help:true,late:true,from:p.id,date:d});
   ui.flash=`Aviso enviado a ${n} ${n===1?'persona':'personas'}.`}
 function ago(ts){const m=Math.round((Date.now()-ts)/6e4);if(m<1)return'ahora';if(m<60)return`hace ${m} min`;const h=Math.round(m/60);if(h<24)return`hace ${h} h`;const d=new Date(ts);return`${d.getDate()} ${MESS[d.getMonth()]}`}
 function pendingFor(p){return state.reqs.filter(r=>r.status==='open'&&r.date>=today&&r.cands.includes(p.id)&&!r.declined.includes(p.id))}
@@ -611,8 +617,8 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   if(g.ed&&g.d)ui.edName=g.ed+'|'+g.d;render();
   const sel=g.lz?'.lzinv':g.d?`[data-day="${esc(g.d)}"]`:g.tab==='mis'&&/Responder/.test(g.label||'')?'.trask':null;
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
-function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button><span class="ncta">${esc(g.label||'Ver')} ›</span></div>`:`<span class="ncta">${esc(g.label||'Ver')} ›</span>${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '14.5';
+function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p);return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}<span class="ncta">${esc(g.label||'Ver')} ›</span></div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}<span class="ncta">${esc(g.label||'Ver')} ›</span></div>`:`<span class="ncta">${esc(g.label||'Ver')} ›</span>${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
+const APPV = '14.6';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1498,6 +1504,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
     const mid=uid();state.msgs.push({id:mid,month:ui.month,area,text:txt,from:p.id,ts:Date.now()});
     notify(teamIds(area),`${p.name} dejó un mensaje para ${area==='all'?'todos':'el equipo de '+AREAN[area].toLowerCase()} (${MES[+ui.month.slice(5,7)-1]}):`,{msg:mid,push:{title:`${p.name} → ${area==='all'?'Todos los equipos':'Equipo de '+AREAN[area].toLowerCase()}`,body:txt.slice(0,240)}});ui.compose=false;break}
   case'msg-del':state.msgs=state.msgs.filter(m=>m.id!==v);break;
+  case'late-thx':{const n=state.notifs.find(x=>x.id===v);if(!n||n.thx)break;n.thx={by:p.id,ts:Date.now()};notify([n.from],`${p.name}: ¡Gracias por el aviso! 🙏`,{push:{title:'Gracias por el aviso',body:`${p.name} recibió tu aviso de que llegas tarde.`}});ui.flash='Listo, se le agradeció el aviso.';break}
   case'help':{const n=state.notifs.find(x=>x.id===v);if(!n||n.helper)break;n.helper=p.id;
     notify([n.from],`${p.name} te ayuda mientras llegas el ${fmt(n.date)}.`);
     notify(n.to.filter(i=>i!==p.id),`${p.name} ayuda mientras llega ${(person(n.from)||{}).name||'el hermano'} (${fmt(n.date)}).`);ui.flash='Gracias. Se avisó que tú ayudas.';break}
