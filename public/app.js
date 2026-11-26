@@ -446,8 +446,8 @@ function myItems(p){
       it.notes.push({l:`Enseñanza del ${w===4?'jueves':'domingo'}`,h:`<div class="tv">${esc(tm[d].title)}</div><div class="sub2">Predica: ${pr?esc(pr.name):'sin asignar'}</div>${fichaRows('t',tm[d],lg)}${d>=today?linkRep('t',tm[d],d,lg,davidDay(d)?pr:null):''}`});
       if(as.pul)it.notes.push({l:'Introducción',h:introInfo(d,person(as.pul),false)})}}
   if(p.roles.includes('pulpito'))for(const ym in state.schedules){if(!canSeeMonth(p,ym))continue;
-    for(const d of monthDates(ym)){const w=pd(d).getDay();if(!(w===2||w===6||(w===0&&transOn(d))))continue;
-      const it0=items[d];if(it0&&(it0.trPul||it0.slots.some(s=>s.k==='pul')))continue;const it=add(d);it.info=true;it.pre=true}}
+    for(const d of monthDates(ym)){const w=pd(d).getDay();if(!(w===2||w===4||w===6||w===0))continue;
+      const it0=items[d];if(it0&&(it0.trPul||it0.preach||it0.slots.some(s=>s.k==='pul'||s.k==='predica')))continue;const it=add(d);it.info=true;it.pre=true}}
   if(p.id===ALABSWAP.give)for(const d of freeAlabDays()){if(canSeeMonth(p,d.slice(0,7))&&!(items[d]&&items[d].slots.length)){const it=add(d);it.attend=true;it.notes.unshift({l:'Alabanza',h:'Ese día vas tú a la alabanza. No tienes labor.'})}}
   for(const m of myMeets(p)){const rs=m.rsvp[p.id];if(rs==='no')continue;
     add(m.date).notes.push({l:'Reunión',meet:m,h:`<div class="tv">${esc(m.title)}</div><div class="sub2">${m.time?esc(m.time)+' · ':''}${esc(teamLbl(m))}</div>${m.place?`<div class="sub2 pre">${linkify(m.place)}</div>`:''}`+(seesLzGoing(p)?meetWho(m):'')+
@@ -499,7 +499,8 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   if(w===0&&tr&&has(s=>s.area==='trad'&&/_intro$/.test(s.k))){const x=preTR(d);todo.push(todoBox('Interpretas el saludo y el preámbulo',`<div class="big2">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Al comienzo, antes del video de la transmisión.</div>`))}
   if(w===0&&tr&&has(s=>s.area==='trad'&&/_test$/.test(s.k)))todo.push(todoBox('Interpretas los testimonios y la despedida','<div class="help" style="margin-top:0">Después del video de la transmisión.</div>'));
-  if(it.pre){const x=w===0?preTR(d):preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Este día no estás en el púlpito; es para que todos en púlpito lo tengan presente.</div>`))}
+  if(it.pre&&(w===4||(w===0&&!tr))){const ip=person(as.pul);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(INTROT[introTema(d)])}</div><div class="sub2">Introducción: ${ip?esc(ip.name):'sin asignar'}</div><div class="help">Este día no estás en el púlpito; es para que todos en púlpito lo tengan presente.</div>`))}
+  else if(it.pre){const x=w===0?preTR(d):preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div><div class="help">Este día no estás en el púlpito; es para que todos en púlpito lo tengan presente.</div>`))}
   if(w===0&&tr&&it.trPul){const x=preTR(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
   const trIntro=has(s=>s.area==='trad'&&/_intro$/.test(s.k)),trPred=has(s=>s.area==='trad'&&/_(pred|test)$/.test(s.k));
   if(trIntro&&(w===4||w===0)&&!tr)todo.push(todoBox('Interpretas la introducción',introInfo(d,person(as.pul))));
@@ -510,7 +511,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
     const sl=slotsAt(d),rec=['ofr1','ofr2','ofr3','ofr4'].filter(k=>sl.some(z=>z.k===k)),grd=['grd1','grd2','grd3'].filter(k=>sl.some(z=>z.k===k));
     info.push(isec('Ofrendas de este culto',`<div class="kv" style="margin-top:0"><span>Recogen</span>${nm(rec)}</div><div class="kv"><span>Guardan</span>${nm(grd)}</div>`))}
   // 2. Información del culto
-  if((w===4||w===0)&&t&&!preaching&&has(s=>s.area==='pulpito'||s.area==='trad')){
+  if((w===4||w===0)&&t&&!preaching&&(it.pre||has(s=>s.area==='pulpito'||s.area==='trad'))){
     if(!trPred)info.unshift(isec('Enseñanza del culto',`<div class="tv">${esc(t.title)}</div><div class="sub2">Predica: ${preacher?esc(preacher.name):'sin asignar'}</div>`+(isTrad?fichaRows('t',t,tradLangs(me())):'')));
     if(trPred&&!trIntro&&!tr)info.push(isec('Introducción',introInfo(d,person(as.pul),false)))}
   const trN=it.notes.find(n=>n&&n.l==='Transmisión internacional'),mtN=it.notes.find(n=>n&&n.meet);
@@ -624,7 +625,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
 /* Avisos viejos de «llego tarde» de quien solo guarda ofrendas: no piden ayuda (guardar es en medio del culto). */
 const grdOnly=n=>/\((Ofrendas · guardan(, )?)+\)/.test(n.text||'');
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,cta=lt?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '15.0';
+const APPV = '15.1';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}

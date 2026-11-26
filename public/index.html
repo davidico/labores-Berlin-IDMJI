@@ -661,6 +661,11 @@ button.hr{cursor:pointer}.hr:first-child{border-top:none}
 .lzbtns{gap:16px}
 .nrow{display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap}.nrow .ncta{margin:0}
 .nthx{display:block;margin-top:8px;color:var(--ok)}
+/* «Enlace erróneo o faltante»: color tomate para que se vea */
+:root{--tomato:#d9452b}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--tomato:#ff7f61}}
+:root[data-theme="dark"]{--tomato:#ff7f61}
+.rep>.linkbtn{color:var(--tomato);text-decoration-color:var(--tomato)}
 </style>
 <script src="go.js"></script>
 </head>
