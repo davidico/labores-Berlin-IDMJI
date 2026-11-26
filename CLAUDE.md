@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **15.3**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **15.4**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v159`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v160`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -126,7 +126,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 | Mié y Vie 17:00 antes de Leipzig | Todos menos viajeros y los que ya dijeron «Yo iré» | `?go=lz` |
 | Día 15 / 20 / 23, 10:00 | Pedir disponibilidad / recordar / cerrar (admin) | `?go=disp` / `?go=hor` |
 
-**Avisos en la app:** solo se muestran los de la **última semana** (`nRecent`, en la campana, Labores, panel de PC y contadores). Los de «X no puede ir…» guardan `req` (los viejos se reconocen por el texto, `nReqDone`): si ya hay reemplazo no llevan «Ver ›» sino «✓ Ya hay reemplazo»; si el culto pasó sin reemplazo, sin botón. En PC el cuadro «Avisos» está plegado (`dkn`, se recuerda en el aparato con `lb-dkn`) y muestra «N sin leer».
+**Avisos en la app:** solo se muestran los de la **última semana** (`nRecent`, en la campana, Labores, panel de PC y contadores). Los de «X no puede ir…» guardan `req` (los viejos se reconocen por el texto, `nReqDone`): si ya hay reemplazo no llevan «Ver ›» sino «✓ Ya hay reemplazo»; si el culto pasó sin reemplazo, sin botón. En PC el cuadro «Avisos» está plegado (`dkn`, se recuerda en el aparato con `lb-dkn`), muestra «N sin leer» y una flecha del tamaño del título (`.dknchev`, gira al abrir); sin «Ver todos» (la campana ya lo hace).
 Los avisos que manda la app llevan `?n=<id del aviso>`. Tocar un aviso (en la app o en el celular) lleva a la acción (`goFor()` / `nGo()`).
 **Diagnóstico de avisos:** Ajustes › Notificaciones (`notifCard`) muestra el estado de ESE aparato (instalada / permiso / registrado) y «Enviarme un aviso de prueba» (`pushTest`, usa el modo `send` hacia uno mismo y dice a cuántos aparatos se envió). Si el permiso está dado pero el aparato no quedó registrado (`ui.subFail`), en Labores sale «Reactivar notificaciones».
 iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/actions rompían iOS). En iPhone se agrega aire arriba (`.ios .wrap`, clase puesta en `app.js`) porque el sistema difumina una franja bajo la barra de estado.
@@ -157,7 +157,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - **Mi calendario › Mi mes:** al tocar un día de la cuadrícula se abre una ventana (`calSheet`, `ui.calPop`) con lo que toca ese día; ya no se muestra debajo. botones «Calendario | Lista» (`ui.cv`, se recuerda en el aparato). La lista es compacta (una fila por cada culto del mes con labor, también los pasados en gris; hoy con el número en dorado: día, hora, culto y labores en texto), sin detalles ni botones.
 - **Horario en celular (`horMobile`, <1024 px; en PC sigue la tabla grande):** «Organización del mes» plegada en una fila; barra «N puestos por revisar · Ver/Siguiente» (`gap-go`); dos vistas: **Por día** (semana con flechas `ui.hw`, 7 botones de día `ui.hd`, el culto completo agrupado por equipo, tocar un nombre abre el selector) y **Tabla** compacta (nombres abreviados con `shortNames()`, cabe sin deslizar; tocar una celda lleva a ese día).
 - «No puedo ir» y «Llego tarde» quedan siempre visibles en cada tarjeta (no esconderlos en un menú), pero como acciones discretas: fila al pie con línea fina, enlaces de texto gris con ícono (`.acts.quiet` / `.qa`), no botones grandes.
-- En PC, junto al título «Labores Berlín» del menú lateral sale la versión (`.sver`, «v15.3», toma `APPV`).
+- En PC, junto al título «Labores Berlín» del menú lateral sale la versión (`.sver`, «v15.4», toma `APPV`).
 - Espaciado en pasos de 8 px; **16 px entre contenido y botones**.
 - Una acción principal por pantalla; lo poco usado o delicado en menú ⋯ o con confirmación.
 - Estado como etiqueta (● Publicado / ● Borrador), filas que dicen cómo va («2 de 22 enviaron ›»).
@@ -169,6 +169,11 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - Buscador en listas largas (sin tildes ni mayúsculas, `normQ`).
 - Funcionar bien en celular y en PC (menú lateral ≥ 1024 px). **Todo cambio debe verse igual en los dos** (Labores en PC es `vDash`/`dkAgenda`).
 - Modo oscuro: sobre fondos claros (azul claro `--navy`, `--ink`) la letra va oscura (`--on-navy` / `--bg`), nunca blanca.
+
+## Forma de trabajar (la pidió la usuaria, 26 nov)
+
+- **Fable = arquitecto, Opus = quien implementa.** Para cambios que no son de una línea: primero un agente con `model: "fable"` (tipo Plan) diseña el cambio (qué funciones tocar, reglas, casos borde, cómo probar); luego Opus lo implementa, prueba y publica. Los arreglos mínimos (un texto, un color) se hacen directo.
+- **Skill «impecable» (impeccable):** la usuaria quiere tenerlo siempre en cuenta para el diseño. Todavía no está instalado en su cuenta (búsqueda vacía el 26 nov); si aparece en la lista de skills, cargarlo antes de cualquier cambio visual. Mientras tanto, seguir las «Convenciones de UI» de arriba.
 
 ## Pruebas
 

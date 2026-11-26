@@ -631,7 +631,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
 /* Avisos viejos de «llego tarde» de quien solo guarda ofrendas: no piden ayuda (guardar es en medio del culto). */
 const grdOnly=n=>/\((Ofrendas · guardan(, )?)+\)/.test(n.text||'');
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,rd=nReqDone(n),cta=lt?'':rd==='done'?'<small class="nok">✓ Ya hay reemplazo</small>':rd?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '15.3';
+const APPV = '15.4';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1002,7 +1002,7 @@ function dkTeach(p){const n=dkNextTeach();if(!n)return'';const as=schedOf(n.d)||
     ${tabsFor(p).some(t=>t[0]==='ens')?`<button class="linkbtn" data-a="tab" data-v="ens" style="margin-top:6px">Ver todas las enseñanzas</button>`:''}</section>`}
 function dkNotifs(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)&&nLive(n)&&nRecent(n)).slice(0,4);
   const un=ns.filter(n=>!n.read.includes(p.id)).length,open=ui.dkN===undefined?(()=>{try{return localStorage.getItem('lb-dkn')==='1'}catch(e){return false}})():ui.dkN;
-  return `<section class="card dkcard${open?'':' dkshut'}"><div class="dkhead"><button class="dkntog" data-a="dkn" aria-expanded="${open}"><h4>Avisos</h4>${un?`<span class="dknb">${un} sin leer</span>`:''}<span class="chev">${open?'▾':'▸'}</span></button>${open?'<button class="linkbtn" data-a="bell">Ver todos</button>':''}</div>
+  return `<section class="card dkcard${open?'':' dkshut'}"><div class="dkhead"><button class="dkntog" data-a="dkn" aria-expanded="${open}"><h4>Avisos</h4>${un?`<span class="dknb">${un} sin leer</span>`:''}<svg class="dknchev${open?' open':''}" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>
     ${!open?'':ns.length?`<div class="dknot">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}</div>${ns.some(n=>!n.read.includes(p.id))?'<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>':''}`:'<div class="info">Sin avisos.</div>'}</section>`}
 function dkQuick(p){const L={lz:'Visitas a Leipzig',cal:'Ver calendario',disp:'Mis días para servir',hor:'Horario del mes',ens:'Predicaciones',per:'Personas'};
   const it=tabsFor(p).filter(t=>t[0]!=='mis').map(([k])=>`<button class="dkq" data-a="tab" data-v="${esc(k)}">${ICON[k]}<span>${L[k]}</span>${ARROW}</button>`).join('');
