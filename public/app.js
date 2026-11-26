@@ -566,8 +566,8 @@ function outReq(d){const p=me(),as=schedOf(d);if(!as)return;
       else notify(admins(),`${p.name} no puede guardar las ofrendas el ${fmt(d)} y no hay reemplazo disponible.`);
       continue}
     const c=candFor(d,s.k,p.id,as);
-    state.reqs.push({id:uid(),date:d,k:s.k,from:p.id,cands:c.map(x=>x.id),declined:[],status:c.length?'open':'none',ts:Date.now()});
-    notify([...svcPeople(d,z=>z.area===s.area||z.area==='pulpito'),...admins()],`${p.name} no puede ir el ${fmt(d)} (${s.l}). ${c.length?`Se pregunta a ${c.length} ${c.length===1?'persona':'personas'} si pueden reemplazar.`:'No hay nadie disponible: el administrador debe asignar a alguien.'}`)}
+    const rid=uid();state.reqs.push({id:rid,date:d,k:s.k,from:p.id,cands:c.map(x=>x.id),declined:[],status:c.length?'open':'none',ts:Date.now()});
+    notify([...svcPeople(d,z=>z.area===s.area||z.area==='pulpito'),...admins()],`${p.name} no puede ir el ${fmt(d)} (${s.l}). ${c.length?`Se pregunta a ${c.length} ${c.length===1?'persona':'personas'} si pueden reemplazar.`:'No hay nadie disponible: el administrador debe asignar a alguien.'}`,{req:rid})}
   ui.flash=mine.length?'Listo. Se está buscando reemplazo y tu equipo ya fue avisado.':null}
 function accept(id){const r=state.reqs.find(x=>x.id===id),p=me();if(!r||r.status!=='open')return;
   const as=schedOf(r.date),s=slotOf(r.date,r.k),slots=slotsAt(r.date);
@@ -604,7 +604,13 @@ function nDate(n){if(n.date)return n.date;if(n.go&&n.go.d)return n.go.d;const t=
   if(m){const x=new Date(b.getFullYear(),b.getMonth(),b.getDate(),12);for(let i=0;i<40;i++){if(x.getDate()===+m[2])return ds(x);x.setDate(x.getDate()+1)}}
   return null}
 const nLive=n=>{const d=nDate(n);return !(d&&svcGone(d))};
-function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)&&nLive(n)).length}
+/* Solo se muestran los avisos de la última semana. */
+const nRecent=n=>Date.now()-(n.ts||0)<7*864e5;
+/* Aviso de «no puede ir»: ¿ya se resolvió (alguien tomó el puesto o el admin asignó a otro)? Los avisos viejos no guardan el id: se reconocen por el texto. */
+function nReqDone(n){let r=n.req?(state.reqs||[]).find(x=>x.id===n.req):null;
+  if(!r&&/ no puede ir el /.test(n.text||''))r=(state.reqs||[]).find(x=>{const f=person(x.from),sl=slotOf(x.date,x.k);return f&&sl&&(n.text||'').startsWith(`${f.name} no puede ir el ${fmt(x.date)} (${sl.l})`)});
+  if(!r)return false;const as=schedOf(r.date)||{};if(r.status==='done'||(!!as[r.k]&&as[r.k]!==r.from))return'done';return svcGone(r.date)?'past':false}
+function unreadFor(p){return state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)&&nLive(n)&&nRecent(n)).length}
 function msgIn(n){if(!n.msg&&!/dejó un mensaje/.test(n.text))return'';const m=n.msg?(state.msgs||[]).find(x=>x.id===n.msg):null;
   return m?`<div class="pre" style="margin:6px 0 2px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(255,255,255,.04);border-radius:6px">${linkify(m.text)}</div>`:`<small style="font-style:italic">${n.msg?'Este mensaje ya fue borrado.':'Este mensaje ya no está disponible.'}</small>`}
 /* ---- Tocar un aviso lleva al lugar donde se hace lo que pide ---- */
@@ -614,7 +620,7 @@ function goFor(n,p){if(n.go)return n.go;const t=(n.text||'').toLowerCase();
   if(/ficha/.test(t)&&/pesta[nñ]a (pastor|predicaciones)/.test(t))return {tab:'ens',label:'Ir a Predicaciones'};
   if(/transmisi[oó]n/.test(t)&&/¿hay/.test(t))return {tab:'mis',label:'Responder'};
   if(/leipzig/.test(t)&&/(invitaci|yo ir)/.test(t))return {tab:'lz',label:'Responder'};
-  if(/disponibilidad/.test(t))return /cerrada/.test(t)&&p.admin?{tab:'hor',label:'Ver horario'}:{tab:'disp',label:'Marcar mis días'};
+  if(/disponibilidad/.test(t))return /cerr(ada|ó|o la)/.test(t)&&p.admin?{tab:'hor',label:'Ver horario'}:{tab:'disp',label:'Marcar mis días'};
   if(/reuni[oó]n/.test(t))return {tab:'mis',label:'Ver reunión'};
   if(/mensaje|→/.test(t))return {tab:'mis',label:'Ver mensaje'};
   return {tab:'mis',d:n.date,label:'Ver'}}
@@ -624,8 +630,8 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
   setTimeout(()=>{const el=sel&&document.querySelector(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flashc');setTimeout(()=>el.classList.remove('flashc'),2200);const inp=el.querySelector('#ne-in');if(inp)inp.focus({preventScroll:true})}else scrollTo(0,0)},60)}
 /* Avisos viejos de «llego tarde» de quien solo guarda ofrendas: no piden ayuda (guardar es en medio del culto). */
 const grdOnly=n=>/\((Ofrendas · guardan(, )?)+\)/.test(n.text||'');
-function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,cta=lt?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '15.1';
+function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,rd=nReqDone(n),cta=lt?'':rd==='done'?'<small class="nok">✓ Ya hay reemplazo</small>':rd?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
+const APPV = '15.2';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -647,7 +653,7 @@ function menuSheet(p){return `<div class="scrim" data-a="sheet-x"></div><div cla
   <button role="menuitem" data-a="tab" data-v="aj">Ajustes</button>
   <button role="menuitem" data-a="priv-open">Aviso de privacidad</button>
   ${ui.viewAs?'<button role="menuitem" data-a="logout">Volver a mi cuenta</button>':'<button role="menuitem" data-a="logout">Salir</button>'}</div>`}
-function bellSheet(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)).slice(0,60),hl=ui.bellNew||[];
+function bellSheet(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)&&nRecent(n)).slice(0,60),hl=ui.bellNew||[];
   return `<div class="scrim" data-a="sheet-x"></div><div class="pop bell-pop"><div class="dayhead"><b>Notificaciones</b><button class="x" data-a="sheet-x" aria-label="Cerrar">✕</button></div>
   <div class="bell-list">${ns.length?ns.map(n=>nItem(n,p,hl.includes(n.id))).join(''):'<div class="info" style="padding:14px 0">No tienes notificaciones.</div>'}</div></div>`}
 function vAj(p){const em=ui.viewAs?(p.email||''):(SESSION&&SESSION.user.email)||'';
@@ -727,7 +733,7 @@ function avisos(p,noN){let h='';
   const rq=pendingFor(p);
   if(rq.length)h+=`<div class="list" style="margin-bottom:14px">${rq.map(r=>{const f=person(r.from),s=slotOf(r.date,r.k);return `<div class="card ask" style="display:flex;gap:12px;align-items:flex-start">${f?avatar(f,44):''}<div style="flex:1;min-width:0"><div class="info" style="margin:0 0 4px">Piden reemplazo</div><b>${esc(f?f.name:'Un hermano')}</b> no puede ir el <b>${fmt(r.date)}</b> · ${esc(s.l)}. ¿Puedes ir tú?
     <div class="inline" style="margin-top:10px"><button class="btn sm" data-a="acc" data-v="${esc(r.id)}">Sí, yo voy</button><button class="btn ghost sm" data-a="dec" data-v="${esc(r.id)}">No puedo</button></div></div></div>`}).join('')}</div>`;
-  const ns=noN?[]:state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)&&nLive(n)).slice(0,8);
+  const ns=noN?[]:state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)&&nLive(n)&&nRecent(n)).slice(0,8);
   if(ns.length){const un=ns.filter(n=>!n.read.includes(p.id)).length;
     h+=`<h3 style="margin-top:4px">Avisos${un?` <span class="tag">${un} ${un===1?'nuevo':'nuevos'}</span>`:''}</h3><div class="card">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}
     ${un?`<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>`:''}</div>`}
@@ -994,9 +1000,10 @@ function dkTeach(p){const n=dkNextTeach();if(!n)return'';const as=schedOf(n.d)||
     <div class="dkrows"><div class="dkrow"><span class="lbl">Predica</span><b>${pr?esc(pr.name):'—'}</b></div><div class="dkrow"><span class="lbl">Introducción</span><b>${ip?esc(ip.name):'sin asignar'}</b></div></div>
     <div class="info" style="margin-top:8px"><b>Tema de la introducción:</b> ${esc(INTROT[introTema(n.d)])}${introView(n.d)}</div>${pdfLink('t',n.t,langs)}
     ${tabsFor(p).some(t=>t[0]==='ens')?`<button class="linkbtn" data-a="tab" data-v="ens" style="margin-top:6px">Ver todas las enseñanzas</button>`:''}</section>`}
-function dkNotifs(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)&&nLive(n)).slice(0,4);
-  return `<section class="card dkcard"><div class="dkhead"><h4>Avisos</h4><button class="linkbtn" data-a="bell">Ver todos</button></div>
-    ${ns.length?`<div class="dknot">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}</div>${ns.some(n=>!n.read.includes(p.id))?'<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>':''}`:'<div class="info">Sin avisos.</div>'}</section>`}
+function dkNotifs(p){const ns=state.notifs.filter(n=>n.to.includes(p.id)&&nLive(n)&&nRecent(n)).slice(0,4);
+  const un=ns.filter(n=>!n.read.includes(p.id)).length,open=ui.dkN===undefined?(()=>{try{return localStorage.getItem('lb-dkn')==='1'}catch(e){return false}})():ui.dkN;
+  return `<section class="card dkcard${open?'':' dkshut'}"><div class="dkhead"><button class="dkntog" data-a="dkn" aria-expanded="${open}"><h4>Avisos</h4>${un?`<span class="dknb">${un} sin leer</span>`:''}<span class="chev">${open?'▾':'▸'}</span></button>${open?'<button class="linkbtn" data-a="bell">Ver todos</button>':''}</div>
+    ${!open?'':ns.length?`<div class="dknot">${ns.map(n=>nItem(n,p,!n.read.includes(p.id))).join('')}</div>${ns.some(n=>!n.read.includes(p.id))?'<button class="btn ghost sm" data-a="readall" style="margin-top:8px">Marcar como leídos</button>':''}`:'<div class="info">Sin avisos.</div>'}</section>`}
 function dkQuick(p){const L={lz:'Visitas a Leipzig',cal:'Ver calendario',disp:'Mis días para servir',hor:'Horario del mes',ens:'Predicaciones',per:'Personas'};
   const it=tabsFor(p).filter(t=>t[0]!=='mis').map(([k])=>`<button class="dkq" data-a="tab" data-v="${esc(k)}">${ICON[k]}<span>${L[k]}</span>${ARROW}</button>`).join('');
   return `<section class="card dkcard"><h4>Accesos rápidos</h4><div class="dkql">${it}<button class="dkq" data-a="tab" data-v="aj">${ICON.aj}<span>Ajustes y mi calendario</span>${ARROW}</button></div></section>`}
@@ -1468,7 +1475,7 @@ function vPer(){
 
 /* ---------- acciones ---------- */
 // «Ver como» otra persona: solo para mirar. Estas acciones no cambian nada guardado.
-const VIEWOK=new Set(['cal-x','lzv','lzy','lzm','lzday','lz-x','org-tog','hw','hd','gap-go','hcell','msg-old','rsvp-ed','cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
+const VIEWOK=new Set(['dkn','cal-x','lzv','lzy','lzm','lzday','lz-x','org-tog','hw','hd','gap-go','hcell','msg-old','rsvp-ed','cv','lsel','dm','ic-go','logout','viewas','tab','month','area','view','mv','cm','selday','out-open','late-open','panel-x','pdf','dlpdf','msg-open','msg-x','md-x','m-open','m-del-no','av-list','av-all','priv-open','priv-x','priv-lang','cal-g','ne-x','t-past','upd','cal-hide','menu','n-go','rep-x','mrow','mrow-x','hmenu','hmenu-x','dk-day','dk-week','dk-go','dk-hor','bell','sheet-x','av-mode','av-open','av-close','regen-no','pick-x','open','delp-no','t-del-no','tr-done','install','install-x','push-on','cal-get','cal-copy','del-no','av-x']);
 const viewOnly=()=>{ui.flash=`Estás viendo la app como ${(me()||{}).name||'otra persona'}: solo para mirar. Toca «Volver a mi cuenta» para hacer cambios.`;ui.panel=null;render()};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,v=t.dataset.v,p=me();
   if(ui.viewAs&&!VIEWOK.has(a)){viewOnly();return}
@@ -1588,6 +1595,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
   case'dk-week':ui.dkWeek=v==='0'?0:(ui.dkWeek||0)+(+v);ui.dkDay=null;render();return;
   case'dk-go':{const el=$(v);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
   case'dk-hor':ui.month=v;ui.tab='hor';scrollTo(0,0);render();return;
+  case'dkn':{const o=ui.dkN===undefined?(()=>{try{return localStorage.getItem('lb-dkn')==='1'}catch(e){return false}})():ui.dkN;ui.dkN=!o;try{localStorage.setItem('lb-dkn',ui.dkN?'1':'0')}catch(e){}break}
   case'bell':ui.menu=false;ui.bell=true;ui.bellNew=state.notifs.filter(n=>n.to.includes(p.id)&&!n.read.includes(p.id)).map(n=>n.id);if(!ui.viewAs)for(const n of state.notifs)if(ui.bellNew.includes(n.id))n.read.push(p.id);break;
   case'sheet-x':ui.menu=false;ui.bell=false;ui.bellNew=[];break;
   case'photo-del':delete p.photo;break;
