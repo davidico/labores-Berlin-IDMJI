@@ -631,7 +631,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
 /* Avisos viejos de «llego tarde» de quien solo guarda ofrendas: no piden ayuda (guardar es en medio del culto). */
 const grdOnly=n=>/\((Ofrendas · guardan(, )?)+\)/.test(n.text||'');
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,rd=nReqDone(n),cta=lt?'':rd==='done'?'<small class="nok">✓ Ya hay reemplazo</small>':rd?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '15.4';
+const APPV = '15.5';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}
@@ -1030,7 +1030,9 @@ function msgsFor(p,ym){const a=myAreas(p);return state.msgs.filter(m=>m.month===
 function msgCard(m,del,extra){const f=person(m.from),[y,mo]=m.month.split('-').map(Number);
   return `<div class="card"><div class="dayhead"><span class="msgfrom">${esc(f?f.name:'Púlpito')}${f&&f.pastor?' · Pastor':''}</span>${del?`<button class="x" data-a="msg-del" data-v="${esc(m.id)}" aria-label="Borrar mensaje">✕</button>`:''}</div><div class="dayhead"><span class="info" style="margin:0;display:flex;align-items:center;gap:6px"><i class="dot" style="--c:var(${m.area==='all'?'--gold':AREAC[m.area]})"></i>${m.area==='all'?'Para todos':'Equipo de '+AREAN[m.area].toLowerCase()} · ${MES[mo-1]}</span></div>
     <div class="pre" style="margin-top:8px">${linkify(m.text)}</div>${extra||''}</div>`}
-function misMsgs(p){const ms=[...new Set([today.slice(0,7),defaultMonth()])].flatMap(ym=>msgsFor(p,ym));
+/* Mensajes del mes: los del mes actual y, desde el día 21, también los del mes siguiente. */
+const nextYm=()=>{const d=new Date();d.setMonth(d.getMonth()+1,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`};
+function misMsgs(p){const ms=[...new Set([today.slice(0,7),+today.slice(8,10)>20?nextYm():today.slice(0,7)])].flatMap(ym=>msgsFor(p,ym));
   if(!ms.length)return'';
   // «Entendido» oculta el mensaje para esa persona; los leídos se pueden volver a ver
   const nw=ms.filter(m=>!(m.seen||[]).includes(p.id)),old=ms.filter(m=>(m.seen||[]).includes(p.id));
