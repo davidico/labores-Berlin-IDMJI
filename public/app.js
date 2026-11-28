@@ -437,7 +437,7 @@ function myItems(p){
     for(const s of slotsAt(date))if(as[s.k]===p.id)add(date).slots.push(s);
   }
   for(const t of state.trans)if(isPul||slotsAt(t.date).some(s=>s.area==='trad'&&((state.schedules[t.date.slice(0,7)]||{})[t.date]||{})[s.k]===p.id))add(t.date).notes.push({l:'Transmisión internacional',h:!isPul?'':svcGone(t.date)?'Ya pasó.':t.link?`<div class="pre">${linkify(t.link)}</div>`:'<span class="fv empty">Aún sin datos (enlace y hora)</span>'});
-  if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d)||davidDay(d))continue;const it=add(d);it.attend=true;it.preach=true}}
+  if(p.pastor&&p.roles.includes('pulpito')){const tm=teachMap();for(const d in tm){if(!canSeeMonth(p,d.slice(0,7))||transOn(d))continue;const it=add(d);if(davidDay(d)){it.info=true;it.pre=true;it.pastorView=true}else{it.attend=true;it.preach=true}}}
   if(p.pastor&&p.roles.includes('pulpito'))for(const t of state.trans)if(canSeeMonth(p,t.date.slice(0,7))){const it=add(t.date);it.attend=true;it.trPul=true}
   if(tradLangs(p).length){const tm=teachMap(),pastor=state.people.find(x=>x.pastor&&x.roles.includes('pulpito')),lg=tradLangs(p);
     for(const d in tm){const w=pd(d).getDay();if(!(w===4||w===0)||!canSeeMonth(p,d.slice(0,7))||transOn(d))continue;const as=schedOf(d)||{};
@@ -494,6 +494,7 @@ function itemCard(d,it,tm){const w=pd(d).getDay(),dd=pd(d);const[sn,st]=SVC[w];
   const isTrad=has(s=>s.area==='trad');
   // 1. Lo que prepara esta persona
   if(preaching&&t)todo.push(todoBox('Tu predicación',`<div class="big2">${esc(t.title)}</div>`));
+  if(it.preach&&(w===4||w===0)&&!tr){const ip=person(as.pul);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(INTROT[introTema(d)])}</div><div class="sub2">Introducción: ${ip?esc(ip.name):'sin asignar'}</div>`,'gold'))}
   if(isIntro)todo.push(introTodo(d));
   if(has(s=>s.k==='pul_ini'||s.k==='pul_fin'))info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(PREAMB[preamb(d)])}</div>`,'gold'));
   if((w===2||w===6)&&has(s=>s.k==='pul')){const x=preEB(d);info.push(isec('Preámbulo sugerido',`<div class="tv">${esc(x[0])}</div><div class="sub2">${esc(x[1])}</div>`,'gold'))}
@@ -631,7 +632,7 @@ function nGo(g){ui.bell=false;ui.menu=false;ui.tab=g.tab||'mis';if(g.tab==='hor'
 /* Avisos viejos de «llego tarde» de quien solo guarda ofrendas: no piden ayuda (guardar es en medio del culto). */
 const grdOnly=n=>/\((Ofrendas · guardan(, )?)+\)/.test(n.text||'');
 function nItem(n,p,un){const who=person(n.from||n.by),g=goFor(n,p),lt=n.late||n.help,rd=nReqDone(n),cta=lt?'':rd==='done'?'<small class="nok">✓ Ya hay reemplazo</small>':rd?'':`<span class="ncta">${esc(g.label||'Ver')} ›</span>`;return `<div class="li nitem ${un?'unread':''}" style="align-items:flex-start;gap:10px" data-a="n-go" data-v="${esc(n.id)}" role="button" tabindex="0">${who?avatar(who,36):''}<div class="main">${esc(n.msg||!/Míralo en Labores\.$/.test(n.text)?n.text:n.text.replace(/\. Míralo en Labores\.$/,':'))}${msgIn(n)}<small>${ago(n.ts)}</small>${n.help&&!n.helper&&n.date>=today&&!grdOnly(n)?`<div class="nrow"><button class="btn sm" data-a="help" data-v="${esc(n.id)}">Yo ayudo</button>${thxRow(n,p)}${cta}</div>`:`${thxRow(n,p)&&!n.thx?`<div class="nrow">${thxRow(n,p)}${cta}</div>`:`${cta}${thxRow(n,p)}`}${n.help&&n.helper?`<small><b>${esc((person(n.helper)||{}).name||'')}</b> ayuda mientras llega.</small>`:''}`}</div></div>`}
-const APPV = '16.0';
+const APPV = '16.1';
 /* Actualización sola: al volver a la app (o cada 30 min) revisa si hay versión nueva. */
 async function checkUpd(auto){try{const j=await (await fetch('version.json?t='+Date.now(),{cache:'no-store'})).json();if(!j.v||j.v===APPV)return;
   let tried='';try{tried=sessionStorage.getItem('lb-upd')||''}catch(e){}

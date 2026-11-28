@@ -14,10 +14,10 @@ App web instalable (PWA) para organizar las labores del grupo de Pistoriusstraß
 ## Cómo publicar (siempre así)
 
 1. Cambiar el código.
-2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **16.0**):
+2. **Subir la versión en 3 sitios** (cada publicación sube +0.1, hoy va en **16.1**):
    - `public/app.js` → `const APPV = 'X.Y'`
    - `public/version.json` → `{"v":"X.Y"}`
-   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v166`)
+   - `public/sw.js` → `const CACHE = 'labores-vNN'` (+1, hoy `labores-v167`)
 3. `node --check public/app.js`
 4. Probar (ver «Pruebas»).
 5. `git commit` con mensaje en español «Versión X.Y: qué cambió» y `git push origin main`. Cloudflare publica solo en 1–2 min.
@@ -103,6 +103,7 @@ netlify.toml        Desactivado (ignore = "exit 0"); ya no se usa Netlify
 - **Quitar persona:** se marca `deleted` (no se borra del arreglo), sale de las labores que vienen (se rellenan) y se borran sus filas en members, push_subs y private_info.
 - **Sin disponibilidad no se asigna:** si el admin pidió la disponibilidad de un mes (`avReqs[ym]`) y la persona no la envió (`done[id]`), ese mes no se le asigna nada (`noAv()` en `why()`: «no envió su disponibilidad de este mes»). **Los pastores son la excepción** (pueden siempre). Tampoco se aplica a quien **no tiene cuenta en la app** (sin correo, p. ej. Marion y Tomasa, que guardan ofrendas): no pueden enviarla. El pedido en Mis días y los avisos del día 15 y 20 lo dicen (a los que no son pastor).
 - **Preámbulo para todo púlpito:** los de púlpito ven el preámbulo sugerido los martes, sábados (estudio bíblico), domingos con transmisión **y los días de enseñanza (jue/dom: una sola sección «Enseñanza del culto» con el diseño de la tarjeta «Próxima enseñanza» de PC: título, filas Predica / Introducción y «Tema de la introducción», clases `.ttl/.trows/.trow/.ttema`)** aunque no les toque (`it.pre` en `myItems`; no sale si ese día predican o tienen `pul`): sección «Preámbulo sugerido» con etiqueta gris (sin dorado) y la nota «Este día no estás en el púlpito…»; quien sirve ese día lo sigue viendo como siempre (etiqueta dorada).
+- **Pastor (pastor + púlpito) en jueves y domingos:** ve todas las predicaciones en Labores. Donde predica: «Tu predicación» + «Preámbulo sugerido» dorado (tema de la introducción y quién la da). Donde predica David: tarjeta «Enseñanza del culto» (título, Predica: David, Introducción, tema) con `it.pastorView`.
 - **Púlpito Lun/Mié/Vie (inicia / finaliza):** el generador prefiere dos personas distintas (+500 en `score` y en `refill` si ya tiene el otro puesto de púlpito ese día); la misma persona solo si no hay nadie más disponible. Cada día se llena al azar primero «inicia» o «finaliza». Además se reparte por semana: quien ya inició esa semana tiene +120 para volver a iniciar (igual con finalizar, +8 por cada vez en el mes) y, al terminar el día, si cambiar inicia↔finaliza repite menos, se cambian. David evita lun/mié (`freeAlab`, para que Gabriela vaya a la alabanza), pero se le pone si hace falta.
 - **Día elegido para interpretar la predicación (`predPref[ym]`, en Mis días):** el generador lo reserva **antes** de llenar los demás puestos (`genOnce`), así ese día la persona interpreta la predicación (y los testimonios) y ya no queda en la puerta ni en otra labor que no combine (p. ej. Carlos: puerta fija los domingos y preferido los jueves).
 - **Puesto fijo manda:** quien tiene un puesto fijo ese día (`state.fixed`, p. ej. Carlos en la puerta los domingos) solo se pone en otro puesto si de verdad no hay nadie más (+1500 en `score`, `fixedOn`), y su día elegido de predicación no se reserva si cae en ese día.
@@ -158,7 +159,7 @@ iPhone: en `sw.js` solo opciones básicas de notificación (vibrate/renotify/act
 - **Mi calendario › Mi mes:** al tocar un día de la cuadrícula se abre una ventana (`calSheet`, `ui.calPop`) con lo que toca ese día; ya no se muestra debajo. botones «Calendario | Lista» (`ui.cv`, se recuerda en el aparato). La lista es compacta (una fila por cada culto del mes con labor, también los pasados en gris; hoy con el número en dorado: día, hora, culto y labores en texto), sin detalles ni botones.
 - **Horario en celular (`horMobile`, <1024 px; en PC sigue la tabla grande):** «Organización del mes» plegada en una fila; barra «N puestos por revisar · Ver/Siguiente» (`gap-go`); dos vistas (al entrar a Horario siempre abre **Por día** en el próximo culto; en PC sigue la Tabla): **Por día** (semana con flechas `ui.hw`, 7 botones de día `ui.hd`, el culto completo agrupado por equipo, tocar un nombre abre el selector) y **Tabla** compacta (nombres abreviados con `shortNames()`, cabe sin deslizar; tocar una celda lleva a ese día).
 - «No puedo ir» y «Llego tarde» quedan siempre visibles en cada tarjeta (no esconderlos en un menú), pero como acciones discretas: fila al pie con línea fina, enlaces de texto gris con ícono (`.acts.quiet` / `.qa`), no botones grandes.
-- En PC, junto al título «Labores Berlín» del menú lateral sale la versión (`.sver`, «v16.0», toma `APPV`).
+- En PC, junto al título «Labores Berlín» del menú lateral sale la versión (`.sver`, «v16.1», toma `APPV`).
 - Espaciado en pasos de 8 px; **16 px entre contenido y botones**.
 - Una acción principal por pantalla; lo poco usado o delicado en menú ⋯ o con confirmación.
 - Estado como etiqueta (● Publicado / ● Borrador), filas que dicen cómo va («2 de 22 enviaron ›»).
